@@ -1,62 +1,203 @@
 # Mwasya
 
-The operator platform for Deriv trading brands: branded sites, Bot Forge and Telegram signals.
+The operator platform for Deriv trading brands. Operators build bots with **Bot Forge**, publish them to their own branded site (`<brand>.mwasya.site`), and traders run them on their own Deriv accounts.
 
-## Stack
-React 18 · TypeScript · Vite · React Router · Zustand · Vercel serverless functions (`/api`).
+- **Studio:** https://mwasya.site
+- **Trader sites:** `https://<brand>.mwasya.site`
 
-## Getting started
-```bash
+**Stack:** React 18 · TypeScript · Vite · React Router · Zustand · Vercel serverless functions (`/api`) · Postgres (Neon) · Deriv API (OAuth + WebSockets)
+
+---
+
+## Quick start: copy, paste, run
+
+Before you start:
+- **Node.js 22 or newer.** The database script needs `node --env-file-if-exists`.
+- **Git.**
+- A **Vercel account** with access to the `mwasya.site` project.
+
+The steps below install the tools, download the code, pull the settings from Vercel, prepare the database and start the app at **http://localhost:3000**.
+
+### Windows (PowerShell)
+
+```powershell
+# 1) Tools (one time). Skip any you already have; reopen the terminal after installing.
+winget install --id OpenJS.NodeJS.LTS -e --accept-source-agreements --accept-package-agreements
+winget install --id Git.Git -e --accept-source-agreements --accept-package-agreements
+npm install --global vercel@latest
+
+# 2) Code
+git clone https://github.com/Dennismky/mwasya.git
+cd mwasya
 npm install
-cp .env.example .env.local   # fill in values — never commit this file
-npm run dev
+
+# 3) Settings: log in to Vercel (a browser opens), link the project, pull DATABASE_URL and the rest
+vercel login
+vercel link --yes --project mwasya.site
+vercel env pull .env.local --yes
+
+# 4) Local Deriv login settings (the local callback is localhost, not mwasya.site)
+$secret = node -e "process.stdout.write(require('crypto').randomBytes(32).toString('base64'))"
+Add-Content -Encoding utf8 .env.local "`nVITE_DERIV_APP_ID=34RhH6jeO22uI72af7k8B`nDERIV_APP_ID=34RhH6jeO22uI72af7k8B`nDERIV_REDIRECT_URI=http://localhost:3000/callback`nSESSION_SECRET=$secret"
+
+# 5) Database tables (safe to run again any time)
+npm run db:migrate
+
+# 6) Run the app + API at http://localhost:3000
+vercel dev
 ```
-The `/api` functions run on Vercel. Locally, use `npx vercel dev` to run the frontend and API together.
+
+### macOS / Linux / Git Bash
+
+```bash
+# 1) Tools (one time). Install Node.js 22+ and Git first (https://nodejs.org, https://git-scm.com).
+npm install --global vercel@latest
+
+# 2) Code
+git clone https://github.com/Dennismky/mwasya.git && cd mwasya
+npm install
+
+# 3) Settings: log in to Vercel (a browser opens), link the project, pull DATABASE_URL and the rest
+vercel login
+vercel link --yes --project mwasya.site
+vercel env pull .env.local --yes
+
+# 4) Local Deriv login settings (the local callback is localhost, not mwasya.site)
+cat >> .env.local <<EOF
+
+VITE_DERIV_APP_ID=34RhH6jeO22uI72af7k8B
+DERIV_APP_ID=34RhH6jeO22uI72af7k8B
+DERIV_REDIRECT_URI=http://localhost:3000/callback
+SESSION_SECRET=$(node -e "process.stdout.write(require('crypto').randomBytes(32).toString('base64'))")
+EOF
+
+# 5) Database tables (safe to run again any time)
+npm run db:migrate
+
+# 6) Run the app + API at http://localhost:3000
+vercel dev
+```
+
+Open **http://localhost:3000** and click **Log in with Deriv**.
+
+> **Login on localhost:** the Deriv app `34RhH6jeO22uI72af7k8B` must list `http://localhost:3000/callback` as a redirect URI, alongside `https://mwasya.site/callback`. The App ID is public; the session secret and database URL are not, which is why they live only in `.env.local` (gitignored) and in Vercel.
+
+### Everyday commands
+
+| Command | What it does |
+|---|---|
+| `vercel dev` | Run the frontend and API locally on port 3000 |
+| `npm run build` | Typecheck and build for production |
+| `npm run typecheck` | Typecheck only |
+| `npm run db:migrate` | Apply [db/schema.sql](db/schema.sql) to `DATABASE_URL` (idempotent) |
+| `git push` | Deploy. Pushing to `master` deploys mwasya.site automatically |
+
+---
+
+## Setting up a brand-new deployment (only if you're not using the existing project)
+
+```bash
+npm install --global vercel@latest
+git clone https://github.com/Dennismky/mwasya.git && cd mwasya && npm install
+vercel login
+vercel link --yes                               # creates a new Vercel project
+vercel git connect                              # deploy on every push to master
+vercel integration add neon --name mwasya-db    # Postgres; accept Neon's terms in the browser if asked, then rerun
+vercel env pull .env.local --yes
+npm run db:migrate
+
+# Production settings (paste values when asked)
+node -e "process.stdout.write(require('crypto').randomBytes(32).toString('base64'))" | vercel env add SESSION_SECRET production --sensitive
+vercel env add DERIV_APP_ID production          # your Deriv App ID
+vercel env add VITE_DERIV_APP_ID production     # same App ID
+vercel env add DERIV_REDIRECT_URI production    # https://<your-domain>/callback
+
+vercel domains add <your-domain>                # e.g. mwasya.site
+vercel domains add "*.<your-domain>"            # trader sites: <brand>.<your-domain>
+vercel deploy --prod
+```
+
+Then register a Deriv app at https://developers.deriv.com with the **trade** scope only. Its redirect URIs must be `https://<your-domain>/callback` and `http://localhost:3000/callback`.
+
+---
 
 ## Environment variables
+
 | Name | Where | Notes |
 |---|---|---|
-| `VITE_DERIV_APP_ID` | browser | Your Deriv app ID (public) |
-| `DERIV_APP_ID` | server | Same app ID, used for the token exchange |
-| `DERIV_REDIRECT_URI` | server | Must exactly match the redirect URI registered on Deriv, e.g. `https://mwasya.site/callback` |
-| `SESSION_SECRET` | server | 32+ random bytes, base64 |
-| `DATABASE_URL` | server | Postgres connection string (pooled URL in production). Run `npm run db:migrate` after setting it. |
+| `VITE_DERIV_APP_ID` | browser | Mwasya's Deriv App ID (public) |
+| `DERIV_APP_ID` | server | Same App ID, used for the token exchange on mwasya.site |
+| `DERIV_REDIRECT_URI` | server | Must exactly match a redirect URI on the Deriv app. Production: `https://mwasya.site/callback`; local: `http://localhost:3000/callback` |
+| `SESSION_SECRET` | server | 32+ random bytes, base64. Different values in local and production |
+| `DATABASE_URL` | server | Postgres (Neon pooled URL). Added automatically by the Neon integration |
 
-## How Deriv login works (secure by design)
-1. `/app` → **Log in with Deriv** builds a PKCE challenge and `state`, then redirects to `auth.deriv.com/oauth2/auth` with the **`trade` scope only**.
-2. Deriv redirects to `/callback?code=…&state=…`. The page verifies `state`, strips the code from the URL and POSTs it to `/api/auth/token`.
-3. The server exchanges the code (with the PKCE verifier) for an access token and stores it in an **AES-256-GCM encrypted, HttpOnly, Secure cookie**. The token never reaches browser JavaScript.
-4. `/api/deriv/otp` uses that token to get a **one-time WebSocket URL** for the selected account. The browser connects to it directly for balance and trading.
-5. Market data uses Deriv's public WebSocket (no login).
+Trader sites don't use these Deriv values. Each operator site logs in with **the operator's own Deriv App ID**, stored in the `sites` table, so markup is paid to the operator.
 
-Deriv issues no refresh tokens. On expiry or a 401, the user simply logs in again.
+---
+
+## How it works
+
+### Studio vs trader sites (one build, two apps)
+`/api/site` looks at the request host:
+- **`mwasya.site`**: the operator studio. You get the login card, then the dashboard with Overview, Bot Forge and My site.
+- **`<brand>.mwasya.site`**: that operator's trader site. You get a branded login, then the operator's published bots, which traders run on their own accounts.
+- **Unknown subdomain**: a "No site here yet" page.
+
+### Deriv login (OAuth 2.0 + PKCE, `trade` scope only)
+1. **Log in with Deriv** builds a PKCE challenge and `state`, then redirects to `auth.deriv.com/oauth2/auth`.
+2. Deriv redirects to `/callback`. The page checks `state`, strips the code from the URL and POSTs it to `/api/auth/token`.
+3. The server exchanges the code for an access token and stores it in an **AES-256-GCM encrypted, HttpOnly, Secure cookie**. The token never reaches browser JavaScript.
+4. `/api/deriv/otp` turns that token into a **one-time WebSocket URL** for the selected account. The browser uses it for balance and trading.
+5. Market data uses Deriv's public WebSocket, which needs no login.
+
+Deriv issues no refresh tokens. When a session expires, the user logs in again.
+
+### Bot Forge (`/forge`)
+Bots run on **Deriv's servers** through the `auto_*` API ([docs](https://developers.deriv.com/llms/auto-start.md)). Mwasya builds, checks, starts and watches them.
+- **Strategies:**
+  - `fixed`: martingale with `max_stake` equal to `initial_stake`, so the stake never grows. Verified live.
+  - `martingale` and `dalembert`.
+  - Deriv's rules come from `auto_list_strategies` at runtime. Its docs example is wrong: money fields are strings.
+- **Safety:** [src/shared/botSpec.ts](src/shared/botSpec.ts) runs in the browser for live feedback and on the server before every save.
+  - Escalating strategies need a max stake, which can't exceed the stop loss.
+  - Caps: stop loss 1000, max trades 500, martingale multiplier 3.
+- **Stop:** no new trades are bought. A trade that's already open finishes normally. We follow it via `proposal_open_contract` so its result and payout are recorded.
+- **Balance:** combines Deriv's live balance stream, a fresh read every 10 seconds, and a read after every trade. It always shows Deriv's real number.
+
+### Operators
+Deriv exposes no user ID, so an operator is identified by the Deriv accounts they own (`operator_accounts`). Traders who log in on a trader site never become operators.
+
+---
 
 ## Security rules
 - Never ask traders for API tokens or passwords.
 - Never request `payment` or `account_manage` scopes.
 - Personal access tokens (`pat_…`) are server-only. Never ship them to the browser.
-- Secrets live in Vercel environment variables, never in git.
+- Secrets live in Vercel environment variables and `.env.local`, never in git.
 
-## Structure
+## Project structure
 ```
-api/            Vercel functions: auth/*, deriv/accounts, deriv/otp, bots (CRUD)
-db/schema.sql   Postgres schema (operators, bots, bot_runs)
-src/shared/     Bot spec + safety validation, shared by browser and API
-src/lib/        PKCE, Deriv OAuth client, WebSocket client
-src/store/      Site settings (markup capped at 3%)
-src/pages/      Landing, Setup wizard, Callback, Trader dashboard
-design/         Clickable UI prototype source
+api/
+  auth/            token exchange, session, logout
+  deriv/           accounts, one-time WebSocket URL (OTP)
+  bots/            Bot Forge CRUD (operators only)
+  sites/mine.ts    operator's trader site (create / publish)
+  site.ts          which app is this host? + published bots
+  _lib/            db pool, session crypto, tenancy, strategy rules
+db/schema.sql      Postgres schema (operators, bots, sites, bot_runs)
+scripts/migrate.mjs  applies the schema
+src/
+  shared/          bot spec + safety validation (browser and API)
+  lib/             OAuth, WebSocket client, auto-trading, balance/auth context, tenancy
+  components/      app shell (sidebar), run card, UI kit
+  pages/           Login, Overview, Bot Forge, My site, Trader home, Landing (/about)
+design/            clickable UI prototype
 ```
-
-
-## Bot Forge (`/forge`)
-Bots run on Deriv's servers through the `auto_*` API ([docs](https://developers.deriv.com/llms/auto-start.md)). Mwasya only builds, checks and starts them.
-- **Strategies:** `fixed` (Mwasya's own: martingale with `max_stake` equal to `initial_stake`), `martingale` and `dalembert`. Deriv's rules come from `auto_list_strategies` at runtime. Its docs example is wrong: money fields are strings.
-- **Safety:** [src/shared/botSpec.ts](src/shared/botSpec.ts) runs in the browser for live feedback and on the server before every save. Escalating strategies must set a max stake, which can't exceed the stop loss. The stop loss is capped at 1000, max trades at 500 and the martingale multiplier at 3.
-- **Operators:** Deriv exposes no user id, so at login an operator is matched by the Deriv accounts they own (`operator_accounts`). Sessions created before the database existed are asked to log in again.
 
 ## Database
-1. Create a Postgres database. Neon (through Vercel → Storage) works well on serverless. Local Postgres also works.
-2. Put `DATABASE_URL` in `.env.local` and in Vercel's environment variables.
-3. `npm run db:migrate`. The script is idempotent.
-4. To browse the data in VS Code, use the **PostgreSQL** extension (`ms-ossdata.vscode-pgsql`): Add connection, then paste the same URL.
+- Tables are defined in [db/schema.sql](db/schema.sql). Run `npm run db:migrate` after any schema change; it's safe to rerun.
+- To browse the data in VS Code, install the **PostgreSQL** extension (`ms-ossdata.vscode-pgsql`), choose **Add connection**, and paste `DATABASE_URL` from `.env.local`.
+
+---
+
+Built on the Deriv API. Trading carries risk; bots do not guarantee profit.
