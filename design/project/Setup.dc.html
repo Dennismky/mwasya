@@ -1,0 +1,282 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Mwasya — Set up your site</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="anonymous">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;family=JetBrains+Mono:wght@500;600&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#F5F7FA}
+a{color:#0B1F3A}a:hover{color:#1F4FD1}
+.mw-btn{transition:transform .12s ease, box-shadow .12s ease;cursor:pointer}
+.mw-btn:hover{filter:brightness(0.95)}
+.mw-btn:active{transform:translateY(1px)}
+.mw-in{width:100%;box-sizing:border-box;padding:14px 16px;border:1px solid #D5DCE6;border-radius:12px;background:#FFFFFF;font:600 16px 'Inter',sans-serif;color:#0B1F3A}
+.mw-in:focus{outline:none;border-color:#1F4FD1 !important;box-shadow:0 0 0 3px rgba(31,79,209,0.18)}
+:focus-visible{outline:3px solid #1F4FD1;outline-offset:3px}
+input[type=range]{accent-color:#0B1F3A;width:100%}
+</style>
+</helmet>
+<div style="font-family: 'Inter', system-ui, sans-serif; color: #0B1F3A; background: #F5F7FA; min-height: 100vh">
+
+  <header style="border-bottom: 1px solid #D5DCE6">
+    <div style="max-width: 1240px; margin: 0 auto; padding: 16px 24px; display: flex; flex-wrap: wrap; gap: 16px; align-items: center; justify-content: space-between">
+      <a href="Main.dc.html" style="display: flex; align-items: center; gap: 10px; text-decoration: none">
+        <span style="width: 38px; height: 38px; border: 1px solid #D5DCE6; border-radius: 10px; background: #E8EEFF; box-shadow: 0 1px 2px rgba(11,31,58,0.05); display: flex; align-items: center; justify-content: center"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#0B1F3A" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 19V6l8 9 8-9v13"></path></svg></span>
+        <span style="font-family: 'Inter', sans-serif; font-weight: 600; font-size: 22px">mwasya</span>
+      </a>
+      <span style="font-weight: 700; font-size: 15px">New site · Step {{step}} of 4</span>
+      <a href="Main.dc.html" style="font-weight: 700; font-size: 15px">Save &amp; exit</a>
+    </div>
+  </header>
+
+  <main style="max-width: 1240px; margin: 0 auto; padding: 40px 24px 72px; display: flex; flex-direction: column; gap: 28px">
+
+    <!-- Stepper -->
+    <nav aria-label="Setup steps" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px">
+      <sc-for list="{{steps}}" as="s" hint-placeholder-count="4">
+        <button class="mw-btn" type="button" onClick="{{s.go}}" aria-current="{{s.current}}" style="{{s.style}}">
+          <span style="width: 32px; height: 32px; border: 1px solid #D5DCE6; border-radius: 50%; background: #FFFFFF; display: flex; align-items: center; justify-content: center; font-weight: 600; font-size: 15px; flex: none">{{s.badge}}</span>
+          <span style="display: flex; flex-direction: column; align-items: flex-start; gap: 2px"><span style="font-size: 12px; font-weight: 700; letter-spacing: 0.4px">STEP {{s.n}}</span><span style="font-size: 16px; font-weight: 600">{{s.label}}</span></span>
+        </button>
+      </sc-for>
+    </nav>
+
+    <div style="display: flex; flex-wrap: wrap; gap: 28px; align-items: flex-start">
+
+      <!-- Wizard card -->
+      <section style="flex: 999 1 560px; min-width: 0; border: 1px solid #D5DCE6; border-radius: 12px; background: #FFFFFF; box-shadow: 0 1px 2px rgba(11,31,58,0.05); padding: 34px; display: flex; flex-direction: column; gap: 24px">
+
+        <sc-if value="{{is1}}" hint-placeholder-val="{{ true }}">
+          <div style="display: flex; flex-direction: column; gap: 22px">
+            <div style="display: flex; flex-direction: column; gap: 8px">
+              <h1 style="margin: 0; font-family: 'Inter', sans-serif; font-weight: 600; font-size: 30px; letter-spacing: -0.6px">Name your brand</h1>
+              <p style="margin: 0; font-size: 17px; color: #4A5568">This is what your traders will see. Don't include "Deriv" or "Binary". Deriv doesn't allow it in app names.</p>
+            </div>
+            <div style="display: flex; flex-direction: column; gap: 8px">
+              <label for="brand" style="font-weight: 700">Site name</label>
+              <input id="brand" class="mw-in" value="{{name}}" onChange="{{onName}}" placeholder="e.g. Nairobi Traders">
+              <sc-if value="{{nameBad}}" hint-placeholder-val="{{ false }}"><span role="alert" style="font-weight: 700; color: #A3361B">Remove "Deriv" or "Binary" from the name.</span></sc-if>
+            </div>
+            <div style="display: flex; flex-direction: column; gap: 8px">
+              <label for="sub" style="font-weight: 700">Free address</label>
+              <div style="display: flex; align-items: stretch; border: 1px solid #D5DCE6; border-radius: 12px; overflow: hidden">
+                <input id="sub" value="{{sub}}" onChange="{{onSub}}" style="flex: 1; min-width: 0; padding: 14px 16px; border: none; font: 600 16px 'JetBrains Mono', monospace; color: #0B1F3A; outline: none">
+                <span style="padding: 14px 16px; background: #F5F7FA; border-left: 1px solid #D5DCE6; font: 600 16px 'JetBrains Mono', monospace">.mwasya.site</span>
+              </div>
+            </div>
+            <div style="display: flex; flex-direction: column; gap: 8px">
+              <span style="font-weight: 700">Logo</span>
+              <button type="button" class="mw-btn" style="padding: 22px; border: 1px dashed #A9B6C8; border-radius: 10px; background: #F5F7FA; font-weight: 700; font-size: 15px; display: flex; gap: 10px; align-items: center; justify-content: center"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#0B1F3A" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 16V4M6 10l6-6 6 6M4 20h16"></path></svg>Upload logo (PNG or SVG, optional)</button>
+            </div>
+          </div>
+        </sc-if>
+
+        <sc-if value="{{is2}}" hint-placeholder-val="{{ false }}">
+          <div style="display: flex; flex-direction: column; gap: 22px">
+            <div style="display: flex; flex-direction: column; gap: 8px">
+              <h1 style="margin: 0; font-family: 'Inter', sans-serif; font-weight: 600; font-size: 30px; letter-spacing: -0.6px">Pick your look</h1>
+              <p style="margin: 0; font-size: 17px; color: #4A5568">Solid colors only, soft but bold. The preview updates as you click.</p>
+            </div>
+            <fieldset style="border: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 12px">
+              <legend style="font-weight: 700; margin-bottom: 12px">Accent color</legend>
+              <div style="display: flex; flex-wrap: wrap; gap: 14px">
+                <sc-for list="{{swatches}}" as="sw" hint-placeholder-count="6">
+                  <button type="button" class="mw-btn" onClick="{{sw.pick}}" aria-label="{{sw.label}}" aria-pressed="{{sw.on}}" style="{{sw.style}}"></button>
+                </sc-for>
+              </div>
+            </fieldset>
+            <fieldset style="border: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 12px">
+              <legend style="font-weight: 700; margin-bottom: 12px">Theme</legend>
+              <div style="display: flex; gap: 12px; flex-wrap: wrap">
+                <button type="button" class="mw-btn" onClick="{{setLight}}" aria-pressed="{{isLight}}" style="{{lightStyle}}">Light</button>
+                <button type="button" class="mw-btn" onClick="{{setDark}}" aria-pressed="{{isDark}}" style="{{darkStyle}}">Dark</button>
+              </div>
+            </fieldset>
+          </div>
+        </sc-if>
+
+        <sc-if value="{{is3}}" hint-placeholder-val="{{ false }}">
+          <div style="display: flex; flex-direction: column; gap: 22px">
+            <div style="display: flex; flex-direction: column; gap: 8px">
+              <h1 style="margin: 0; font-family: 'Inter', sans-serif; font-weight: 600; font-size: 30px; letter-spacing: -0.6px">Connect your Deriv app</h1>
+              <p style="margin: 0; font-size: 17px; color: #4A5568">Register an app at developers.deriv.com and paste its app ID here. We never ask for your Deriv password or admin token.</p>
+            </div>
+            <div style="border: 1px solid #D5DCE6; border-radius: 10px; background: #FFF4D6; padding: 16px 18px; display: flex; flex-direction: column; gap: 8px">
+              <b style="font-size: 15px">Set this as your OAuth redirect URL on Deriv:</b>
+              <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap">
+                <code style="flex: 1; min-width: 0; padding: 10px 12px; border: 1px solid #D5DCE6; border-radius: 10px; background: #FFFFFF; font: 600 14px 'JetBrains Mono', monospace; overflow-wrap: anywhere">{{redirectUrl}}</code>
+                <button type="button" class="mw-btn" onClick="{{copyRedirect}}" style="padding: 10px 14px; border: 1px solid #D5DCE6; border-radius: 10px; background: #FFFFFF; font-weight: 600; box-shadow: 0 1px 2px rgba(11,31,58,0.05)">{{copyLabel}}</button>
+              </div>
+            </div>
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 18px">
+              <div style="display: flex; flex-direction: column; gap: 8px">
+                <label for="appid" style="font-weight: 700">Deriv app ID</label>
+                <input id="appid" class="mw-in" inputmode="numeric" value="{{appId}}" onChange="{{onAppId}}" placeholder="e.g. 12345" style="font-family: 'JetBrains Mono', monospace">
+                <span style="font-size: 13px; color: #4A5568">Numbers only. Safe to share, it's public.</span>
+              </div>
+              <div style="display: flex; flex-direction: column; gap: 8px">
+                <label for="aff" style="font-weight: 700">Affiliate token (optional)</label>
+                <input id="aff" class="mw-in" type="password" value="{{aff}}" onChange="{{onAff}}" placeholder="Stored encrypted" autocomplete="off">
+                <span style="font-size: 13px; color: #4A5568">Encrypted on our server. Never shown again.</span>
+              </div>
+            </div>
+            <div style="display: flex; flex-direction: column; gap: 10px">
+              <label for="markup" style="font-weight: 700; display: flex; justify-content: space-between"><span>Your markup</span><span style="font-family: 'JetBrains Mono', monospace">{{markup}}%</span></label>
+              <input id="markup" type="range" min="0" max="3" step="0.5" value="{{markup}}" onChange="{{onMarkup}}">
+              <span style="font-size: 13px; color: #4A5568">Set the same value in your Deriv app settings. Deriv pays it to you on every trade.</span>
+            </div>
+            <div style="display: flex; flex-wrap: wrap; gap: 10px">
+              <span style="padding: 8px 12px; border: 1px solid #D5DCE6; border-radius: 999px; background: #DDF3EA; font-weight: 700; font-size: 14px">Scope: Read</span>
+              <span style="padding: 8px 12px; border: 1px solid #D5DCE6; border-radius: 999px; background: #DDF3EA; font-weight: 700; font-size: 14px">Scope: Trade</span>
+              <span style="padding: 8px 12px; border: 1px solid #D5DCE6; border-radius: 999px; background: #F5F7FA; font-weight: 700; font-size: 14px; text-decoration: line-through">Payments</span>
+              <span style="padding: 8px 12px; border: 1px solid #D5DCE6; border-radius: 999px; background: #F5F7FA; font-weight: 700; font-size: 14px; text-decoration: line-through">Admin</span>
+            </div>
+          </div>
+        </sc-if>
+
+        <sc-if value="{{is4}}" hint-placeholder-val="{{ false }}">
+          <div style="display: flex; flex-direction: column; gap: 22px">
+            <div style="display: flex; flex-direction: column; gap: 8px">
+              <h1 style="margin: 0; font-family: 'Inter', sans-serif; font-weight: 600; font-size: 30px; letter-spacing: -0.6px">Choose your address</h1>
+              <p style="margin: 0; font-size: 17px; color: #4A5568">Go live on your free subdomain now. You can connect your own domain at any time.</p>
+            </div>
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 14px">
+              <button type="button" class="mw-btn" onClick="{{useSub}}" aria-pressed="{{isSub}}" style="{{subCardStyle}}"><b style="font-size: 17px">Free subdomain</b><span style="font-family: 'JetBrains Mono', monospace; font-size: 14px">{{sub}}.mwasya.site</span></button>
+              <button type="button" class="mw-btn" onClick="{{useCustom}}" aria-pressed="{{isCustom}}" style="{{customCardStyle}}"><b style="font-size: 17px">My own domain</b><span style="font-size: 14px">Point your DNS to us</span></button>
+            </div>
+            <sc-if value="{{isCustom}}" hint-placeholder-val="{{ false }}">
+              <div style="display: flex; flex-direction: column; gap: 14px">
+                <label for="dom" style="font-weight: 700">Your domain</label>
+                <input id="dom" class="mw-in" value="{{custom}}" onChange="{{onCustom}}" placeholder="e.g. trade.yourbrand.com" style="font-family: 'JetBrains Mono', monospace">
+                <div style="border: 1px solid #D5DCE6; border-radius: 10px; overflow-x: auto">
+                  <table style="width: 100%; border-collapse: collapse; font-size: 14px">
+                    <thead><tr style="background: #0B1F3A; color: #F5F7FA; text-align: left"><th style="padding: 10px 14px">Type</th><th style="padding: 10px 14px">Name</th><th style="padding: 10px 14px">Value</th></tr></thead>
+                    <tbody style="font-family: 'JetBrains Mono', monospace">
+                      <tr style="border-top: 1px solid #D5DCE6"><td style="padding: 10px 14px">CNAME</td><td style="padding: 10px 14px">{{custom}}</td><td style="padding: 10px 14px">sites.mwasya.site</td></tr>
+                      <tr style="border-top: 1px solid #D5DCE6"><td style="padding: 10px 14px">TXT</td><td style="padding: 10px 14px">_mwasya-verify</td><td style="padding: 10px 14px">mw-verify-[CODE]</td></tr>
+                    </tbody>
+                  </table>
+                </div>
+                <span style="font-size: 13px; color: #4A5568">We check the TXT record to prove you own the domain, then issue SSL automatically.</span>
+              </div>
+            </sc-if>
+          </div>
+        </sc-if>
+
+        <div style="display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap; padding-top: 8px; border-top: 1px dashed #A9B6C8">
+          <button type="button" class="mw-btn" onClick="{{back}}" disabled="{{atStart}}" style="{{backStyle}}">Back</button>
+          <sc-if value="{{notLast}}" hint-placeholder-val="{{ true }}">
+            <button type="button" class="mw-btn" onClick="{{next}}" style="padding: 14px 24px; border: 1px solid #D5DCE6; border-radius: 12px; background: #0B1F3A; color: #F5F7FA; font-weight: 600; font-size: 16px; box-shadow: 0 1px 2px rgba(11,31,58,0.05)">Continue</button>
+          </sc-if>
+          <sc-if value="{{isLast}}" hint-placeholder-val="{{ false }}">
+            <a class="mw-btn" href="Studio.dc.html" style="padding: 14px 24px; border: 1px solid #D5DCE6; border-radius: 12px; background: #1F4FD1; color: #FFFFFF; font-weight: 600; font-size: 16px; box-shadow: 0 1px 2px rgba(11,31,58,0.05); text-decoration: none">Publish site &amp; open studio</a>
+          </sc-if>
+        </div>
+      </section>
+
+      <!-- Live preview -->
+      <aside aria-label="Live preview" style="flex: 1 1 380px; min-width: 0; display: flex; flex-direction: column; gap: 12px">
+        <span style="font-weight: 600; font-size: 14px; letter-spacing: 0.5px">LIVE PREVIEW</span>
+        <div style="border: 1px solid #D5DCE6; border-radius: 12px; overflow: hidden; box-shadow: 0 1px 2px rgba(11,31,58,0.05); background: #FFFFFF">
+          <div style="display: flex; align-items: center; gap: 8px; padding: 10px 12px; border-bottom: 1px solid #D5DCE6; background: #F5F7FA">
+            <span style="width: 11px; height: 11px; border-radius: 50%; border: 1px solid #D5DCE6; background: #FDE4E1"></span>
+            <span style="width: 11px; height: 11px; border-radius: 50%; border: 1px solid #D5DCE6; background: #FFF4D6"></span>
+            <span style="width: 11px; height: 11px; border-radius: 50%; border: 1px solid #D5DCE6; background: #DDF3EA"></span>
+            <span style="margin-left: 6px; flex: 1; min-width: 0; padding: 4px 10px; border: 1px solid #D5DCE6; border-radius: 8px; background: #FFFFFF; font: 600 12px 'JetBrains Mono', monospace; overflow: hidden; text-overflow: ellipsis; white-space: nowrap">{{domain}}</span>
+          </div>
+          <div style="{{previewStyle}}">
+            <div style="display: flex; align-items: center; gap: 10px">
+              <span style="{{logoStyle}}">{{initial}}</span>
+              <b style="font-family: 'Inter', sans-serif; font-size: 20px">{{displayName}}</b>
+            </div>
+            <div style="font-family: 'Inter', sans-serif; font-weight: 600; font-size: 34px; line-height: 1; letter-spacing: -1px">Trade with<br>{{displayName}}</div>
+            <span style="{{ctaStyle}}">Log in with Deriv</span>
+            <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px">
+              <div style="{{tileStyle}}"><span style="font-size: 12px; font-weight: 700">BOTS</span><b style="font-size: 18px">Ready to run</b></div>
+              <div style="{{tileStyle}}"><span style="font-size: 12px; font-weight: 700">SIGNALS</span><b style="font-size: 18px">Live feed</b></div>
+            </div>
+            <span style="font-size: 12px">Markup {{markup}}% · App ID {{appIdShown}}</span>
+          </div>
+        </div>
+      </aside>
+    </div>
+  </main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":1100}}'>
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.state = { step: 1, name: 'YourBrand', sub: 'yourbrand', accent: '#1F4FD1', theme: 'light', appId: '', aff: '', markup: 3, mode: 'sub', custom: '', copied: false };
+  }
+  renderVals() {
+    const s = this.state;
+    const set = (patch) => this.setState(patch);
+    const labels = ['Brand', 'Look', 'Deriv app', 'Domain'];
+    const steps = labels.map((label, i) => {
+      const n = i + 1;
+      const current = n === s.step;
+      const done = n < s.step;
+      const bg = current ? '#E8EEFF' : (done ? '#FFFFFF' : '#F5F7FA');
+      return {
+        n, label, current: current ? 'step' : 'false', badge: done ? '✓' : String(n),
+        go: () => set({ step: n }),
+        style: 'display:flex;align-items:center;gap:12px;padding:12px 14px;border:1px solid ' + (current ? '#1F4FD1' : '#D5DCE6') + ';border-radius: 10px;background:' + bg + ';box-shadow:' + (current ? '0 0 0 3px rgba(31,79,209,0.18)' : 'none') + ';color:#0B1F3A;font-family:inherit;text-align:left'
+      };
+    });
+    const palette = [['#1F4FD1', 'Royal blue'], ['#0B1F3A', 'Navy'], ['#0E7C66', 'Teal'], ['#3B3FB6', 'Indigo'], ['#0F6E9E', 'Ocean'], ['#2D3748', 'Graphite']];
+    const swatches = palette.map(([hex, label]) => {
+      const on = hex === s.accent;
+      return { label, on: on ? 'true' : 'false', pick: () => set({ accent: hex }),
+        style: 'width:64px;height:64px;border-radius: 12px;border:3px solid ' + (on ? '#FFFFFF' : hex) + ';background:' + hex + ';box-shadow:' + (on ? '0 0 0 3px ' + hex : 'none') };
+    });
+    const pill = (on) => 'padding:12px 22px;border:1px solid ' + (on ? '#0B1F3A' : '#D5DCE6') + ';border-radius:12px;font-weight:600;font-size:15px;font-family:inherit;background:' + (on ? '#0B1F3A' : '#FFFFFF') + ';color:' + (on ? '#F5F7FA' : '#0B1F3A') + ';box-shadow: 0 1px 2px rgba(11,31,58,0.05)';
+    const card = (on) => 'display:flex;flex-direction:column;align-items:flex-start;gap:6px;padding:18px;border:1px solid ' + (on ? '#1F4FD1' : '#D5DCE6') + ';border-radius: 10px;background:' + (on ? '#E8EEFF' : '#FFFFFF') + ';box-shadow:' + (on ? '0 0 0 3px rgba(31,79,209,0.18)' : 'none') + ';font-family:inherit;color:#0B1F3A;text-align:left';
+    const dark = s.theme === 'dark';
+    const domain = s.mode === 'custom' && s.custom ? s.custom : (s.sub || 'yourbrand') + '.mwasya.site';
+    const displayName = s.name || 'YourBrand';
+    const ink = dark ? '#F5F7FA' : '#0B1F3A';
+    return {
+      step: s.step, steps,
+      is1: s.step === 1, is2: s.step === 2, is3: s.step === 3, is4: s.step === 4,
+      name: s.name, sub: s.sub, appId: s.appId, aff: s.aff, markup: s.markup, custom: s.custom,
+      nameBad: /deriv|binary/i.test(s.name),
+      onName: (e) => set({ name: e.target.value }),
+      onSub: (e) => set({ sub: e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, '') }),
+      onAppId: (e) => set({ appId: e.target.value.replace(/\D/g, '') }),
+      onAff: (e) => set({ aff: e.target.value }),
+      onMarkup: (e) => set({ markup: Number(e.target.value) }),
+      onCustom: (e) => set({ custom: e.target.value.trim().toLowerCase() }),
+      swatches,
+      isLight: dark ? 'false' : 'true', isDark: dark ? 'true' : 'false',
+      setLight: () => set({ theme: 'light' }), setDark: () => set({ theme: 'dark' }),
+      lightStyle: pill(!dark), darkStyle: pill(dark),
+      redirectUrl: 'https://' + domain + '/callback',
+      copyLabel: s.copied ? 'Copied' : 'Copy',
+      copyRedirect: () => { try { navigator.clipboard.writeText('https://' + domain + '/callback'); } catch (e) {} set({ copied: true }); setTimeout(() => this.setState({ copied: false }), 1500); },
+      isSub: s.mode === 'sub' ? 'true' : 'false', isCustom: s.mode === 'custom',
+      useSub: () => set({ mode: 'sub' }), useCustom: () => set({ mode: 'custom' }),
+      subCardStyle: card(s.mode === 'sub'), customCardStyle: card(s.mode === 'custom'),
+      atStart: s.step === 1, notLast: s.step < 4, isLast: s.step === 4,
+      back: () => set({ step: Math.max(1, s.step - 1) }),
+      next: () => set({ step: Math.min(4, s.step + 1) }),
+      backStyle: 'padding:14px 24px;border:1px solid #D5DCE6;border-radius:12px;background:#FFFFFF;font-weight:600;font-size:16px;font-family:inherit;box-shadow: 0 1px 2px rgba(11,31,58,0.05);opacity:' + (s.step === 1 ? '0.4' : '1'),
+      domain, displayName, initial: displayName.charAt(0).toUpperCase(),
+      appIdShown: s.appId || '—',
+      previewStyle: 'padding:26px;display:flex;flex-direction:column;gap:18px;min-height:380px;background:' + (dark ? '#0B1F3A' : '#FFFFFF') + ';color:' + ink,
+      logoStyle: 'width:38px;height:38px;border:none;border-radius:10px;background:' + s.accent + ';color:#FFFFFF;display:flex;align-items:center;justify-content:center;font-weight:600;font-size:18px',
+      ctaStyle: 'align-self:flex-start;padding:12px 18px;border:none;border-radius:10px;background:' + s.accent + ';color:#FFFFFF;font-weight:700;box-shadow:0 4px 12px rgba(11,31,58,0.18)',
+      tileStyle: 'display:flex;flex-direction:column;gap:4px;padding:12px;border:1px solid ' + (dark ? '#2A3F63' : '#D5DCE6') + ';border-radius:12px;background:' + (dark ? '#13294B' : '#F5F7FA')
+    };
+  }
+}
+</script>
+</body>
+</html>

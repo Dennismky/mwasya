@@ -1,0 +1,294 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Mwasya Studio — Bot Forge and Signals</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="anonymous">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;family=JetBrains+Mono:wght@500;600&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#F5F7FA}
+a{color:#0B1F3A}a:hover{color:#1F4FD1}
+.mw-btn{transition:transform .12s ease, box-shadow .12s ease;cursor:pointer}
+.mw-btn:hover{filter:brightness(0.95)}
+.mw-btn:active{transform:translateY(1px)}
+.mw-in{width:100%;box-sizing:border-box;padding:14px 16px;border:1px solid #D5DCE6;border-radius:12px;background:#FFFFFF;font:600 16px 'Inter',sans-serif;color:#0B1F3A}
+.mw-in:focus{outline:none;border-color:#1F4FD1 !important;box-shadow:0 0 0 3px rgba(31,79,209,0.18)}
+:focus-visible{outline:3px solid #1F4FD1;outline-offset:3px}
+@keyframes mwspin{to{transform:rotate(360deg)}}
+.mw-spin{animation:mwspin .9s linear infinite}
+</style>
+</helmet>
+<div style="font-family: 'Inter', system-ui, sans-serif; color: #0B1F3A; background: #F5F7FA; min-height: 100vh; display: flex; flex-wrap: wrap; align-items: stretch">
+
+  <!-- Sidebar -->
+  <aside style="flex: 1 1 250px; max-width: 100%; box-sizing: border-box; border-right: 1px solid #D5DCE6; background: #FFFFFF; padding: 22px 18px; display: flex; flex-direction: column; gap: 22px">
+    <a href="Main.dc.html" style="display: flex; align-items: center; gap: 10px; text-decoration: none">
+      <span style="width: 38px; height: 38px; border: 1px solid #D5DCE6; border-radius: 10px; background: #E8EEFF; box-shadow: 0 1px 2px rgba(11,31,58,0.05); display: flex; align-items: center; justify-content: center"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#0B1F3A" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 19V6l8 9 8-9v13"></path></svg></span>
+      <span style="font-family: 'Inter', sans-serif; font-weight: 600; font-size: 22px">mwasya</span>
+    </a>
+    <div style="border: 1px solid #D5DCE6; border-radius: 10px; padding: 12px; background: #F5F7FA; display: flex; flex-direction: column; gap: 4px">
+      <span style="font-size: 12px; font-weight: 700; letter-spacing: 0.4px">CURRENT SITE</span>
+      <b style="font-size: 16px">YourBrand</b>
+      <span style="font: 600 12px 'JetBrains Mono', monospace">yourbrand.mwasya.site</span>
+      <span style="align-self: flex-start; margin-top: 6px; padding: 3px 10px; border: 1px solid #D5DCE6; border-radius: 999px; background: #DDF3EA; font-size: 12px; font-weight: 600">● LIVE</span>
+    </div>
+    <nav aria-label="Studio" style="display: flex; flex-direction: column; gap: 8px">
+      <sc-for list="{{tabs}}" as="t" hint-placeholder-count="3">
+        <button type="button" class="mw-btn" onClick="{{t.go}}" aria-current="{{t.current}}" style="{{t.style}}">{{t.label}}</button>
+      </sc-for>
+    </nav>
+    <a class="mw-btn" href="Trader.dc.html" style="margin-top: auto; padding: 14px; border: 1px solid #D5DCE6; border-radius: 12px; background: #0B1F3A; color: #F5F7FA; font-weight: 600; text-align: center; text-decoration: none; box-shadow: 0 1px 2px rgba(11,31,58,0.05)">View my site</a>
+  </aside>
+
+  <!-- Content -->
+  <main style="flex: 999 1 560px; min-width: 0; padding: 32px; box-sizing: border-box; display: flex; flex-direction: column; gap: 26px">
+
+    <!-- OVERVIEW -->
+    <sc-if value="{{isOverview}}" hint-placeholder-val="{{ false }}">
+      <div style="display: flex; flex-direction: column; gap: 24px">
+        <div style="display: flex; flex-wrap: wrap; gap: 12px; align-items: center; justify-content: space-between">
+          <h1 style="margin: 0; font-family: 'Inter', sans-serif; font-weight: 600; font-size: 30px; letter-spacing: -0.6px">Good morning</h1>
+          <span style="padding: 6px 12px; border: 1px dashed #A9B6C8; border-radius: 999px; font-size: 13px; font-weight: 700">Sample data</span>
+        </div>
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px">
+          <div style="border: 1px solid #D5DCE6; border-radius: 12px; padding: 20px; background: #FFFFFF; box-shadow: 0 1px 2px rgba(11,31,58,0.05); display: flex; flex-direction: column; gap: 6px"><span style="font-weight: 500; font-size: 14px; color: #4A5568">Sign-ups (7 days)</span><b style="font-family: 'Inter', sans-serif; font-size: 42px">128</b></div>
+          <div style="border: 1px solid #D5DCE6; border-radius: 12px; padding: 20px; background: #FFFFFF; box-shadow: 0 1px 2px rgba(11,31,58,0.05); display: flex; flex-direction: column; gap: 6px"><span style="font-weight: 500; font-size: 14px; color: #4A5568">Active traders</span><b style="font-family: 'Inter', sans-serif; font-size: 42px">46</b></div>
+          <div style="border: 1px solid #D5DCE6; border-radius: 12px; padding: 20px; background: #FFFFFF; box-shadow: 0 1px 2px rgba(11,31,58,0.05); display: flex; flex-direction: column; gap: 6px"><span style="font-weight: 500; font-size: 14px; color: #4A5568">Bot runs today</span><b style="font-family: 'Inter', sans-serif; font-size: 42px">312</b></div>
+          <div style="border: 1px solid #D5DCE6; border-radius: 12px; padding: 20px; background: #FFFFFF; box-shadow: 0 1px 2px rgba(11,31,58,0.05); display: flex; flex-direction: column; gap: 6px"><span style="font-weight: 500; font-size: 14px; color: #4A5568">Markup earned</span><b style="font-family: 'Inter', sans-serif; font-size: 42px">$84.20</b></div>
+        </div>
+        <div style="border: 1px solid #D5DCE6; border-radius: 12px; background: #FFFFFF; padding: 22px; display: flex; flex-direction: column; gap: 14px">
+          <h2 style="margin: 0; font-size: 20px; font-weight: 600">Next steps</h2>
+          <button type="button" class="mw-btn" onClick="{{goForge}}" style="display: flex; justify-content: space-between; align-items: center; padding: 16px; border: 1px solid #D5DCE6; border-radius: 12px; background: #DDF3EA; font: 700 16px 'Inter', sans-serif; color: #0B1F3A; box-shadow: 0 1px 2px rgba(11,31,58,0.05)">Forge your first bot<span aria-hidden="true">→</span></button>
+          <button type="button" class="mw-btn" onClick="{{goSignals}}" style="display: flex; justify-content: space-between; align-items: center; padding: 16px; border: 1px solid #D5DCE6; border-radius: 12px; background: #E3F1FB; font: 700 16px 'Inter', sans-serif; color: #0B1F3A; box-shadow: 0 1px 2px rgba(11,31,58,0.05)">Connect Telegram and send a signal<span aria-hidden="true">→</span></button>
+        </div>
+      </div>
+    </sc-if>
+
+    <!-- BOT FORGE -->
+    <sc-if value="{{isForge}}" hint-placeholder-val="{{ true }}">
+      <div style="display: flex; flex-direction: column; gap: 24px">
+        <div style="display: flex; flex-direction: column; gap: 6px">
+          <h1 style="margin: 0; font-family: 'Inter', sans-serif; font-weight: 600; font-size: 30px; letter-spacing: -0.6px">Bot Forge</h1>
+          <p style="margin: 0; font-size: 17px; color: #4A5568">Describe a strategy in plain English. We'll build the bot, check it, and add safety limits.</p>
+        </div>
+        <div style="display: flex; flex-wrap: wrap; gap: 24px; align-items: flex-start">
+          <section style="flex: 1 1 380px; min-width: 0; border: 1px solid #D5DCE6; border-radius: 12px; background: #FFFFFF; box-shadow: 0 1px 2px rgba(11,31,58,0.05); padding: 24px; display: flex; flex-direction: column; gap: 16px">
+            <label for="prompt" style="font-weight: 600; font-size: 16px">Your strategy</label>
+            <textarea id="prompt" class="mw-in" rows="6" value="{{prompt}}" onChange="{{onPrompt}}" style="resize: vertical; line-height: 1.5"></textarea>
+            <div style="display: flex; flex-direction: column; gap: 8px">
+              <span style="font-size: 13px; font-weight: 700">Or start from a template</span>
+              <div style="display: flex; flex-wrap: wrap; gap: 8px">
+                <sc-for list="{{templates}}" as="tp" hint-placeholder-count="4">
+                  <button type="button" class="mw-btn" onClick="{{tp.use}}" style="padding: 8px 12px; border: 1px solid #D5DCE6; border-radius: 999px; background: #F5F7FA; font: 700 13px 'Inter', sans-serif; color: #0B1F3A">{{tp.label}}</button>
+                </sc-for>
+              </div>
+            </div>
+            <button type="button" class="mw-btn" onClick="{{generate}}" disabled="{{generating}}" style="padding: 16px; border: 1px solid #D5DCE6; border-radius: 10px; background: #1F4FD1; font: 600 17px 'Inter', sans-serif; color: #FFFFFF; box-shadow: 0 1px 2px rgba(11,31,58,0.05); display: flex; align-items: center; justify-content: center; gap: 10px">
+              <sc-if value="{{generating}}" hint-placeholder-val="{{ false }}"><svg class="mw-spin" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="3" stroke-linecap="round" aria-hidden="true"><path d="M12 3a9 9 0 1 0 9 9"></path></svg></sc-if>
+              {{genLabel}}
+            </button>
+          </section>
+
+          <section aria-live="polite" style="flex: 1 1 380px; min-width: 0; display: flex; flex-direction: column; gap: 16px">
+            <sc-if value="{{noBot}}" hint-placeholder-val="{{ true }}">
+              <div style="border: 1px dashed #A9B6C8; border-radius: 12px; padding: 40px 24px; text-align: center; display: flex; flex-direction: column; gap: 8px; align-items: center">
+                <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#0B1F3A" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v3M12 18v3M3 12h3M18 12h3"></path><rect x="7" y="7" width="10" height="10" rx="2"></rect></svg>
+                <b style="font-size: 18px">Your bot will appear here</b>
+                <span style="font-size: 15px; color: #4A5568">Pick a template or write your own, then click Forge bot.</span>
+              </div>
+            </sc-if>
+            <sc-if value="{{hasBot}}" hint-placeholder-val="{{ false }}">
+              <div style="border: 1px solid #D5DCE6; border-radius: 12px; background: #DDF3EA; box-shadow: 0 1px 2px rgba(11,31,58,0.05); padding: 22px; display: flex; flex-direction: column; gap: 14px">
+                <div style="display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap">
+                  <b style="font-family: 'Inter', sans-serif; font-size: 26px">{{bot.title}}</b>
+                  <span style="padding: 4px 10px; border: 1px solid #D5DCE6; border-radius: 999px; background: #FFFFFF; font-size: 12px; font-weight: 600">{{bot.status}}</span>
+                </div>
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px">
+                  <sc-for list="{{bot.blocks}}" as="b" hint-placeholder-count="6">
+                    <div style="border: 1px solid #D5DCE6; border-radius: 12px; background: #FFFFFF; padding: 10px 12px; display: flex; flex-direction: column; gap: 2px">
+                      <span style="font-size: 11px; font-weight: 600; letter-spacing: 0.4px">{{b.k}}</span>
+                      <span style="font: 600 15px 'JetBrains Mono', monospace">{{b.v}}</span>
+                    </div>
+                  </sc-for>
+                </div>
+              </div>
+              <div style="border: 1px solid #D5DCE6; border-radius: 12px; background: #FFFFFF; padding: 18px; display: flex; flex-direction: column; gap: 10px">
+                <b style="font-size: 16px">Safety checks</b>
+                <sc-for list="{{bot.checks}}" as="c" hint-placeholder-count="4">
+                  <div style="display: flex; gap: 10px; align-items: center; font-size: 15px">
+                    <span style="{{c.dot}}">{{c.icon}}</span><span>{{c.text}}</span>
+                  </div>
+                </sc-for>
+              </div>
+              <sc-if value="{{bot.risky}}" hint-placeholder-val="{{ false }}">
+                <div role="alert" style="border: 1px solid #D5DCE6; border-radius: 12px; background: #FDE4E1; padding: 16px; font-size: 15px; line-height: 1.5"><b>High-risk strategy.</b> Martingale doubles the stake after each loss, so losses grow fast. Traders will see this warning before they run it.</div>
+              </sc-if>
+              <div style="display: flex; gap: 12px; flex-wrap: wrap">
+                <button type="button" class="mw-btn" onClick="{{publishBot}}" style="flex: 1; padding: 14px; border: 1px solid #D5DCE6; border-radius: 12px; background: #0B1F3A; color: #F5F7FA; font: 600 16px 'Inter', sans-serif; box-shadow: 0 1px 2px rgba(11,31,58,0.05)">{{publishLabel}}</button>
+                <button type="button" class="mw-btn" style="flex: 1; padding: 14px; border: 1px solid #D5DCE6; border-radius: 12px; background: #FFFFFF; font: 600 16px 'Inter', sans-serif; color: #0B1F3A; box-shadow: 0 1px 2px rgba(11,31,58,0.05)">Download XML</button>
+              </div>
+            </sc-if>
+          </section>
+        </div>
+      </div>
+    </sc-if>
+
+    <!-- SIGNALS -->
+    <sc-if value="{{isSignals}}" hint-placeholder-val="{{ false }}">
+      <div style="display: flex; flex-direction: column; gap: 24px">
+        <div style="display: flex; flex-wrap: wrap; justify-content: space-between; align-items: flex-end; gap: 12px">
+          <div style="display: flex; flex-direction: column; gap: 6px">
+            <h1 style="margin: 0; font-family: 'Inter', sans-serif; font-weight: 600; font-size: 30px; letter-spacing: -0.6px">Signals</h1>
+            <p style="margin: 0; font-size: 17px; color: #4A5568">Write a signal once and send it to your Telegram channel.</p>
+          </div>
+          <span style="padding: 8px 14px; border: 1px solid #D5DCE6; border-radius: 999px; background: #E3F1FB; font-weight: 600; font-size: 14px">Connected: @[your_channel]</span>
+        </div>
+        <div style="display: flex; flex-wrap: wrap; gap: 24px; align-items: flex-start">
+          <section style="flex: 1 1 380px; min-width: 0; border: 1px solid #D5DCE6; border-radius: 12px; background: #FFFFFF; box-shadow: 0 1px 2px rgba(11,31,58,0.05); padding: 24px; display: flex; flex-direction: column; gap: 16px">
+            <div style="display: flex; flex-direction: column; gap: 8px">
+              <label for="mkt" style="font-weight: 700">Market</label>
+              <select id="mkt" class="mw-in" value="{{sigMarket}}" onChange="{{onMarket}}">
+                <option>Volatility 100 (1s) Index</option>
+                <option>Volatility 75 Index</option>
+                <option>Boom 500 Index</option>
+                <option>Crash 1000 Index</option>
+                <option>EUR/USD</option>
+              </select>
+            </div>
+            <fieldset style="border: none; margin: 0; padding: 0">
+              <legend style="font-weight: 700; margin-bottom: 8px">Direction</legend>
+              <div style="display: flex; gap: 10px">
+                <button type="button" class="mw-btn" onClick="{{setRise}}" aria-pressed="{{riseOn}}" style="{{riseStyle}}">▲ Rise</button>
+                <button type="button" class="mw-btn" onClick="{{setFall}}" aria-pressed="{{fallOn}}" style="{{fallStyle}}">▼ Fall</button>
+              </div>
+            </fieldset>
+            <div style="display: flex; flex-direction: column; gap: 8px">
+              <label for="dur" style="font-weight: 700">Duration</label>
+              <input id="dur" class="mw-in" value="{{sigDur}}" onChange="{{onDur}}">
+            </div>
+            <div style="display: flex; flex-direction: column; gap: 8px">
+              <label for="note" style="font-weight: 700">Note (optional)</label>
+              <textarea id="note" class="mw-in" rows="2" value="{{sigNote}}" onChange="{{onNote}}" style="resize: vertical"></textarea>
+            </div>
+            <button type="button" class="mw-btn" onClick="{{sendSignal}}" style="padding: 16px; border: 1px solid #D5DCE6; border-radius: 10px; background: #E3F1FB; font: 600 17px 'Inter', sans-serif; color: #0B1F3A; box-shadow: 0 1px 2px rgba(11,31,58,0.05)">Send to Telegram</button>
+          </section>
+          <section style="flex: 1 1 340px; min-width: 0; display: flex; flex-direction: column; gap: 16px">
+            <span style="font-weight: 600; font-size: 14px; letter-spacing: 0.5px">PREVIEW</span>
+            <div style="border: 1px solid #D5DCE6; border-radius: 12px; background: #DCEBFA; padding: 18px; box-shadow: 0 1px 2px rgba(11,31,58,0.05)">
+              <div style="max-width: 320px; border: 1px solid #D5DCE6; border-radius: 12px 16px 16px 4px; background: #FFFFFF; padding: 14px; display: flex; flex-direction: column; gap: 6px; font-size: 15px; line-height: 1.45">
+                <b style="color: #1F4FD1">YourBrand Signals</b>
+                <b>{{sigDirLabel}} · {{sigMarket}}</b>
+                <span>Duration: {{sigDur}}</span>
+                <span style="white-space: pre-line">{{sigNote}}</span>
+                <span style="font-size: 12px; color: #4A5568">Trade at your own risk. yourbrand.mwasya.site</span>
+              </div>
+            </div>
+            <div style="border: 1px solid #D5DCE6; border-radius: 12px; background: #FFFFFF; overflow: hidden">
+              <div style="padding: 12px 16px; border-bottom: 1px solid #D5DCE6; font-weight: 600">Sent</div>
+              <sc-for list="{{sent}}" as="m" hint-placeholder-count="2">
+                <div style="padding: 12px 16px; border-bottom: 1px solid #2A3F63; display: flex; justify-content: space-between; gap: 10px; font-size: 14px"><span><b>{{m.dir}}</b> · {{m.market}}</span><span style="color: #4A5568">{{m.when}}</span></div>
+              </sc-for>
+            </div>
+          </section>
+        </div>
+      </div>
+    </sc-if>
+  </main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":1200}}'>
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.state = {
+      tab: 'forge',
+      prompt: 'Trade Digit Over 3 on Volatility 100 (1s) with a $1 stake. Stop after $5 profit or $20 loss.',
+      generating: false, bot: null, published: false,
+      sigMarket: 'Volatility 100 (1s) Index', sigDir: 'rise', sigDur: '5 ticks', sigNote: 'Enter on the next tick.',
+      sent: [{ dir: 'FALL', market: 'Boom 500 Index', when: '2h ago' }, { dir: 'RISE', market: 'Volatility 75 Index', when: 'Yesterday' }]
+    };
+  }
+  parse(p) {
+    const t = p.toLowerCase();
+    const num = (re, d) => { const m = t.match(re); return m ? (m[1] || m[2] || d) : d; };
+    let type = 'Rise/Fall';
+    if (/digit over/.test(t)) type = 'Digit Over ' + num(/digit over\s*(\d)/, '3');
+    else if (/digit under/.test(t)) type = 'Digit Under ' + num(/digit under\s*(\d)/, '6');
+    else if (/even|odd/.test(t)) type = 'Even/Odd';
+    else if (/fall/.test(t) && !/rise/.test(t)) type = 'Fall';
+    let market = 'Volatility 100 (1s)';
+    const vm = t.match(/vol(?:atility)?\s*(\d+)(\s*\(1s\))?/);
+    if (vm) market = 'Volatility ' + vm[1] + (vm[2] ? ' (1s)' : '');
+    if (/boom/.test(t)) market = 'Boom ' + num(/boom\s*(\d+)/, '500');
+    if (/crash/.test(t)) market = 'Crash ' + num(/crash\s*(\d+)/, '1000');
+    const stake = num(/\$\s*(\d+(?:\.\d+)?)\s*stake|stake\s*(?:of\s*)?\$?\s*(\d+(?:\.\d+)?)/, '1');
+    const tp = num(/\$\s*(\d+(?:\.\d+)?)\s*profit|take profit\s*\$?\s*(\d+)/, '5');
+    const sl = num(/\$\s*(\d+(?:\.\d+)?)\s*loss|stop loss\s*\$?\s*(\d+)/, '20');
+    const risky = /martingale|double/.test(t);
+    const title = type + ' · ' + market;
+    const ok = (text) => ({ text, icon: '✓', dot: 'width:26px;height:26px;border:1px solid #D5DCE6;border-radius:50%;background:#DDF3EA;display:flex;align-items:center;justify-content:center;font-weight:600;flex:none' });
+    const warn = (text) => ({ text, icon: '!', dot: 'width:26px;height:26px;border:1px solid #D5DCE6;border-radius:50%;background:#FDE4E1;display:flex;align-items:center;justify-content:center;font-weight:600;flex:none' });
+    return {
+      title, risky, status: 'XML READY',
+      blocks: [
+        { k: 'CONTRACT', v: type }, { k: 'MARKET', v: market }, { k: 'STAKE', v: '$' + Number(stake).toFixed(2) },
+        { k: 'DURATION', v: '1 tick' }, { k: 'TAKE PROFIT', v: '$' + tp }, { k: 'STOP LOSS', v: '$' + sl },
+        { k: 'AFTER LOSS', v: risky ? 'Stake ×2' : 'Same stake' }, { k: 'MAX RUNS', v: '50' }
+      ],
+      checks: [
+        ok('XML matches the allowed Deriv bot blocks'),
+        ok('No outside network calls or custom code'),
+        ok('Stop loss set ($' + sl + ')'),
+        risky ? warn('Martingale detected, so a max stake cap of $16 was added') : ok('Fixed stake, no escalation')
+      ]
+    };
+  }
+  renderVals() {
+    const s = this.state;
+    const set = (p) => this.setState(p);
+    const tabDefs = [['overview', 'Overview'], ['forge', 'Bot Forge'], ['signals', 'Signals']];
+    const tabs = tabDefs.map(([id, label]) => {
+      const on = s.tab === id;
+      return { label, current: on ? 'page' : 'false', go: () => set({ tab: id }),
+        style: 'text-align:left;padding:13px 14px;border:1px solid ' + (on ? '#C9D6F5' : 'transparent') + ';border-radius:10px;background:' + (on ? '#E8EEFF' : 'transparent') + ';font:700 16px \'Inter\',sans-serif;color:' + (on ? '#1F4FD1' : '#0B1F3A') + ';box-shadow:none' };
+    });
+    const templates = [
+      ['Digit Over 3', 'Trade Digit Over 3 on Volatility 100 (1s) with a $1 stake. Stop after $5 profit or $20 loss.'],
+      ['Even/Odd', 'Trade Even on Volatility 75 with stake 0.5. Stop after $3 profit or $10 loss.'],
+      ['Boom spike', 'Buy Rise on Boom 500 with a $2 stake. Stop after $10 profit or $15 loss.'],
+      ['Martingale', 'Trade Digit Under 6 on Volatility 10 with a $1 stake and martingale double after loss. Stop after $5 profit or $25 loss.']
+    ].map(([label, text]) => ({ label, use: () => set({ prompt: text }) }));
+    const dirBtn = (on, bg) => 'flex:1;padding:14px;border:1px solid ' + (on ? '#0B1F3A' : '#D5DCE6') + ';border-radius:12px;font:600 16px \'Inter\',sans-serif;color:#0B1F3A;background:' + (on ? bg : '#FFFFFF') + ';box-shadow:' + (on ? '0 0 0 3px rgba(31,79,209,0.18)' : 'none');
+    const bot = s.bot ? Object.assign({}, s.bot, { status: s.published ? 'PUBLISHED' : s.bot.status }) : null;
+    return {
+      tabs,
+      isOverview: s.tab === 'overview', isForge: s.tab === 'forge', isSignals: s.tab === 'signals',
+      goForge: () => set({ tab: 'forge' }), goSignals: () => set({ tab: 'signals' }),
+      prompt: s.prompt, onPrompt: (e) => set({ prompt: e.target.value }),
+      templates,
+      generating: s.generating,
+      genLabel: s.generating ? 'Forging…' : 'Forge bot',
+      generate: () => { set({ generating: true, bot: null, published: false }); setTimeout(() => this.setState({ generating: false, bot: this.parse(this.state.prompt) }), 1100); },
+      noBot: !bot && !s.generating, hasBot: !!bot, bot: bot || { blocks: [], checks: [] },
+      publishBot: () => set({ published: true }),
+      publishLabel: s.published ? 'Live on your site ✓' : 'Publish to my site',
+      sigMarket: s.sigMarket, sigDur: s.sigDur, sigNote: s.sigNote,
+      onMarket: (e) => set({ sigMarket: e.target.value }), onDur: (e) => set({ sigDur: e.target.value }), onNote: (e) => set({ sigNote: e.target.value }),
+      riseOn: s.sigDir === 'rise' ? 'true' : 'false', fallOn: s.sigDir === 'fall' ? 'true' : 'false',
+      setRise: () => set({ sigDir: 'rise' }), setFall: () => set({ sigDir: 'fall' }),
+      riseStyle: dirBtn(s.sigDir === 'rise', '#DDF3EA'), fallStyle: dirBtn(s.sigDir === 'fall', '#FDE4E1'),
+      sigDirLabel: s.sigDir === 'rise' ? '▲ RISE' : '▼ FALL',
+      sent: s.sent,
+      sendSignal: () => set({ sent: [{ dir: s.sigDir.toUpperCase(), market: s.sigMarket, when: 'Just now' }].concat(s.sent) })
+    };
+  }
+}
+</script>
+</body>
+</html>
