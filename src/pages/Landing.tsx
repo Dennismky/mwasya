@@ -28,7 +28,7 @@ export default function Landing() {
             <a href="#faq">FAQ</a>
           </div>
           <div className="row" style={{ gap: 8 }}>
-            <Link className="btn btn-ghost" to="/app">Sign in</Link>
+            <Link className="btn btn-ghost" to="/">Sign in</Link>
             <Link className="btn btn-primary" to="/setup">Get started</Link>
           </div>
         </nav>

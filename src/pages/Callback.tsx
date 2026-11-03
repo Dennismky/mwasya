@@ -24,7 +24,7 @@ export default function Callback() {
         <>
           <h1 style={{ fontSize: 24 }}>We couldn't sign you in</h1>
           <p className="muted" role="alert">{error}</p>
-          <Link className="btn btn-primary" to="/app">Try again</Link>
+          <Link className="btn btn-primary" to="/">Try again</Link>
         </>
       ) : (
         <p className="muted" aria-live="polite">Finishing sign-in with Deriv…</p>

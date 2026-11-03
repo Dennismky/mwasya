@@ -1,9 +1,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Link } from 'react-router-dom';
-import { Brand, Icon } from '../components/ui';
-import { fetchAccounts, type Account } from '../lib/accounts';
+import { Icon } from '../components/ui';
+import { useAuth } from '../lib/auth';
 import { listRuns, listStrategies, pauseRun, resumeRun, runPnL, startRun, stopRun, watchRun, type AutoRun } from '../lib/autoTrade';
-import { getSession, startLogin } from '../lib/derivAuth';
+import { startLogin } from '../lib/derivAuth';
 import { accountSocket, type DerivSocket } from '../lib/derivWs';
 import {
   CONTRACT_GROUPS, LIMITS, TEMPLATES, contractLabel, defaultSpec, isValid, validateSpec,
@@ -22,13 +21,14 @@ const marketLabel = (s: string) => MARKETS.find(([id]) => id === s)?.[1] ?? s;
 const DIGIT_BARRIER = ['DIGITOVER', 'DIGITUNDER', 'DIGITMATCH', 'DIGITDIFF'];
 const TICK_ONLY = [...DIGIT_BARRIER, 'DIGITEVEN', 'DIGITODD', 'ASIANU', 'ASIAND'];
 
-type Status = 'checking' | 'signed-out' | 'relogin' | 'ready' | 'error';
+type Status = 'loading' | 'relogin' | 'ready' | 'error';
 
 export default function Forge() {
-  const [status, setStatus] = useState<Status>('checking');
+  const auth = useAuth();
+  const account = auth.account;
+  const accountId = account?.id ?? '';
+  const [status, setStatus] = useState<Status>(auth.operator ? 'loading' : 'relogin');
   const [error, setError] = useState('');
-  const [accounts, setAccounts] = useState<Account[]>([]);
-  const [accountId, setAccountId] = useState('');
   const [strategies, setStrategies] = useState<DerivStrategy[] | undefined>();
   const [spec, setSpec] = useState<BotSpec>(defaultSpec);
   const [bots, setBots] = useState<SavedBot[]>([]);
@@ -40,30 +40,24 @@ export default function Forge() {
   const ws = useRef<DerivSocket | null>(null);
   const unsubs = useRef<Map<string, () => void>>(new Map());
 
-  const account = accounts.find((a) => a.id === accountId);
   const checks = useMemo(() => serverChecks ?? validateSpec(spec, strategies), [spec, strategies, serverChecks]);
   const valid = isValid(checks);
   const editingBot = bots.find((b) => b.id === editingId);
 
   const update = (fn: (s: BotSpec) => BotSpec) => { setServerChecks(null); setSpec((s) => fn(structuredClone(s))); };
 
-  // Session, accounts, saved bots, Deriv strategy rules
+  // Saved bots + Deriv strategy rules (session/accounts come from <AppShell />)
   useEffect(() => {
     listStrategies().then(setStrategies).catch(() => undefined);
+    if (!auth.operator) return;
     (async () => {
-      const s = await getSession();
-      if (!s.loggedIn) return setStatus('signed-out');
-      if (!s.operator) return setStatus('relogin');
-      const list = await fetchAccounts();
-      if (list === 'expired') return setStatus('signed-out');
-      setAccounts(list);
-      setAccountId((list.find((a) => a.isVirtual) ?? list[0])?.id ?? '');
       const r = await fetch('/api/bots', { credentials: 'same-origin' });
       if (r.status === 401) return setStatus('relogin');
-      if (r.ok) setBots(((await r.json()) as { bots: SavedBot[] }).bots);
+      if (!r.ok) throw new Error('Could not load your bots. Is the database set up?');
+      setBots(((await r.json()) as { bots: SavedBot[] }).bots);
       setStatus('ready');
     })().catch((e: Error) => { setError(e.message || 'Something went wrong.'); setStatus('error'); });
-  }, []);
+  }, [auth.operator]);
 
   // Keep the bot currency in line with the selected account
   useEffect(() => {
@@ -197,40 +191,33 @@ export default function Forge() {
   const runList = Object.values(runs).sort((a, b) => b.start_time - a.start_time);
 
   return (
-    <div style={{ minHeight: '100vh', background: 'var(--bg-alt)' }}>
-      <header className="nav">
-        <div className="container nav-inner">
-          <Brand />
-          <span className="badge badge-blue">Bot Forge</span>
-          <span style={{ flex: 1 }} />
-          {status === 'ready' && (
-            <select className="input" style={{ width: 'auto' }} aria-label="Trading account" value={accountId} onChange={(e) => setAccountId(e.target.value)}>
-              {accounts.map((a) => <option key={a.id} value={a.id}>{a.label}</option>)}
-            </select>
-          )}
-          <Link className="btn btn-secondary" to="/app">Dashboard</Link>
+    <div className="stack" style={{ gap: 24 }}>
+      <div className="stack" style={{ gap: 6 }}>
+        <h1 style={{ fontSize: 28, fontWeight: 700 }}>Bot Forge</h1>
+        <p className="muted">Build a bot, check its safety limits, test it on demo, then publish it to your site.</p>
+      </div>
+
+      {status === 'relogin' && (
+        <div className="notice">
+          <div className="stack" style={{ gap: 4 }}>
+            <b>Log in again to save bots</b>
+            <span className="hint">We need to link your Deriv login to your Mwasya workspace. You can still build and test-run bots.</span>
+          </div>
+          <button className="btn btn-primary" onClick={() => startLogin({ returnTo: '/forge' }).catch((e: Error) => setError(e.message))}>Log in again</button>
         </div>
-      </header>
+      )}
+      {status === 'error' && (
+        <div className="notice">
+          <div className="stack" style={{ gap: 4 }}>
+            <b>Saving is unavailable right now</b>
+            <span className="hint">We couldn't load your saved bots (is the database set up?). You can still build and test-run bots.</span>
+          </div>
+        </div>
+      )}
+      {status === 'loading' && <p className="muted" aria-live="polite">Loading your bots…</p>}
 
-      <main className="container stack" style={{ padding: '32px 24px', gap: 24 }}>
-        {status === 'checking' && <p className="muted" aria-live="polite">Loading…</p>}
-
-        {(status === 'signed-out' || status === 'relogin') && (
-          <section className="card stack" style={{ maxWidth: 520, gap: 16 }}>
-            <h1 style={{ fontSize: 26, fontWeight: 700 }}>{status === 'relogin' ? 'Please log in again' : 'Log in to use Bot Forge'}</h1>
-            <p className="muted">{status === 'relogin'
-              ? 'We need to link your Deriv login to your Mwasya workspace before you can save bots.'
-              : 'Bots run on your own Deriv account. We only ask for trade access and can never withdraw.'}</p>
-            <button className="btn btn-primary btn-lg" style={{ alignSelf: 'flex-start' }} onClick={() => startLogin({ returnTo: '/forge' }).catch((e: Error) => setError(e.message))}>Log in with Deriv</button>
-            {error && <p className="error" role="alert">{error}</p>}
-          </section>
-        )}
-
-        {status === 'error' && <p className="error" role="alert">{error}</p>}
-
-        {status === 'ready' && (
           <>
-            <div style={{ display: 'grid', gap: 24, gridTemplateColumns: 'minmax(0, 3fr) minmax(300px, 2fr)', alignItems: 'start' }}>
+            <div className="forge-grid">
               {/* Builder */}
               <section className="card stack" style={{ gap: 18 }}>
                 <div className="row" style={{ justifyContent: 'space-between', alignItems: 'center', gap: 12 }}>
@@ -340,7 +327,7 @@ export default function Forge() {
               </section>
 
               {/* Summary + safety + actions */}
-              <aside className="stack" style={{ gap: 16, position: 'sticky', top: 16 }}>
+              <aside className="stack forge-aside" style={{ gap: 16 }}>
                 <section className="card stack" style={{ gap: 14 }}>
                   <div className="row" style={{ justifyContent: 'space-between', gap: 8 }}>
                     <h2 style={{ fontSize: 18, fontWeight: 600 }}>{contractLabel(ctype)}{spec.contract.barrier ? ` ${spec.contract.barrier}` : ''} · {marketLabel(spec.contract.underlying_symbol)}</h2>
@@ -413,8 +400,6 @@ export default function Forge() {
               )}
             </section>
           </>
-        )}
-      </main>
     </div>
   );
 }

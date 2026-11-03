@@ -1,66 +1,31 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Brand, Icon } from '../components/ui';
-import { getSession, logout, startLogin } from '../lib/derivAuth';
-import { accountSocket, publicSocket, type DerivSocket } from '../lib/derivWs';
+import { Icon } from '../components/ui';
+import { useAuth } from '../lib/auth';
+import { startLogin } from '../lib/derivAuth';
+import { publicSocket } from '../lib/derivWs';
 import { useSiteConfig } from '../store/siteConfig';
-import { parseAccounts, type Account } from '../lib/accounts';
 
-
-type Status = 'checking' | 'signed-out' | 'loading' | 'ready' | 'error';
-
+/** `/app` — operator overview. Auth + accounts come from <AppShell />. */
 export default function Dashboard() {
+  const auth = useAuth();
   const site = useSiteConfig();
-  const [status, setStatus] = useState<Status>('checking');
-  const [error, setError] = useState('');
-  const [accounts, setAccounts] = useState<Account[]>([]);
-  const [accountId, setAccountId] = useState('');
-  const [balance, setBalance] = useState<string>('—');
+  const [botCount, setBotCount] = useState<number | null>(null);
   const [tick, setTick] = useState<{ quote: number; dir: 'up' | 'down' | 'flat' } | null>(null);
-  const privateWs = useRef<DerivSocket | null>(null);
 
-  const expired = useCallback(() => {
-    setStatus('signed-out');
-    setError('Your Deriv session has ended. Please log in again.');
-  }, []);
-
-  // 1. Session + accounts
   useEffect(() => {
-    (async () => {
-      const s = await getSession();
-      if (!s.loggedIn) return setStatus('signed-out');
-      setStatus('loading');
-      const r = await fetch('/api/deriv/accounts', { credentials: 'same-origin' });
-      if (r.status === 401) return expired();
-      if (!r.ok) { setError('Could not load your Deriv accounts.'); return setStatus('error'); }
-      const list = parseAccounts(await r.json());
-      setAccounts(list);
-      setAccountId((list.find((a) => a.isVirtual) ?? list[0])?.id ?? '');
-      setStatus('ready');
-    })().catch(() => { setError('Something went wrong.'); setStatus('error'); });
-  }, [expired]);
+    if (!auth.operator) return;
+    fetch('/api/bots', { credentials: 'same-origin' })
+      .then((r) => (r.ok ? r.json() : { bots: [] }))
+      .then((j: { bots: unknown[] }) => setBotCount(j.bots.length))
+      .catch(() => setBotCount(0));
+  }, [auth.operator]);
 
-  // 2. Private socket for the selected account → live balance
-  useEffect(() => {
-    if (!accountId) return;
-    const ws = accountSocket(accountId);
-    privateWs.current = ws;
-    let stop: (() => void) | undefined;
-    ws.subscribe({ balance: 1 }, (msg) => {
-      const b = msg.balance as { balance?: number; currency?: string } | undefined;
-      if (b?.balance !== undefined) setBalance(`${b.balance.toFixed(2)} ${b.currency ?? ''}`.trim());
-    })
-      .then((u) => { stop = u; })
-      .catch((e: Error) => (e.message === 'SESSION_EXPIRED' ? expired() : setError(e.message)));
-    return () => { stop?.(); ws.close(); };
-  }, [accountId, expired]);
-
-  // 3. Public ticks (no login needed)
   useEffect(() => {
     const ws = publicSocket();
     let last = 0;
     let stop: (() => void) | undefined;
-    ws.subscribe({ ticks: 'R_100' }, (msg) => {
+    ws.subscribe({ ticks: '1HZ100V' }, (msg) => {
       const q = (msg.tick as { quote?: number } | undefined)?.quote;
       if (typeof q !== 'number') return;
       setTick({ quote: q, dir: q > last ? 'up' : q < last ? 'down' : 'flat' });
@@ -69,67 +34,78 @@ export default function Dashboard() {
     return () => { stop?.(); ws.close(); };
   }, []);
 
-  const signOut = async () => { await logout(); setStatus('signed-out'); setAccounts([]); setAccountId(''); };
+  const steps = [
+    { done: auth.accounts.length > 0, title: 'Connect your Deriv account', text: 'Bots and sites run on the Deriv API.',
+      detail: auth.account && <span className="badge badge-green"><Icon.Check /> Connected · {auth.account.id}</span> },
+    { done: (botCount ?? 0) > 0, title: 'Forge your first bot', text: 'Pick a template, set limits, test it on demo.', to: '/forge', cta: 'Open Bot Forge' },
+    { done: Boolean(site.derivAppId), title: 'Set up your site', text: 'Brand, Deriv app ID and markup, then publish.', to: '/setup', cta: 'Set up site' },
+  ];
+  const doneCount = steps.filter((s) => s.done).length;
 
   return (
-    <div style={{ minHeight: '100vh', background: 'var(--bg-alt)' }}>
-      <header className="nav">
-        <div className="container nav-inner">
-          <Brand />
-          <span style={{ flex: 1 }} />
-          {status === 'ready' && (
-            <>
-              <div className="stack" style={{ padding: '6px 12px', border: '1px solid var(--border)', borderRadius: 8, background: '#fff' }}>
-                <span className="hint" style={{ fontSize: 11, fontWeight: 600 }}>BALANCE</span>
-                <b className="mono" style={{ fontSize: 15 }}>{balance}</b>
-              </div>
-              <Link className="btn btn-secondary" to="/forge">Bot Forge</Link>
-              <button className="btn btn-secondary" onClick={signOut}>Log out</button>
-            </>
-          )}
-        </div>
-      </header>
+    <div className="stack" style={{ gap: 24 }}>
+      <div className="stack" style={{ gap: 6 }}>
+        <h1 style={{ fontSize: 28, fontWeight: 700 }}>Overview</h1>
+        <p className="muted">Build bots, run your site and track your traders.</p>
+      </div>
 
-      <main className="container stack" style={{ padding: '40px 24px', gap: 24 }}>
-        {(status === 'checking' || status === 'loading') && <p className="muted" aria-live="polite">Loading…</p>}
-
-        {status === 'signed-out' && (
-          <section className="card stack" style={{ maxWidth: 520, gap: 18 }}>
-            <h1 style={{ fontSize: 28, fontWeight: 700 }}>Log in to {site.name}</h1>
-            <p className="muted">You sign in on Deriv's own page. We never see your password and never ask for an API token. This site can read your account and place trades, but it can never withdraw.</p>
-            {error && <p className="error" role="alert">{error}</p>}
-            <div className="row" style={{ gap: 12 }}>
-              <button className="btn btn-primary btn-lg" onClick={() => startLogin().catch((e: Error) => setError(e.message))}>Log in with Deriv</button>
-              <button className="btn btn-secondary btn-lg" onClick={() => startLogin({ signup: true }).catch((e: Error) => setError(e.message))}>Create account</button>
-            </div>
-          </section>
-        )}
-
-        {status === 'error' && <p className="error" role="alert">{error}</p>}
-
-        {status === 'ready' && (
-          <div className="grid">
-            <section className="card stack" style={{ gap: 14 }}>
-              <h2 style={{ fontSize: 18, fontWeight: 600 }}>Account</h2>
-              <div className="field">
-                <label className="label" htmlFor="acct">Trading account</label>
-                <select id="acct" className="input" value={accountId} onChange={(e) => { setBalance('—'); setAccountId(e.target.value); }}>
-                  {accounts.map((a) => <option key={a.id} value={a.id}>{a.label}</option>)}
-                </select>
-              </div>
-              {error && <p className="error" role="alert">{error}</p>}
-              <span className="badge badge-green" style={{ alignSelf: 'flex-start' }}><Icon.Shield /> Trade access only</span>
-            </section>
-            <section className="card stack" style={{ gap: 10 }} aria-live="polite">
-              <h2 style={{ fontSize: 18, fontWeight: 600 }}>Volatility 100 Index</h2>
-              <b className="mono" style={{ fontSize: 34, color: tick?.dir === 'down' ? 'var(--danger)' : tick?.dir === 'up' ? 'var(--success)' : 'var(--text)' }}>
-                {tick ? `${tick.dir === 'up' ? '▲' : tick.dir === 'down' ? '▼' : ''} ${tick.quote}` : '—'}
-              </b>
-              <span className="hint">Live public price feed</span>
-            </section>
+      {!auth.operator && (
+        <div className="notice">
+          <div className="stack" style={{ gap: 4 }}>
+            <b>Finish linking your workspace</b>
+            <span className="hint">Log in once more so we can save your bots to your Mwasya workspace.</span>
           </div>
-        )}
-      </main>
+          <button className="btn btn-primary" onClick={() => startLogin({ returnTo: '/app' })}>Log in again</button>
+        </div>
+      )}
+
+      <section className="card stack" style={{ gap: 18, maxWidth: 760 }}>
+        <div className="stack" style={{ gap: 4 }}>
+          <h2 style={{ fontSize: 20, fontWeight: 700 }}>Let's get you live</h2>
+          <p className="muted">Finish these steps and your first bot is in front of traders.</p>
+        </div>
+        <div className="stack" style={{ gap: 8 }}>
+          <div className="row" style={{ justifyContent: 'space-between', fontSize: 13, fontWeight: 600 }}>
+            <span>{doneCount} of {steps.length} complete</span>
+          </div>
+          <div className="progress" role="progressbar" aria-valuemin={0} aria-valuemax={steps.length} aria-valuenow={doneCount}>
+            <span style={{ width: `${(doneCount / steps.length) * 100}%` }} />
+          </div>
+        </div>
+        <ol className="steps">
+          {steps.map((s, i) => (
+            <li key={s.title} className={`step ${s.done ? 'step-done' : ''}`}>
+              <span className="step-num" aria-hidden="true">{s.done ? '✓' : i + 1}</span>
+              <div className="stack" style={{ gap: 4, flex: 1 }}>
+                <b>{s.title}</b>
+                <span className="hint">{s.text}</span>
+                {s.detail}
+              </div>
+              {!s.done && s.to && <Link className="btn btn-secondary" to={s.to}>{s.cta} <Icon.Arrow /></Link>}
+            </li>
+          ))}
+        </ol>
+      </section>
+
+      <div className="grid">
+        <section className="card stack" style={{ gap: 8 }}>
+          <span className="hint" style={{ fontWeight: 600 }}>BALANCE · {auth.account?.isVirtual ? 'DEMO' : 'REAL'}</span>
+          <b className="mono" style={{ fontSize: 30 }}>{auth.balance}</b>
+          <span className="hint">{auth.account?.id}</span>
+        </section>
+        <section className="card stack" style={{ gap: 8 }}>
+          <span className="hint" style={{ fontWeight: 600 }}>MY BOTS</span>
+          <b className="mono" style={{ fontSize: 30 }}>{botCount ?? '—'}</b>
+          <Link to="/forge" className="hint">Manage in Bot Forge →</Link>
+        </section>
+        <section className="card stack" style={{ gap: 8 }} aria-live="polite">
+          <span className="hint" style={{ fontWeight: 600 }}>VOLATILITY 100 (1s)</span>
+          <b className="mono" style={{ fontSize: 30, color: tick?.dir === 'down' ? 'var(--danger)' : tick?.dir === 'up' ? 'var(--success)' : 'var(--text)' }}>
+            {tick ? `${tick.dir === 'up' ? '▲' : tick.dir === 'down' ? '▼' : ''} ${tick.quote}` : '—'}
+          </b>
+          <span className="hint">Live public price feed</span>
+        </section>
+      </div>
     </div>
   );
 }
