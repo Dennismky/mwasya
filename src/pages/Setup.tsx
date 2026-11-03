@@ -1,24 +1,71 @@
-import { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
-import { Brand } from '../components/ui';
+import { useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
+import { useAuth } from '../lib/auth';
+import { startLogin } from '../lib/derivAuth';
 import { ACCENTS, MAX_MARKUP, cleanSubdomain, isBadBrandName, useSiteConfig } from '../store/siteConfig';
 
 const STEPS = ['Brand', 'Look', 'Deriv app', 'Domain'] as const;
 
+interface LiveSite { url: string; subdomain: string }
+
 export default function Setup() {
   const site = useSiteConfig();
-  const navigate = useNavigate();
+  const auth = useAuth();
   const [step, setStep] = useState(0);
   const [copied, setCopied] = useState(false);
+  const [live, setLive] = useState<LiveSite | null>(null);
+  const [publishing, setPublishing] = useState(false);
+  const [errors, setErrors] = useState<Record<string, string>>({});
+  const [publishError, setPublishError] = useState('');
 
-  const domain = site.domainMode === 'custom' && site.customDomain ? site.customDomain : `${site.subdomain || 'yourbrand'}.mwasya.site`;
+  // Load the saved site (the server is the source of truth once published).
+  useEffect(() => {
+    if (!auth.operator) return;
+    fetch('/api/sites/mine', { credentials: 'same-origin' })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((j: { site: null | { name: string; subdomain: string; accent: string; theme: 'light' | 'dark'; derivAppId: string; markup: number; url: string } } | null) => {
+        if (!j?.site) return;
+        const s = j.site;
+        site.update({ name: s.name, subdomain: s.subdomain, accent: s.accent, theme: s.theme, derivAppId: s.derivAppId, markup: s.markup, domainMode: 'sub' });
+        setLive({ url: s.url, subdomain: s.subdomain });
+      })
+      .catch(() => undefined);
+  }, [auth.operator]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  async function publish() {
+    setPublishing(true); setPublishError(''); setErrors({});
+    try {
+      const r = await fetch('/api/sites/mine', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'same-origin',
+        body: JSON.stringify({ name: site.name, subdomain: site.subdomain, accent: site.accent, theme: site.theme, derivAppId: site.derivAppId, markup: site.markup }),
+      });
+      const j = await r.json().catch(() => ({}));
+      if (r.status === 401) { setPublishError('Log in again to publish your site.'); return; }
+      if (r.status === 422 || r.status === 409) {
+        setErrors(j.errors ?? {});
+        const first = Object.keys(j.errors ?? {})[0];
+        setStep(first === 'name' || first === 'subdomain' ? 0 : first === 'accent' ? 1 : first === 'derivAppId' || first === 'markup' ? 2 : step);
+        return;
+      }
+      if (!r.ok) throw new Error('Could not publish your site. Please try again.');
+      setLive({ url: j.site.url, subdomain: j.site.subdomain });
+    } catch (e) {
+      setPublishError((e as Error).message);
+    } finally {
+      setPublishing(false);
+    }
+  }
+
+  const domain = `${site.subdomain || "yourbrand"}.mwasya.site`;
   const redirect = `https://${domain}/callback`;
   const nameBad = isBadBrandName(site.name);
   const canContinue = [
     site.name.trim().length > 1 && !nameBad && site.subdomain.length > 2,
     true,
-    /^\d+$/.test(site.derivAppId),
-    site.domainMode === 'sub' || /^[a-z0-9.-]+\.[a-z]{2,}$/.test(site.customDomain),
+    /^[A-Za-z0-9_-]{2,64}$/.test(site.derivAppId),
+    true,
   ][step];
 
   const copy = async () => {
@@ -26,16 +73,28 @@ export default function Setup() {
   };
 
   return (
-    <div style={{ minHeight: '100vh', background: 'var(--bg-alt)' }}>
-      <header className="nav">
-        <div className="container nav-inner">
-          <Brand />
-          <span style={{ flex: 1 }} className="muted">New site · Step {step + 1} of {STEPS.length}</span>
-          <Link to="/" style={{ fontWeight: 600 }}>Save &amp; exit</Link>
+    <div className="stack" style={{ gap: 24 }}>
+      <div className="row" style={{ justifyContent: 'space-between', alignItems: 'flex-end', gap: 12 }}>
+        <div className="stack" style={{ gap: 6 }}>
+          <h1 style={{ fontSize: 28, fontWeight: 700 }}>My site</h1>
+          <p className="muted">Your branded site where traders log in and run your published bots. Step {step + 1} of {STEPS.length}.</p>
         </div>
-      </header>
+        {live && <a className="btn btn-secondary" href={live.url} target="_blank" rel="noreferrer">Open {live.subdomain}.mwasya.site ↗</a>}
+      </div>
 
-      <main className="container stack" style={{ padding: '40px 24px 72px', gap: 28 }}>
+      {!auth.operator && (
+        <div className="notice">
+          <span><b>Log in again to publish.</b> We need to link your Deriv login to your Mwasya workspace.</span>
+          <button className="btn btn-primary" onClick={() => startLogin({ returnTo: '/setup' })}>Log in again</button>
+        </div>
+      )}
+      {live && (
+        <div className="notice" style={{ background: 'var(--success-tint)', borderColor: '#BFE6D4' }}>
+          <span><b>Your site is live</b> at <a href={live.url} target="_blank" rel="noreferrer">{live.url.replace('https://', '')}</a>. Bots you publish in <Link to="/forge">Bot Forge</Link> appear there.</span>
+        </div>
+      )}
+
+      <div className="stack" style={{ gap: 28 }}>
         <nav aria-label="Setup steps" style={{ display: 'grid', gap: 12, gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))' }}>
           {STEPS.map((label, i) => {
             const current = i === step;
@@ -60,11 +119,13 @@ export default function Setup() {
                   <label className="label" htmlFor="brand">Site name</label>
                   <input id="brand" className="input" value={site.name} maxLength={40} onChange={(e) => site.update({ name: e.target.value })} aria-invalid={nameBad} aria-describedby="brand-err" />
                   {nameBad && <span id="brand-err" className="error" role="alert">Remove "Deriv" or "Binary" from the name.</span>}
+                  {errors.name && <span className="error">{errors.name}</span>}
                 </div>
                 <div className="field">
                   <label className="label" htmlFor="sub">Free address</label>
                   <div className="input-group">
                     <input id="sub" className="input mono" value={site.subdomain} onChange={(e) => site.update({ subdomain: cleanSubdomain(e.target.value) })} />
+                  {errors.subdomain && <span className="error">{errors.subdomain}</span>}
                     <span className="addon">.mwasya.site</span>
                   </div>
                 </div>
@@ -107,8 +168,8 @@ export default function Setup() {
                 </div>
                 <div className="field">
                   <label className="label" htmlFor="appid">Deriv app ID</label>
-                  <input id="appid" className="input mono" inputMode="numeric" placeholder="e.g. 12345" value={site.derivAppId} onChange={(e) => site.update({ derivAppId: e.target.value.replace(/\D/g, '') })} />
-                  <span className="hint">Numbers only. Your app ID is public, so it's safe to share.</span>
+                  <input id="appid" className="input mono" placeholder="e.g. 34RhH6jeO22uI72af7k8B" value={site.derivAppId} onChange={(e) => site.update({ derivAppId: e.target.value.replace(/[^A-Za-z0-9_-]/g, '') })} />
+                  {errors.derivAppId ? <span className="error">{errors.derivAppId}</span> : <span className="hint">Use your <b>own</b> Deriv app so the markup is paid to you. The App ID is public, so it's safe to share.</span>}
                 </div>
                 <div className="field">
                   <label className="label" htmlFor="markup" style={{ display: 'flex', justifyContent: 'space-between' }}>
@@ -134,11 +195,11 @@ export default function Setup() {
                   {(['sub', 'custom'] as const).map((m) => {
                     const on = site.domainMode === m;
                     return (
-                      <button key={m} type="button" aria-pressed={on} onClick={() => site.update({ domainMode: m })} className="stack"
+                      <button key={m} type="button" aria-pressed={on} disabled={m === 'custom'} onClick={() => site.update({ domainMode: m })} className="stack"
                         style={{ alignItems: 'flex-start', gap: 6, padding: 18, borderRadius: 10, cursor: 'pointer', font: 'inherit', color: 'var(--text)', textAlign: 'left',
                           border: `1px solid ${on ? 'var(--primary)' : 'var(--border)'}`, background: on ? 'var(--primary-tint)' : '#fff', boxShadow: on ? '0 0 0 3px rgba(31,79,209,0.18)' : 'none' }}>
                         <b>{m === 'sub' ? 'Free subdomain' : 'My own domain'}</b>
-                        <span className={m === 'sub' ? 'mono hint' : 'hint'}>{m === 'sub' ? `${site.subdomain}.mwasya.site` : 'Point your DNS to us'}</span>
+                        <span className={m === 'sub' ? 'mono hint' : 'hint'}>{m === 'sub' ? `${site.subdomain}.mwasya.site` : 'Coming soon'}</span>
                       </button>
                     );
                   })}
@@ -169,9 +230,10 @@ export default function Setup() {
               {step < STEPS.length - 1 ? (
                 <button type="button" className="btn btn-primary" disabled={!canContinue} onClick={() => setStep((s) => s + 1)}>Continue</button>
               ) : (
-                <button type="button" className="btn btn-primary" disabled={!canContinue} onClick={() => navigate('/app')}>Publish site</button>
+                <button type="button" className="btn btn-primary" disabled={!canContinue || publishing || !auth.operator} onClick={publish}>{publishing ? 'Publishing…' : live ? 'Save & republish' : 'Publish site'}</button>
               )}
             </div>
+            {publishError && <p className="error" role="alert">{publishError}</p>}
           </section>
 
           <aside aria-label="Live preview" className="stack" style={{ flex: '1 1 360px', minWidth: 0, gap: 12 }}>
@@ -179,7 +241,7 @@ export default function Setup() {
             <Preview domain={domain} />
           </aside>
         </div>
-      </main>
+      </div>
     </div>
   );
 }

@@ -2,6 +2,7 @@ import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { DERIV_AUTH_TOKEN_URL, derivFetch, env } from '../_lib/deriv.js';
 import { upsertOperator, type DerivAccount } from '../_lib/db.js';
 import { noStore, sameOrigin, setSession } from '../_lib/session.js';
+import { resolveTenant } from '../_lib/tenant.js';
 
 /** Map the Deriv login to a Mwasya operator. Login still succeeds if this fails (Bot Forge will ask to re-login). */
 async function resolveOperator(token: string): Promise<string | undefined> {
@@ -35,11 +36,17 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   try {
+    // Studio logins use Mwasya's app; trader-site logins use the operator's own Deriv app.
+    const tenant = await resolveTenant(req);
+    if (tenant.kind === 'unknown') return res.status(404).json({ error: 'unknown_site' });
+    const clientId = tenant.kind === 'site' ? tenant.site.deriv_app_id : env('DERIV_APP_ID');
+    const redirectUri = tenant.kind === 'site' ? `https://${tenant.host}/callback` : env('DERIV_REDIRECT_URI');
+
     const body = new URLSearchParams({
       grant_type: 'authorization_code',
-      client_id: env('DERIV_APP_ID'),
+      client_id: clientId,
       code,
-      redirect_uri: env('DERIV_REDIRECT_URI'),
+      redirect_uri: redirectUri,
       code_verifier,
     });
     const r = await fetch(DERIV_AUTH_TOKEN_URL, {
@@ -53,8 +60,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     if (!data.access_token || !data.expires_in) return res.status(502).json({ error: 'bad_token_response' });
 
     const expiresAt = Date.now() + data.expires_in * 1000;
-    const operatorId = await resolveOperator(data.access_token);
-    setSession(res, { accessToken: data.access_token, expiresAt, operatorId });
+    // Only studio logins create/attach an operator workspace. Traders never become operators.
+    const operatorId = tenant.kind === 'platform' ? await resolveOperator(data.access_token) : undefined;
+    setSession(res, { accessToken: data.access_token, expiresAt, operatorId, siteId: tenant.kind === 'site' ? tenant.site.id : undefined });
     return res.status(200).json({ ok: true, expiresAt });
   } catch {
     return res.status(500).json({ error: 'server_error' });

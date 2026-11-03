@@ -1,28 +1,23 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Icon } from '../components/ui';
 import { useAuth } from '../lib/auth';
-import { listRuns, listStrategies, pauseRun, resumeRun, runPnL, startRun, stopRun, watchRun, type AutoRun } from '../lib/autoTrade';
+import { listStrategies } from '../lib/autoTrade';
+import { useBotRunner } from '../lib/useBotRunner';
+import { RunCard } from '../components/RunCard';
 import { startLogin } from '../lib/derivAuth';
-import { accountSocket, type DerivSocket } from '../lib/derivWs';
+
 import {
-  CONTRACT_GROUPS, LIMITS, TEMPLATES, contractLabel, defaultSpec, isValid, validateSpec,
+  CONTRACT_GROUPS, LIMITS, MARKETS, TEMPLATES, contractLabel, defaultSpec, isValid, marketLabel, validateSpec,
   type BotSpec, type Check, type DerivStrategy, type ForgeStrategy,
 } from '../shared/botSpec';
 
 interface SavedBot { id: string; name: string; spec: BotSpec; risk: string; status: 'draft' | 'published'; updated_at: string }
 
-const MARKETS = [
-  ['1HZ10V', 'Volatility 10 (1s)'], ['1HZ25V', 'Volatility 25 (1s)'], ['1HZ50V', 'Volatility 50 (1s)'],
-  ['1HZ75V', 'Volatility 75 (1s)'], ['1HZ100V', 'Volatility 100 (1s)'],
-  ['R_10', 'Volatility 10'], ['R_25', 'Volatility 25'], ['R_50', 'Volatility 50'], ['R_75', 'Volatility 75'], ['R_100', 'Volatility 100'],
-] as const;
-const marketLabel = (s: string) => MARKETS.find(([id]) => id === s)?.[1] ?? s;
 
 const DIGIT_BARRIER = ['DIGITOVER', 'DIGITUNDER', 'DIGITMATCH', 'DIGITDIFF'];
 const TICK_ONLY = [...DIGIT_BARRIER, 'DIGITEVEN', 'DIGITODD', 'ASIANU', 'ASIAND'];
 
 type Status = 'loading' | 'relogin' | 'ready' | 'error';
-type Launch = { phase: 'idle' } | { phase: 'starting' } | { phase: 'running'; runId: string } | { phase: 'error'; message: string };
 
 export default function Forge() {
   const auth = useAuth();
@@ -36,12 +31,13 @@ export default function Forge() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [serverChecks, setServerChecks] = useState<Check[] | null>(null);
-  const [runs, setRuns] = useState<Record<string, AutoRun>>({});
-  const [launch, setLaunch] = useState<Launch>({ phase: 'idle' });
-  const [conn, setConn] = useState<'connecting' | 'ready' | 'error'>('connecting');
-  const [connError, setConnError] = useState('');
-  const ws = useRef<DerivSocket | null>(null);
-  const unsubs = useRef<Map<string, () => void>>(new Map());
+
+
+
+
+
+  const runner = useBotRunner(accountId || undefined, auth.expire);
+  const { runs, launch, conn, connError } = runner;
 
   const checks = useMemo(() => serverChecks ?? validateSpec(spec, strategies), [spec, strategies, serverChecks]);
   const valid = isValid(checks);
@@ -67,49 +63,6 @@ export default function Forge() {
     if (account?.currency && account.currency !== spec.contract.currency) update((s) => { s.contract.currency = account.currency!; return s; });
   }, [account?.currency]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const onRunUpdate = useCallback((run: AutoRun) => setRuns((r) => ({ ...r, [run.run_id]: run })), []);
-
-  // Private socket per account → load runs and re-attach to the ones still going.
-  // If Deriv drops the connection, reconnect and re-attach automatically.
-  useEffect(() => {
-    if (!accountId) return;
-    const sock = accountSocket(accountId);
-    ws.current = sock;
-    setRuns({});
-    setConn('connecting');
-    const subs = unsubs.current;
-    let cancelled = false;
-    let retry: ReturnType<typeof setTimeout> | undefined;
-
-    const attach = () => {
-      listRuns(sock)
-        .then((list) => {
-          if (cancelled) return;
-          setConn('ready');
-          const map: Record<string, AutoRun> = {};
-          for (const run of list) {
-            map[run.run_id] = run;
-            if (run.status !== 'stopped' && !subs.has(run.run_id)) {
-              watchRun(sock, run.run_id, onRunUpdate, () => undefined).then((u) => subs.set(run.run_id, u)).catch(() => undefined);
-            }
-          }
-          setRuns((prev) => ({ ...prev, ...map }));
-        })
-        .catch((e: Error) => {
-          if (cancelled) return;
-          if (e.message === 'SESSION_EXPIRED') return auth.expire();
-          setConn('error');
-          setConnError(e.message);
-        });
-    };
-    const offDisconnect = sock.onDisconnect(() => {
-      subs.clear(); // stream listeners died with the socket
-      setConn('connecting');
-      retry = setTimeout(attach, 2000);
-    });
-    attach();
-    return () => { cancelled = true; clearTimeout(retry); offDisconnect(); subs.forEach((u) => u()); subs.clear(); sock.close(); ws.current = null; };
-  }, [accountId, onRunUpdate]); // eslint-disable-line react-hooks/exhaustive-deps
 
   async function save(nextStatus?: 'draft' | 'published') {
     setSaving(true); setError('');
@@ -150,37 +103,14 @@ export default function Forge() {
     }
   }
 
-  async function run() {
-    if (!account) return setLaunch({ phase: 'error', message: 'Pick a trading account first.' });
-    if (!ws.current) return setLaunch({ phase: 'error', message: 'Still connecting to your Deriv account. Try again in a moment.' });
+  function run() {
+    if (!account) return;
     if (!account.isVirtual && !confirm(`Run "${spec.name}" on your REAL account ${account.id}?\n\nYou can lose up to ${spec.params.stop_loss} ${spec.contract.currency}. Losses are not guaranteed to stop exactly at that amount.`)) return;
-
-    setLaunch({ phase: 'starting' });
-    let settled = false;
-    const fail = (message: string) => {
-      if (settled) return;
-      settled = true;
-      clearTimeout(timer);
-      if (message === 'SESSION_EXPIRED') return auth.expire();
-      setLaunch({ phase: 'error', message });
-    };
-    const timer = setTimeout(() => fail('Deriv did not confirm the run within 20 seconds. Check "Runs on this account" below before trying again.'), 20_000);
-    let unsub: (() => void) | undefined;
-    try {
-      unsub = await startRun(ws.current, spec, (r) => {
-        onRunUpdate(r);
-        if (unsub) unsubs.current.set(r.run_id, unsub);
-        if (!settled) { settled = true; clearTimeout(timer); setLaunch({ phase: 'running', runId: r.run_id }); }
-      }, fail);
-    } catch (e) {
-      fail((e as Error).message);
-    }
+    void runner.start(spec);
   }
 
-  async function controlRun(fn: typeof pauseRun, runId: string) {
-    if (!ws.current) return;
-    try { onRunUpdate(await fn(ws.current, runId)); } catch (e) { setError((e as Error).message); }
-  }
+  const controlRun = (action: 'pause' | 'resume' | 'stop', runId: string) =>
+    runner.control(action, runId).then((err) => { if (err) setError(err); });
 
   function setContractType(type: string) {
     update((s) => {
@@ -404,7 +334,7 @@ export default function Forge() {
                     {launch.phase === 'error' && <p className="error" role="alert">{launch.message}</p>}
                     {launch.phase === 'running' && runs[launch.runId] && (
                       <RunCard run={runs[launch.runId]} currency={account?.currency ?? ''} compact
-                        onPause={() => controlRun(pauseRun, launch.runId)} onResume={() => controlRun(resumeRun, launch.runId)} onStop={() => controlRun(stopRun, launch.runId)} />
+                        onPause={() => controlRun('pause', launch.runId)} onResume={() => controlRun('resume', launch.runId)} onStop={() => controlRun('stop', launch.runId)} />
                     )}
                   </div>
                   {error && <p className="error" role="alert">{error}</p>}
@@ -417,7 +347,7 @@ export default function Forge() {
               <section className="card stack" style={{ gap: 16 }}>
                 <h2 style={{ fontSize: 18, fontWeight: 600 }}>Runs on this account</h2>
                 {runList.map((r) => <RunCard key={r.run_id} run={r} currency={account?.currency ?? ''}
-                  onPause={() => controlRun(pauseRun, r.run_id)} onResume={() => controlRun(resumeRun, r.run_id)} onStop={() => controlRun(stopRun, r.run_id)} />)}
+                  onPause={() => controlRun('pause', r.run_id)} onResume={() => controlRun('resume', r.run_id)} onStop={() => controlRun('stop', r.run_id)} />)}
               </section>
             )}
 
@@ -449,39 +379,3 @@ export default function Forge() {
   );
 }
 
-function RunCard({ run, currency, compact, onPause, onResume, onStop }: { run: AutoRun; currency: string; compact?: boolean; onPause: () => void; onResume: () => void; onStop: () => void }) {
-  const pnl = runPnL(run);
-  const contracts = [...(run.contracts ?? [])].sort((a, b) => a.purchase_time - b.purchase_time);
-  const won = contracts.filter((c) => c.contract_status === 'won').length;
-  const lost = contracts.filter((c) => c.contract_status === 'lost').length;
-  const t = run.contract_template as { contract_type?: string; underlying_symbol?: string; barrier?: string };
-  const recent = contracts.slice(-12);
-  return (
-    <article className="stack" style={{ gap: 10, borderTop: '1px solid var(--border)', paddingTop: 14 }}>
-      <div className="row" style={{ gap: 12, alignItems: 'center' }}>
-        <b>{contractLabel(t.contract_type ?? '')}{t.barrier ? ` ${t.barrier}` : ''} · {marketLabel(t.underlying_symbol ?? '')}</b>
-        <span className={`badge ${run.status === 'running' ? 'badge-green' : 'badge-blue'}`}>{run.status}</span>
-        {!compact && <span className="hint mono">{run.run_id}</span>}
-        <span style={{ flex: 1 }} />
-        <b className="mono" style={{ color: pnl > 0 ? 'var(--success)' : pnl < 0 ? 'var(--danger)' : undefined }}>{pnl >= 0 ? '+' : ''}{pnl.toFixed(2)} {currency}</b>
-        {run.status === 'running' && <button className="btn btn-secondary" onClick={onPause}>Pause</button>}
-        {run.status === 'paused' && <button className="btn btn-secondary" onClick={onResume}>Resume</button>}
-        {run.status !== 'stopped' && <button className="btn btn-secondary" onClick={onStop}>Stop</button>}
-      </div>
-      <span className="hint">
-        {contracts.length} trades · {won} won · {lost} lost · staked {(run.total_stake ?? 0).toFixed(2)}
-        {run.stop_reason && ` · stopped: ${run.stop_reason.replace('_', ' ')}${run.stop_reason_code ? ` (${run.stop_reason_code})` : ''}`}
-      </span>
-      {recent.length > 0 && (
-        <div className="row" style={{ gap: 6 }} aria-label="Recent stakes">
-          {recent.map((c) => (
-            <span key={c.contract_id} className="mono" title={`Contract ${c.contract_id}`} style={{
-              fontSize: 12, padding: '2px 8px', borderRadius: 6, border: '1px solid var(--border)',
-              background: c.contract_status === 'won' ? 'var(--success-tint)' : c.contract_status === 'lost' ? 'var(--danger-tint)' : '#fff',
-            }}>{c.buy_price.toFixed(2)}</span>
-          ))}
-        </div>
-      )}
-    </article>
-  );
-}

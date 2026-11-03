@@ -43,3 +43,21 @@ create table if not exists bot_runs (
   updated_at   timestamptz not null default now()
 );
 create index if not exists bot_runs_bot_idx on bot_runs(bot_id);
+
+-- One branded trader site per operator, served at <subdomain>.mwasya.site.
+-- Traders log in through the operator's own Deriv app (so markup goes to the operator).
+create table if not exists sites (
+  id            uuid primary key default gen_random_uuid(),
+  operator_id   uuid not null unique references operators(id) on delete cascade,
+  name          text not null check (length(name) between 2 and 40),
+  subdomain     text not null unique check (subdomain ~ '^[a-z0-9]([a-z0-9-]{1,38}[a-z0-9])$'),
+  accent        text not null default '#1F4FD1' check (accent ~ '^#[0-9A-Fa-f]{6}$'),
+  theme         text not null default 'light' check (theme in ('light', 'dark')),
+  deriv_app_id  text not null check (deriv_app_id ~ '^[A-Za-z0-9_-]{2,64}$'),
+  markup        numeric(3,1) not null default 0 check (markup between 0 and 3),
+  status        text not null default 'live' check (status in ('live', 'paused')),
+  created_at    timestamptz not null default now(),
+  updated_at    timestamptz not null default now()
+);
+
+alter table bot_runs add column if not exists site_id uuid references sites(id) on delete set null;

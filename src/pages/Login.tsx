@@ -1,10 +1,11 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, type CSSProperties } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { Icon } from '../components/ui';
 import { getSession, startLogin } from '../lib/derivAuth';
+import type { SiteBranding } from '../lib/tenant';
 
 /** `/` — sign in with Deriv (OAuth 2.0 + PKCE, trade scope only). Logged-in users go straight to the dashboard. */
-export default function Login() {
+export default function Login({ site }: { site?: SiteBranding }) {
   const navigate = useNavigate();
   const location = useLocation();
   const state = (location.state ?? {}) as { from?: string; error?: string };
@@ -26,13 +27,13 @@ export default function Login() {
   };
 
   return (
-    <div className="login-bg">
+    <div className="login-bg" style={site ? ({ background: `radial-gradient(1000px 520px at 10% -10%, ${site.accent} 0%, transparent 60%), #0B1F3A`, "--primary": site.accent, "--primary-hover": site.accent } as CSSProperties) : undefined}>
       <main className="login-card" aria-busy={checking}>
         <div className="row" style={{ alignItems: 'center', gap: 12 }}>
-          <span className="brand-mark" style={{ width: 40, height: 40 }}><Icon.Logo /></span>
+          <span className="brand-mark" style={{ width: 40, height: 40, background: site?.accent }}>{site ? site.name.charAt(0).toUpperCase() : <Icon.Logo />}</span>
           <div className="stack">
-            <b style={{ fontSize: 20 }}>Mwasya</b>
-            <span className="hint" style={{ fontSize: 12, fontWeight: 600, letterSpacing: '.06em' }}>OPERATOR STUDIO</span>
+            <b style={{ fontSize: 20 }}>{site?.name ?? "Mwasya"}</b>
+            <span className="hint" style={{ fontSize: 12, fontWeight: 600, letterSpacing: ".06em" }}>{site ? "TRADING BOTS" : "OPERATOR STUDIO"}</span>
           </div>
         </div>
 
@@ -61,9 +62,9 @@ export default function Login() {
           <li><Icon.Lock /> Your session is encrypted and stays on our server.</li>
         </ul>
 
-        <p className="hint" style={{ textAlign: 'center' }}>
+        {!site && <p className="hint" style={{ textAlign: "center" }}>
           New to Mwasya? <Link to="/about">See what it does</Link>
-        </p>
+        </p>}
       </main>
       <p className="login-legal">Built on the Deriv API. Trading carries risk. Only trade with money you can afford to lose.</p>
     </div>

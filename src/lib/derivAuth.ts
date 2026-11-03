@@ -1,4 +1,5 @@
 import { challengeFromVerifier, randomString } from './pkce';
+import { loadTenant } from './tenant';
 
 /**
  * Deriv OAuth 2.0 (authorization code + PKCE).
@@ -16,9 +17,11 @@ const KEY_STATE = 'mw_oauth_state';
 const KEY_VERIFIER = 'mw_oauth_verifier';
 const KEY_RETURN = 'mw_oauth_return';
 
-export function appId(): string {
-  const id = import.meta.env.VITE_DERIV_APP_ID as string | undefined;
-  if (!id) throw new Error('VITE_DERIV_APP_ID is not set. Add it to .env.local.');
+/** Studio uses Mwasya's app ID; a trader site uses its operator's own app ID (from /api/site). */
+export async function appId(): Promise<string> {
+  const t = await loadTenant();
+  const id = t.kind === 'site' ? t.site.appId : (t.kind === 'platform' && t.appId) || (import.meta.env.VITE_DERIV_APP_ID as string | undefined);
+  if (!id) throw new Error('This site has no Deriv app configured yet.');
   return id;
 }
 
@@ -37,7 +40,7 @@ export async function startLogin(opts: { signup?: boolean; returnTo?: string } =
 
   const params = new URLSearchParams({
     response_type: 'code',
-    client_id: appId(),
+    client_id: await appId(),
     redirect_uri: redirectUri(),
     scope: SCOPES.join(' '),
     state,

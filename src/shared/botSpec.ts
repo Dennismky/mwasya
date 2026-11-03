@@ -76,6 +76,13 @@ export const CONTRACT_GROUPS: { label: string; types: { id: string; label: strin
   { label: 'Accumulators', types: [{ id: 'ACCU', label: 'Accumulator' }] },
 ];
 
+export const MARKETS = [
+  ['1HZ10V', 'Volatility 10 (1s)'], ['1HZ25V', 'Volatility 25 (1s)'], ['1HZ50V', 'Volatility 50 (1s)'],
+  ['1HZ75V', 'Volatility 75 (1s)'], ['1HZ100V', 'Volatility 100 (1s)'],
+  ['R_10', 'Volatility 10'], ['R_25', 'Volatility 25'], ['R_50', 'Volatility 50'], ['R_75', 'Volatility 75'], ['R_100', 'Volatility 100'],
+] as const;
+export const marketLabel = (s: string) => MARKETS.find(([id]) => id === s)?.[1] ?? s;
+
 export const contractLabel = (id: string) =>
   CONTRACT_GROUPS.flatMap((g) => g.types).find((t) => t.id === id)?.label ?? id;
 

@@ -14,6 +14,8 @@ export interface Session {
   expiresAt: number; // epoch ms
   /** Mwasya operator (from Postgres). Absent if the DB was unreachable at login. */
   operatorId?: string;
+  /** Set when the login happened on a trader site (<sub>.mwasya.site). */
+  siteId?: string;
 }
 
 function key(): Buffer {
