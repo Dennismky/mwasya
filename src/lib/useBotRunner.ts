@@ -11,7 +11,7 @@ export type Conn = 'connecting' | 'ready' | 'error';
  * Reconnects after drops and re-attaches to runs that are still going.
  * `key` lets a page track which bot a launch belongs to (e.g. a bot id).
  */
-export function useBotRunner(accountId: string | undefined, onExpired: () => void) {
+export function useBotRunner(accountId: string | undefined, onExpired: () => void, onTrade?: () => void) {
   const [runs, setRuns] = useState<Record<string, AutoRun>>({});
   const [launch, setLaunch] = useState<Launch>({ phase: 'idle' });
   const [conn, setConn] = useState<Conn>('connecting');
@@ -21,7 +21,15 @@ export function useBotRunner(accountId: string | undefined, onExpired: () => voi
   const expiredRef = useRef(onExpired);
   expiredRef.current = onExpired;
 
-  const onRunUpdate = useCallback((run: AutoRun) => setRuns((r) => ({ ...r, [run.run_id]: run })), []);
+  const tradeRef = useRef(onTrade);
+  tradeRef.current = onTrade;
+  const tradeTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  // Every run update is a buy or a settle → refresh the real balance (debounced to respect Deriv's rate limit).
+  const onRunUpdate = useCallback((run: AutoRun) => {
+    setRuns((r) => ({ ...r, [run.run_id]: run }));
+    clearTimeout(tradeTimer.current);
+    tradeTimer.current = setTimeout(() => tradeRef.current?.(), 1200);
+  }, []);
 
   useEffect(() => {
     if (!accountId) return;

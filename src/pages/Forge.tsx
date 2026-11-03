@@ -36,7 +36,7 @@ export default function Forge() {
 
 
 
-  const runner = useBotRunner(accountId || undefined, auth.expire);
+  const runner = useBotRunner(accountId || undefined, auth.expire, auth.refreshBalance);
   const { runs, launch, conn, connError } = runner;
 
   const checks = useMemo(() => serverChecks ?? validateSpec(spec, strategies), [spec, strategies, serverChecks]);

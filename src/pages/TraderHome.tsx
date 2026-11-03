@@ -37,7 +37,7 @@ function TraderView({ site, initialBots }: { site: SiteBranding; initialBots: Pu
   const auth = useAuth();
   const [bots, setBots] = useState(initialBots);
   const [error, setError] = useState('');
-  const runner = useBotRunner(auth.account?.id, auth.expire);
+  const runner = useBotRunner(auth.account?.id, auth.expire, auth.refreshBalance);
   const dark = site.theme === 'dark';
 
   useEffect(() => { // pick up bots the operator published since the page loaded
