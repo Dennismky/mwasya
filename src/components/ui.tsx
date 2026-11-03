@@ -33,7 +33,7 @@ export function Footer() {
       <div className="container stack" style={{ padding: '48px 24px 32px', gap: 24 }}>
         <Brand />
         <p className="muted" style={{ fontSize: 13, lineHeight: 1.6, paddingTop: 20, borderTop: '1px solid var(--border)' }}>
-          © {new Date().getFullYear()} Mwasya. Mwasya is an independent platform and is not affiliated with or endorsed by Deriv.
+          © {new Date().getFullYear()} Mwasya. Built on the Deriv API.
           Trading derivatives carries a high level of risk, and you can lose all of your stake. Bots and signals do not guarantee profit.
         </p>
       </div>

@@ -48,7 +48,6 @@ src/pages/      Landing, Setup wizard, Callback, Trader dashboard
 design/         Clickable UI prototype source
 ```
 
-Mwasya is independent and not affiliated with Deriv.
 
 ## Bot Forge (`/forge`)
 Bots run on Deriv's servers through the `auto_*` API ([docs](https://developers.deriv.com/llms/auto-start.md)). Mwasya only builds, checks and starts them.

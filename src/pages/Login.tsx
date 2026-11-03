@@ -65,7 +65,7 @@ export default function Login() {
           New to Mwasya? <Link to="/about">See what it does</Link>
         </p>
       </main>
-      <p className="login-legal">Mwasya is independent and not affiliated with Deriv. Trading derivatives carries a high level of risk.</p>
+      <p className="login-legal">Built on the Deriv API. Trading carries risk. Only trade with money you can afford to lose.</p>
     </div>
   );
 }

@@ -55,7 +55,7 @@ function Shell() {
         <button className="side-link" style={{ border: 0, background: 'none', width: '100%' }} onClick={auth.signOut}>
           <Icon.Lock />Sign out
         </button>
-        <p className="sidebar-legal">Not affiliated with Deriv. Trading carries risk.</p>
+        <p className="sidebar-legal">Trading carries risk. Bots do not guarantee profit.</p>
       </aside>
 
       <div className="shell-main">
