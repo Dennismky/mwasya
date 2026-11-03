@@ -31,7 +31,7 @@ export interface DerivAccount { account_id: string; account_type: 'demo' | 'real
  * Find (or create) the operator who owns these Deriv accounts and record any new ones.
  * Returns the operator id.
  */
-export async function upsertOperator(accounts: DerivAccount[]): Promise<string> {
+export async function upsertOperator(accounts: DerivAccount[], inviteCode?: string): Promise<string> {
   if (accounts.length === 0) throw new Error('no_accounts');
   const client = await db().connect();
   try {
@@ -41,8 +41,29 @@ export async function upsertOperator(accounts: DerivAccount[]): Promise<string> 
       'select operator_id from operator_accounts where account_id = any($1) order by seen_at limit 1 for update',
       [ids],
     );
-    const operatorId = found.rows[0]?.operator_id
-      ?? (await client.query<{ id: string }>('insert into operators default values returning id')).rows[0].id;
+    let operatorId = found.rows[0]?.operator_id;
+    if (operatorId) {
+      // Existing operators never move in the tree (an invite link can't re-parent anyone).
+      await client.query('update operators set last_login_at = now() where id = $1', [operatorId]);
+    } else {
+      // New operator: place under the inviter (valid, unused-up invite from an active operator), else under the owner.
+      let parentId: string | null = null;
+      if (inviteCode && /^[A-Za-z0-9_-]{10,40}$/.test(inviteCode)) {
+        const inv = await client.query<{ operator_id: string }>(
+          `update invites i set uses = uses + 1
+             from operators o
+            where i.code = $1 and o.id = i.operator_id and o.status = 'active'
+              and not i.revoked and i.expires_at > now() and i.uses < i.max_uses
+            returning i.operator_id`,
+          [inviteCode],
+        );
+        parentId = inv.rows[0]?.operator_id ?? null;
+      }
+      if (!parentId) parentId = (await client.query<{ id: string }>(`select id from operators where role = 'owner' limit 1`)).rows[0]?.id ?? null;
+      operatorId = (await client.query<{ id: string }>(
+        'insert into operators (parent_id, last_login_at) values ($1, now()) returning id', [parentId],
+      )).rows[0].id;
+    }
     for (const a of accounts) {
       await client.query(
         `insert into operator_accounts (account_id, operator_id, account_type, currency)

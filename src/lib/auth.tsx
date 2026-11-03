@@ -5,11 +5,21 @@ import { accountSocket } from './derivWs';
 
 export type AuthStatus = 'checking' | 'signed-out' | 'ready' | 'error';
 
+export interface Me {
+  operator: { id: string; role: 'owner' | 'operator'; status: 'active' | 'suspended'; paidUntil: string | null; parent: { name: string | null; subdomain: string | null } | null };
+  billing: { priceKes: number; periodDays: number; required: boolean; active: boolean; mpesa: boolean };
+}
+
 interface AuthState {
   status: AuthStatus;
   error: string;
   /** False when the session predates the database (bots need a fresh login). */
   operator: boolean;
+  /** Role + billing (null until loaded, or when not an operator). */
+  me: Me | null;
+  /** True when the account is suspended by the platform owner. */
+  suspended: boolean;
+  reloadMe: () => Promise<void>;
   accounts: Account[];
   account: Account | undefined;
   setAccountId: (id: string) => void;
@@ -28,6 +38,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [status, setStatus] = useState<AuthStatus>('checking');
   const [error, setError] = useState('');
   const [operator, setOperator] = useState(false);
+  const [me, setMe] = useState<Me | null>(null);
+  const [suspended, setSuspended] = useState(false);
+  const reloadMe = useCallback(async () => {
+    const r = await fetch('/api/me', { credentials: 'same-origin' });
+    if (r.status === 403) { setSuspended(true); setMe(null); return; }
+    if (r.status === 401) { setOperator(false); setMe(null); return; }
+    if (r.ok) setMe((await r.json()) as Me);
+  }, []);
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [accountId, setAccountIdState] = useState('');
   const [balance, setBalance] = useState('—');
@@ -45,6 +63,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const s = await getSession();
       if (!s.loggedIn) return setStatus('signed-out');
       setOperator(Boolean(s.operator));
+      if (s.operator) await reloadMe().catch(() => undefined);
       const list = await fetchAccounts();
       if (list === 'expired') return expire();
       setAccounts(list);
@@ -52,7 +71,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setAccountIdState((list.find((a) => a.id === saved) ?? list.find((a) => a.isVirtual) ?? list[0])?.id ?? '');
       setStatus('ready');
     })().catch((e: Error) => { setError(e.message || 'Something went wrong.'); setStatus('error'); });
-  }, [expire]);
+  }, [expire, reloadMe]);
 
   // Live balance for the selected account — always the real number from Deriv:
   // 1) Deriv's balance stream, re-subscribed after any drop,
@@ -113,9 +132,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const value = useMemo<AuthState>(() => ({
-    status, error, operator, accounts, balance, refreshBalance, expire, signOut, setAccountId,
+    status, error, operator, me, suspended, reloadMe, accounts, balance, refreshBalance, expire, signOut, setAccountId,
     account: accounts.find((a) => a.id === accountId),
-  }), [status, error, operator, accounts, accountId, balance, refreshBalance, expire, signOut, setAccountId]);
+  }), [status, error, operator, me, suspended, reloadMe, accounts, accountId, balance, refreshBalance, expire, signOut, setAccountId]);
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }

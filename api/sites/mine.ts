@@ -1,5 +1,5 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { requireOperator } from '../_lib/bots.js';
+import { getBilling, hasAccess, requireOperator } from '../_lib/guard.js';
 import { query } from '../_lib/db.js';
 import { noStore, sameOrigin } from '../_lib/session.js';
 import { RESERVED_SUBDOMAINS, ROOT_DOMAIN, SITE_COLUMNS, type SiteRow } from '../_lib/tenant.js';
@@ -12,8 +12,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   noStore(res);
   if (req.method !== 'GET' && req.method !== 'PUT') return res.status(405).json({ error: 'method_not_allowed' });
   if (req.method === 'PUT' && !sameOrigin(req)) return res.status(403).json({ error: 'bad_origin' });
-  const operatorId = requireOperator(req, res);
-  if (!operatorId) return;
+  const op = await requireOperator(req, res);
+  if (!op) return;
+  const operatorId = op.id;
 
   try {
     if (req.method === 'GET') {
@@ -39,6 +40,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     else if (appId === process.env.DERIV_APP_ID) errors.derivAppId = 'Use your own Deriv app, not Mwasya\'s, so markup is paid to you';
     if (!(markup >= 0 && markup <= 3)) errors.markup = 'Markup must be 0% to 3%';
     if (Object.keys(errors).length) return res.status(422).json({ error: 'invalid_site', errors });
+
+    if (!hasAccess(op, await getBilling())) return res.status(402).json({ error: 'payment_required' });
 
     const taken = await query(`select 1 from sites where subdomain = $1 and operator_id <> $2`, [subdomain, operatorId]);
     if (taken.length) return res.status(409).json({ error: 'subdomain_taken', errors: { subdomain: 'Someone already uses this address' } });

@@ -16,6 +16,8 @@ const SCOPES = ['trade'];
 const KEY_STATE = 'mw_oauth_state';
 const KEY_VERIFIER = 'mw_oauth_verifier';
 const KEY_RETURN = 'mw_oauth_return';
+/** Invite code from mwasya.site/?invite=CODE — sent once with the login, then cleared. */
+export const KEY_INVITE = 'mw_invite';
 
 /** Studio uses Mwasya's app ID; a trader site uses its operator's own app ID (from /api/site). */
 export async function appId(): Promise<string> {
@@ -78,10 +80,12 @@ export async function completeLogin(search: string): Promise<CallbackResult> {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     credentials: 'same-origin',
-    body: JSON.stringify({ code, code_verifier: verifier }),
+    body: JSON.stringify({ code, code_verifier: verifier, invite: localStorage.getItem(KEY_INVITE) ?? undefined }),
   });
+  if (r.status === 429) return { ok: false, error: 'Too many login attempts. Please wait a few minutes and try again.' };
   if (!r.ok) return { ok: false, error: 'Could not complete login with Deriv. Please try again.' };
-  return { ok: true, returnTo: returnTo.startsWith('/') && !returnTo.startsWith('//') ? returnTo : '/app' };
+  localStorage.removeItem(KEY_INVITE);
+  return { ok: true, returnTo: safeReturnPath(returnTo) };
 }
 
 export async function getSession(): Promise<{ loggedIn: boolean; expiresAt?: number; operator?: boolean }> {
@@ -92,4 +96,12 @@ export async function getSession(): Promise<{ loggedIn: boolean; expiresAt?: num
 
 export async function logout(): Promise<void> {
   await fetch('/api/auth/logout', { method: 'POST', credentials: 'same-origin' });
+}
+
+/** Only same-app paths like "/forge" — never "//evil.com", "/\evil.com" or "https://…" (open-redirect guard). */
+export function safeReturnPath(p: string | null | undefined): string {
+  if (typeof p !== 'string' || p.length > 200) return '/app';
+  if (p[0] !== '/' || p[1] === '/' || p[1] === '\\') return '/app'; // "//host" and "/\host" are treated as other sites
+  if (p.includes('\\') || p.includes(':') || /[\s<>"']/.test(p)) return '/app';
+  return p;
 }

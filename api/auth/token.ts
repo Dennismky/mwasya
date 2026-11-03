@@ -3,16 +3,17 @@ import { DERIV_AUTH_TOKEN_URL, derivFetch, env } from '../_lib/deriv.js';
 import { upsertOperator, type DerivAccount } from '../_lib/db.js';
 import { noStore, sameOrigin, setSession } from '../_lib/session.js';
 import { resolveTenant } from '../_lib/tenant.js';
+import { clientIp, rateLimit } from '../_lib/guard.js';
 
 /** Map the Deriv login to a Mwasya operator. Login still succeeds if this fails (Bot Forge will ask to re-login). */
-async function resolveOperator(token: string): Promise<string | undefined> {
+async function resolveOperator(token: string, invite?: string): Promise<string | undefined> {
   if (!process.env.DATABASE_URL) return undefined;
   try {
     const r = await derivFetch('/trading/v1/options/accounts', token);
     if (!r.ok) return undefined;
     const { data } = (await r.json()) as { data?: DerivAccount[] };
     const accounts = (data ?? []).filter((a) => typeof a.account_id === 'string' && (a.account_type === 'demo' || a.account_type === 'real'));
-    return await upsertOperator(accounts);
+    return await upsertOperator(accounts, invite);
   } catch (e) {
     console.error('resolveOperator failed', e);
     return undefined;
@@ -29,13 +30,16 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'method_not_allowed' });
   if (!sameOrigin(req)) return res.status(403).json({ error: 'bad_origin' });
 
-  const { code, code_verifier } = (req.body ?? {}) as { code?: unknown; code_verifier?: unknown };
+  const { code, code_verifier, invite } = (req.body ?? {}) as { code?: unknown; code_verifier?: unknown; invite?: unknown };
   if (typeof code !== 'string' || typeof code_verifier !== 'string' ||
       code.length > 2048 || !/^[A-Za-z0-9\-._~]{43,128}$/.test(code_verifier)) {
     return res.status(400).json({ error: 'invalid_request' });
   }
 
   try {
+    // Slow down brute force / abuse: 20 login attempts per IP per 10 minutes.
+    if (process.env.DATABASE_URL && !(await rateLimit(`login:${clientIp(req)}`, 20, 600))) return res.status(429).json({ error: 'too_many_attempts' });
+
     // Studio logins use Mwasya's app; trader-site logins use the operator's own Deriv app.
     const tenant = await resolveTenant(req);
     if (tenant.kind === 'unknown') return res.status(404).json({ error: 'unknown_site' });
@@ -61,7 +65,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     const expiresAt = Date.now() + data.expires_in * 1000;
     // Only studio logins create/attach an operator workspace. Traders never become operators.
-    const operatorId = tenant.kind === 'platform' ? await resolveOperator(data.access_token) : undefined;
+    const operatorId = tenant.kind === 'platform' ? await resolveOperator(data.access_token, typeof invite === 'string' ? invite : undefined) : undefined;
     setSession(res, { accessToken: data.access_token, expiresAt, operatorId, siteId: tenant.kind === 'site' ? tenant.site.id : undefined });
     return res.status(200).json({ ok: true, expiresAt });
   } catch {

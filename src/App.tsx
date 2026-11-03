@@ -9,6 +9,8 @@ import Landing from './pages/Landing';
 import Login from './pages/Login';
 import Setup from './pages/Setup';
 import TraderHome from './pages/TraderHome';
+import Network from './pages/Network';
+import Billing from './pages/Billing';
 
 /**
  * One build, two apps:
@@ -55,6 +57,8 @@ export default function App() {
         <Route path="/app" element={<Dashboard />} />
         <Route path="/forge" element={<Forge />} />
         <Route path="/setup" element={<Setup />} />
+        <Route path="/network" element={<Network />} />
+        <Route path="/billing" element={<Billing />} />
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>

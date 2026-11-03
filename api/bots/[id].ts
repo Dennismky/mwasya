@@ -25,7 +25,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     if (req.method !== 'PATCH' && req.method !== 'DELETE') return res.status(405).json({ error: 'method_not_allowed' });
     if (!sameOrigin(req)) return res.status(403).json({ error: 'bad_origin' });
-    const operatorId = requireOperator(req, res);
+    const operatorId = await requireOperator(req, res);
     if (!operatorId) return;
 
     if (req.method === 'DELETE') {

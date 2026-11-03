@@ -7,6 +7,8 @@ const NAV: { to: string; label: string; icon: ReactNode; soon?: boolean }[] = [
   { to: '/app', label: 'Overview', icon: <Icon.Chart /> },
   { to: '/forge', label: 'Bot Forge', icon: <Icon.Chip /> },
   { to: '/setup', label: 'My site', icon: <Icon.Globe /> },
+  { to: '/network', label: 'Network', icon: <Icon.Window /> },
+  { to: '/billing', label: 'Billing', icon: <Icon.Key /> },
   { to: '/signals', label: 'Signals', icon: <Icon.Send />, soon: true },
   { to: '/earnings', label: 'Earnings', icon: <Icon.Coin />, soon: true },
 ];
@@ -39,7 +41,7 @@ function Shell() {
           <span className="brand-mark"><Icon.Logo /></span>
           <div className="stack">
             <b>Mwasya</b>
-            <span className="sidebar-sub">OPERATOR STUDIO</span>
+            <span className="sidebar-sub">{auth.me?.operator.role === 'owner' ? 'OWNER · ADMIN' : 'OPERATOR STUDIO'}</span>
           </div>
         </div>
         <nav className="stack" style={{ gap: 4 }}>
@@ -77,6 +79,17 @@ function Shell() {
           )}
         </header>
         <main className="shell-content">
+          {auth.suspended && (
+            <div className="notice" style={{ background: 'var(--danger-tint)', borderColor: '#F5C2BD', marginBottom: 20 }}>
+              <span><b>Your account is suspended.</b> Your site is offline and changes are disabled. Contact the person who invited you.</span>
+            </div>
+          )}
+          {!auth.suspended && auth.me?.billing.required && !auth.me.billing.active && location.pathname !== '/billing' && (
+            <div className="notice" style={{ marginBottom: 20 }}>
+              <span><b>Activate your account</b> to publish your site and invite people.</span>
+              <NavLink className="btn btn-primary" to="/billing">Pay with M-Pesa</NavLink>
+            </div>
+          )}
           {auth.status === 'error' ? <p className="error" role="alert">{auth.error}</p> : <Outlet />}
         </main>
       </div>

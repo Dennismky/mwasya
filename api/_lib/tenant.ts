@@ -34,6 +34,14 @@ export async function resolveTenant(req: VercelRequest): Promise<Tenant> {
   const sub = host.endsWith(`.${ROOT_DOMAIN}`) ? host.slice(0, -(ROOT_DOMAIN.length + 1)) : null;
   if (!sub || sub === 'www' || sub.includes('.')) return { kind: 'platform', host };
   if (!process.env.DATABASE_URL) return { kind: 'unknown', host };
-  const [site] = await query<SiteRow>(`select ${SITE_COLUMNS} from sites where subdomain = $1 and status = 'live'`, [sub]);
+  // Served only while the operator is active and has access (owner, free pricing, or paid_until in the future).
+  const [site] = await query<SiteRow>(
+    `select ${SITE_COLUMNS.split(', ').map((c) => 's.' + c).join(', ')}
+       from sites s join operators o on o.id = s.operator_id
+      where s.subdomain = $1 and s.status = 'live' and o.status = 'active'
+        and (o.role = 'owner' or o.paid_until > now()
+             or coalesce((select (value->>'price_kes')::numeric from settings where key = 'billing'), 0) <= 0)`,
+    [sub],
+  );
   return site ? { kind: 'site', host, site } : { kind: 'unknown', host };
 }

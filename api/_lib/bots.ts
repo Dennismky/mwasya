@@ -1,6 +1,6 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { isValid, riskLevel, validateSpec, type BotSpec, type Check } from '../../src/shared/botSpec.js';
-import { getSession } from './session.js';
+import { requireOperator as requireOperatorRow } from './guard.js';
 import { liveStrategies } from './strategies.js';
 
 export interface BotRow {
@@ -16,12 +16,10 @@ export interface BotRow {
 export const BOT_COLUMNS = 'id, name, spec, risk, status, created_at, updated_at';
 export const STATUSES = ['draft', 'published', 'archived'] as const;
 
-/** Returns the operator id, or sends 401 and returns null. */
-export function requireOperator(req: VercelRequest, res: VercelResponse): string | null {
-  const s = getSession(req);
-  if (!s) { res.status(401).json({ error: 'not_logged_in' }); return null; }
-  if (!s.operatorId) { res.status(401).json({ error: 'relogin_required' }); return null; }
-  return s.operatorId;
+/** Returns the active operator's id, or sends 401/403 and returns null (checked against the DB every call). */
+export async function requireOperator(req: VercelRequest, res: VercelResponse): Promise<string | null> {
+  const op = await requireOperatorRow(req, res);
+  return op?.id ?? null;
 }
 
 /** Server-side gate: structural + Mwasya caps + Deriv's live strategy rules. */

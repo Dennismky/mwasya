@@ -43,6 +43,8 @@ export default function Setup() {
       });
       const j = await r.json().catch(() => ({}));
       if (r.status === 401) { setPublishError('Log in again to publish your site.'); return; }
+      if (r.status === 402) { setPublishError('Activate your account in Billing to publish your site.'); return; }
+      if (r.status === 403) { setPublishError('Your account is suspended.'); return; }
       if (r.status === 422 || r.status === 409) {
         setErrors(j.errors ?? {});
         const first = Object.keys(j.errors ?? {})[0];

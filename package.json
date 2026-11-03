@@ -8,13 +8,14 @@
     "build": "tsc -b && vite build",
     "typecheck": "tsc -b",
     "preview": "vite preview",
-    "db:migrate": "node --env-file-if-exists=.env.local scripts/migrate.mjs"
+    "db:migrate": "node --env-file-if-exists=.env.local scripts/migrate.mjs",
+    "make-owner": "node --env-file-if-exists=.env.local scripts/make-owner.mjs"
   },
   "dependencies": {
     "pg": "^8.23.1",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
-    "react-router-dom": "^6.28.0",
+    "react-router-dom": "^7.18.5",
     "zustand": "^5.0.1"
   },
   "devDependencies": {
@@ -22,10 +23,10 @@
     "@types/pg": "^8.23.1",
     "@types/react": "^18.3.12",
     "@types/react-dom": "^18.3.1",
-    "@vercel/node": "^3.2.24",
-    "@vitejs/plugin-react": "^4.3.3",
+    "@vercel/node": "^29.0.1",
+    "@vitejs/plugin-react": "^6.2.1",
     "typescript": "~5.6.3",
-    "vite": "^5.4.11"
+    "vite": "^8.3.5"
   },
   "engines": {
     "node": ">=22"

@@ -90,6 +90,7 @@ Open **http://localhost:3000** and click **Log in with Deriv**.
 | `npm run build` | Typecheck and build for production |
 | `npm run typecheck` | Typecheck only |
 | `npm run db:migrate` | Apply [db/schema.sql](db/schema.sql) to `DATABASE_URL` (idempotent) |
+| `npm run make-owner -- <DERIV_ACCOUNT_ID>` | Make that operator the platform owner (root of the network) |
 | `git push` | Deploy. Pushing to `master` deploys mwasya.site automatically |
 
 ---
@@ -130,6 +131,26 @@ Then register a Deriv app at https://developers.deriv.com with the **trade** sco
 | `DERIV_REDIRECT_URI` | server | Must exactly match a redirect URI on the Deriv app. Production: `https://mwasya.site/callback`; local: `http://localhost:3000/callback` |
 | `SESSION_SECRET` | server | 32+ random bytes, base64. Different values in local and production |
 | `DATABASE_URL` | server | Postgres (Neon pooled URL). Added automatically by the Neon integration |
+| `PUBLIC_BASE_URL` | server | `https://mwasya.site`, used to build the M-Pesa callback URL |
+| `MPESA_ENV` | server | `sandbox` while testing, `production` when live |
+| `MPESA_CONSUMER_KEY` / `MPESA_CONSUMER_SECRET` | server | From your app on https://developer.safaricom.co.ke |
+| `MPESA_SHORTCODE` / `MPESA_PASSKEY` | server | Lipa na M-Pesa Online shortcode and passkey (sandbox: `174379` + the test passkey from Daraja) |
+| `MPESA_TYPE` | server | `paybill` (default) or `till` |
+| `MPESA_PARTY_B` | server | Till number when `MPESA_TYPE=till`; leave empty for a Paybill |
+| `MPESA_CALLBACK_KEY` | server | Long random string. Safaricom calls us back with it, and anything without it is rejected |
+
+### Turning on M-Pesa payments (copy-paste, then paste each value when asked)
+```bash
+vercel env add PUBLIC_BASE_URL production        # https://mwasya.site
+vercel env add MPESA_ENV production              # sandbox (test) or production (live)
+vercel env add MPESA_CONSUMER_KEY production --sensitive
+vercel env add MPESA_CONSUMER_SECRET production --sensitive
+vercel env add MPESA_SHORTCODE production
+vercel env add MPESA_PASSKEY production --sensitive
+node -e "process.stdout.write(require('crypto').randomBytes(24).toString('base64url'))" | vercel env add MPESA_CALLBACK_KEY production --sensitive
+vercel deploy --prod
+```
+Then, as the owner, open **Network → Pricing** and set a price in KES. A price of 0 keeps Mwasya free.
 
 Trader sites don't use these Deriv values. Each operator site logs in with **the operator's own Deriv App ID**, stored in the `sites` table, so markup is paid to the operator.
 
@@ -164,8 +185,42 @@ Bots run on **Deriv's servers** through the `auto_*` API ([docs](https://develop
 - **Stop:** no new trades are bought. A trade that's already open finishes normally. We follow it via `proposal_open_contract` so its result and payout are recorded.
 - **Balance:** combines Deriv's live balance stream, a fresh read every 10 seconds, and a read after every trade. It always shows Deriv's real number.
 
-### Operators
-Deriv exposes no user ID, so an operator is identified by the Deriv accounts they own (`operator_accounts`). Traders who log in on a trader site never become operators.
+### Operators and the network
+- **Identity:** Deriv exposes no user ID, so an operator is identified by the Deriv accounts they own (`operator_accounts`). Traders who log in on a trader site never become operators.
+- **Tree:** the platform **owner** is the root, and every other operator has a parent.
+  - **Invite links** (`mwasya.site/?invite=CODE`) place a *new* operator under the inviter.
+  - Anyone who signs up without a link goes under the owner.
+  - Existing operators can never be moved by an invite.
+- **Network page** (`/network`): each operator sees everyone below them. The owner sees everyone and can:
+  - search
+  - open a person's details (accounts, bots, payments, history)
+  - suspend or reactivate them (a suspended operator's site goes offline instantly)
+  - grant days of access
+- **Make yourself the owner** (one time, after logging in to mwasya.site once):
+  ```bash
+  npm run make-owner -- <YOUR_DERIV_ACCOUNT_ID>     # e.g. ROT91861465
+  ```
+- **Billing** (`/billing`): M-Pesa STK push. Payments are credited only after Safaricom confirms them, either through the callback (secret key, amount checked, re-verified with an STK query) or by querying Safaricom directly when the callback is late. Each payment is credited exactly once.
+
+### Scale
+- All new endpoints run in **one** serverless function (`api/platform.ts`), which shares a warm, pooled Postgres connection.
+- The network list is paginated (25 per page), searched on the server, and debounced in the browser.
+- The tree walks are indexed on `parent_id` and depth-limited.
+- Hundreds or thousands of operators stay fast.
+
+### Security
+- **Sessions:** the access token is encrypted in a `__Host-` cookie (HttpOnly, Secure, SameSite=Lax), so no subdomain can plant or read it.
+- **Requests:**
+  - Every state-changing request is CSRF-checked (Origin must match the host).
+  - Every operator request re-checks the database, so a suspension applies instantly.
+- **Rate limits** are stored in Postgres, so they work across all servers:
+  - login: 20 per 10 minutes per IP
+  - M-Pesa prompts: 5 per 10 minutes
+  - invite creation: 20 per hour
+  - trading-socket links: 60 per minute
+- **Audit log:** owner actions, invites and payments are recorded in `audit_log`.
+- **Headers:** strict CSP, HSTS, `X-Frame-Options: DENY`, `nosniff`, `no-referrer`, COOP; API responses are `no-store`.
+- **Login redirects:** only same-app paths are allowed after login (open-redirect guard). Production dependencies show 0 known vulnerabilities in `npm audit --omit=dev`.
 
 ---
 
@@ -183,8 +238,9 @@ api/
   bots/            Bot Forge CRUD (operators only)
   sites/mine.ts    operator's trader site (create / publish)
   site.ts          which app is this host? + published bots
+  platform.ts      me, invites, network, billing (M-Pesa) — one routed function
   _lib/            db pool, session crypto, tenancy, strategy rules
-db/schema.sql      Postgres schema (operators, bots, sites, bot_runs)
+db/schema.sql      Postgres schema (operators + network, bots, sites, invites, payments, settings, audit_log)
 scripts/migrate.mjs  applies the schema
 src/
   shared/          bot spec + safety validation (browser and API)

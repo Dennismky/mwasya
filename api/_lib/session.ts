@@ -7,7 +7,8 @@ import type { VercelRequest, VercelResponse } from '@vercel/node';
  * browser JavaScript can never read it.
  */
 
-const COOKIE = 'mw_session';
+// __Host- prefix: browser only accepts it from this exact host, over HTTPS, Path=/ — no subdomain can plant or overwrite it.
+const COOKIE = '__Host-mw_session';
 
 export interface Session {
   accessToken: string;

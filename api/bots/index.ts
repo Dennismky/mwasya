@@ -11,7 +11,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   noStore(res);
   if (req.method !== 'GET' && req.method !== 'POST') return res.status(405).json({ error: 'method_not_allowed' });
   if (req.method === 'POST' && !sameOrigin(req)) return res.status(403).json({ error: 'bad_origin' });
-  const operatorId = requireOperator(req, res);
+  const operatorId = await requireOperator(req, res);
   if (!operatorId) return;
 
   try {

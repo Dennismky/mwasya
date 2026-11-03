@@ -1,6 +1,7 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { derivFetch } from '../_lib/deriv.js';
 import { clearSession, getSession, noStore, sameOrigin } from '../_lib/session.js';
+import { clientIp, rateLimit } from '../_lib/guard.js';
 
 /**
  * POST /api/deriv/otp  { accountId }
@@ -13,6 +14,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (!sameOrigin(req)) return res.status(403).json({ error: 'bad_origin' });
   const s = getSession(req);
   if (!s) return res.status(401).json({ error: 'not_logged_in' });
+  // A page opens a few sockets per account; 60/min per IP is far above normal use and stops abuse.
+  if (process.env.DATABASE_URL && !(await rateLimit(`otp:${clientIp(req)}`, 60, 60))) return res.status(429).json({ error: 'too_many_requests' });
 
   const { accountId } = (req.body ?? {}) as { accountId?: unknown };
   if (typeof accountId !== 'string' || !/^[A-Za-z0-9_-]{1,64}$/.test(accountId)) {

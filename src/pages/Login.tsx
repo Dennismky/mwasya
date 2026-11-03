@@ -1,7 +1,7 @@
 import { useEffect, useState, type CSSProperties } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { Icon } from '../components/ui';
-import { getSession, startLogin } from '../lib/derivAuth';
+import { KEY_INVITE, getSession, safeReturnPath, startLogin } from '../lib/derivAuth';
 import type { SiteBranding } from '../lib/tenant';
 
 /** `/` — sign in with Deriv (OAuth 2.0 + PKCE, trade scope only). Logged-in users go straight to the dashboard. */
@@ -9,16 +9,37 @@ export default function Login({ site }: { site?: SiteBranding }) {
   const navigate = useNavigate();
   const location = useLocation();
   const state = (location.state ?? {}) as { from?: string; error?: string };
-  const returnTo = state.from && state.from.startsWith('/') && !state.from.startsWith('//') ? state.from : '/app';
+  const returnTo = safeReturnPath(state.from);
   const [checking, setChecking] = useState(true);
   const [busy, setBusy] = useState<'login' | 'signup' | null>(null);
   const [error, setError] = useState(state.error ?? '');
+
+  const [inviter, setInviter] = useState<string | null>(null);
 
   useEffect(() => {
     getSession()
       .then((s) => (s.loggedIn ? navigate(returnTo, { replace: true }) : setChecking(false)))
       .catch(() => setChecking(false));
   }, [navigate, returnTo]);
+
+  // Invite links (studio only): mwasya.site/?invite=CODE → remember it for the login, show who invited you.
+  useEffect(() => {
+    if (site) return;
+    const fromUrl = new URLSearchParams(location.search).get('invite');
+    if (fromUrl && /^[A-Za-z0-9_-]{10,40}$/.test(fromUrl)) {
+      localStorage.setItem(KEY_INVITE, fromUrl);
+      window.history.replaceState(null, '', '/');
+    }
+    const code = localStorage.getItem(KEY_INVITE);
+    if (!code) return;
+    fetch(`/api/invites/info?code=${encodeURIComponent(code)}`)
+      .then((r) => (r.ok ? r.json() : { valid: false }))
+      .then((j: { valid: boolean; inviter?: string }) => {
+        if (j.valid) setInviter(j.inviter ?? 'a Mwasya operator');
+        else localStorage.removeItem(KEY_INVITE);
+      })
+      .catch(() => undefined);
+  }, [site, location.search]);
 
   const go = (signup: boolean) => {
     setBusy(signup ? 'signup' : 'login');
@@ -36,6 +57,12 @@ export default function Login({ site }: { site?: SiteBranding }) {
             <span className="hint" style={{ fontSize: 12, fontWeight: 600, letterSpacing: ".06em" }}>{site ? "TRADING BOTS" : "OPERATOR STUDIO"}</span>
           </div>
         </div>
+
+        {inviter && (
+          <div className="notice" style={{ padding: '12px 14px' }}>
+            <span>You've been invited by <b>{inviter}</b>. Log in to create your own site.</span>
+          </div>
+        )}
 
         <div className="stack" style={{ gap: 8 }}>
           <h1 style={{ fontSize: 26, fontWeight: 700 }}>Sign in</h1>
