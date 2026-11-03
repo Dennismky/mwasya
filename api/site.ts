@@ -24,11 +24,16 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       `select id, name, spec, risk, updated_at from bots where operator_id = $1 and status = 'published' order by updated_at desc limit 50`,
       [t.site.operator_id],
     );
+    const xmlBots = await query<{ id: string; name: string; description: string }>(
+      `select id, name, description from xml_bots where operator_id = $1 and status = 'published' order by updated_at desc limit 50`,
+      [t.site.operator_id],
+    );
     res.setHeader('Cache-Control', 'public, max-age=30');
     return res.status(200).json({
       kind: 'site',
       site: { name: t.site.name, subdomain: t.site.subdomain, accent: t.site.accent, theme: t.site.theme, appId: t.site.deriv_app_id },
       bots,
+      xmlBots,
     });
   } catch (e) {
     console.error('site', e);

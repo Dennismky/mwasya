@@ -5,7 +5,7 @@ export interface PublishedBot { id: string; name: string; spec: BotSpec; risk: '
 
 export type Tenant =
   | { kind: 'platform'; appId: string | null }
-  | { kind: 'site'; site: SiteBranding; bots: PublishedBot[] }
+  | { kind: 'site'; site: SiteBranding; bots: PublishedBot[]; xmlBots?: { id: string; name: string; description: string }[] }
   | { kind: 'unknown'; host?: string };
 
 let cached: Promise<Tenant> | undefined;

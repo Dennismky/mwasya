@@ -11,6 +11,10 @@ import Setup from './pages/Setup';
 import TraderHome from './pages/TraderHome';
 import Network from './pages/Network';
 import Billing from './pages/Billing';
+import Commissions from './pages/Commissions';
+import XmlBots from './pages/XmlBots';
+import Support from './pages/Support';
+import Settings from './pages/Settings';
 
 /**
  * One build, two apps:
@@ -59,6 +63,10 @@ export default function App() {
         <Route path="/setup" element={<Setup />} />
         <Route path="/network" element={<Network />} />
         <Route path="/billing" element={<Billing />} />
+        <Route path="/commissions" element={<Commissions />} />
+        <Route path="/xml-bots" element={<XmlBots />} />
+        <Route path="/support" element={<Support />} />
+        <Route path="/settings" element={<Settings />} />
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>

@@ -36,12 +36,13 @@ function describe(spec: BotSpec) {
 function TraderView({ site, initialBots }: { site: SiteBranding; initialBots: PublishedBot[] }) {
   const auth = useAuth();
   const [bots, setBots] = useState(initialBots);
+  const [xmlBots, setXmlBots] = useState<{ id: string; name: string; description: string }[]>([]);
   const [error, setError] = useState('');
   const runner = useBotRunner(auth.account?.id, auth.expire, auth.refreshBalance);
   const dark = site.theme === 'dark';
 
   useEffect(() => { // pick up bots the operator published since the page loaded
-    reloadTenant().then((t) => { if (t.kind === 'site') setBots(t.bots); }).catch(() => undefined);
+    reloadTenant().then((t) => { if (t.kind === 'site') { setBots(t.bots); setXmlBots(t.xmlBots ?? []); } }).catch(() => undefined);
   }, []);
 
   if (auth.status === 'signed-out') return <Navigate to="/" replace state={{ from: '/app', error: auth.error }} />;
@@ -130,6 +131,21 @@ function TraderView({ site, initialBots }: { site: SiteBranding; initialBots: Pu
               );
             })}
           </div>
+        )}
+
+        {xmlBots.length > 0 && (
+          <section className="card stack" style={{ gap: 12 }}>
+            <h2 style={{ fontSize: 18, fontWeight: 600 }}>Deriv Bot files (XML)</h2>
+            <p className="hint">Download a file, then open Deriv Bot and choose Import to load it.</p>
+            <ul className="stack" style={{ listStyle: 'none', margin: 0, padding: 0, gap: 8 }}>
+              {xmlBots.map((x) => (
+                <li key={x.id} className="row" style={{ justifyContent: 'space-between', alignItems: 'center', gap: 12, paddingTop: 8, borderTop: '1px solid var(--border)' }}>
+                  <span className="stack" style={{ gap: 2 }}><b>{x.name}</b>{x.description && <span className="hint">{x.description}</span>}</span>
+                  <a className="btn btn-secondary" href={`/api/xmlbots/download?id=${x.id}`}><Icon.Download /> Download</a>
+                </li>
+              ))}
+            </ul>
+          </section>
         )}
 
         {runList.length > 0 && (

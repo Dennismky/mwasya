@@ -3,10 +3,12 @@ import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { Icon } from '../components/ui';
 import { KEY_INVITE, getSession, safeReturnPath, startLogin } from '../lib/derivAuth';
 import type { SiteBranding } from '../lib/tenant';
+import { useT } from '../lib/i18n';
 
 /** `/` — sign in with Deriv (OAuth 2.0 + PKCE, trade scope only). Logged-in users go straight to the dashboard. */
 export default function Login({ site }: { site?: SiteBranding }) {
   const navigate = useNavigate();
+  const t = useT();
   const location = useLocation();
   const state = (location.state ?? {}) as { from?: string; error?: string };
   const returnTo = safeReturnPath(state.from);
@@ -65,8 +67,8 @@ export default function Login({ site }: { site?: SiteBranding }) {
         )}
 
         <div className="stack" style={{ gap: 8 }}>
-          <h1 style={{ fontSize: 26, fontWeight: 700 }}>Sign in</h1>
-          <p className="muted">Use your Deriv account. You sign in on Deriv's own page and come straight back here.</p>
+          <h1 style={{ fontSize: 26, fontWeight: 700 }}>{t('login.signIn')}</h1>
+          <p className="muted">{t('login.sub')}</p>
         </div>
 
         {checking ? (
@@ -74,10 +76,10 @@ export default function Login({ site }: { site?: SiteBranding }) {
         ) : (
           <div className="stack" style={{ gap: 12 }}>
             <button className="btn btn-primary btn-lg" disabled={busy !== null} onClick={() => go(false)}>
-              {busy === 'login' ? 'Opening Deriv…' : 'Log in with Deriv'} <Icon.Arrow />
+              {busy === 'login' ? 'Opening Deriv…' : t('login.button')} <Icon.Arrow />
             </button>
             <button className="btn btn-secondary btn-lg" disabled={busy !== null} onClick={() => go(true)}>
-              {busy === 'signup' ? 'Opening Deriv…' : 'Create a Deriv account'}
+              {busy === 'signup' ? 'Opening Deriv…' : t('login.create')}
             </button>
             {error && <p className="error" role="alert">{error}</p>}
           </div>

@@ -84,7 +84,7 @@ export default function Network() {
 
       <div className="grid" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(340px, 1fr))', alignItems: 'start' }}>
         <InviteLinks canInvite={!auth.suspended && (billing?.active ?? true)} />
-        {isOwner && <PricingSettings onSaved={() => void auth.reloadMe()} />}
+
       </div>
 
       <section className="card stack" style={{ gap: 16 }}>
@@ -211,7 +211,7 @@ function InviteLinks({ canInvite }: { canInvite: boolean }) {
   );
 }
 
-function PricingSettings({ onSaved }: { onSaved: () => void }) {
+export function PricingSettings({ onSaved }: { onSaved: () => void }) {
   const auth = useAuth();
   const [price, setPrice] = useState(String(auth.me?.billing.priceKes ?? 0));
   const [days, setDays] = useState(String(auth.me?.billing.periodDays ?? 30));

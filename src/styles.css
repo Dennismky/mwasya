@@ -174,3 +174,40 @@ summary::-webkit-details-marker { display: none; }
   .forge-grid { grid-template-columns: 1fr; }
   .forge-aside { position: static; }
 }
+
+/* ---------- Sidebar footer: theme, language ---------- */
+.sidebar-nav { overflow-y: auto; }
+.sidebar-foot { margin-top: auto; display: flex; flex-direction: column; gap: 4px; padding-top: 12px; border-top: 1px solid rgba(255, 255, 255, .08); }
+.side-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 9px 12px; color: #C9D3E3; font: 500 14px 'Inter', sans-serif; }
+.side-row svg { width: 16px; height: 16px; }
+.lang-select { background: transparent; color: #fff; border: 1px solid rgba(255, 255, 255, .15); border-radius: 8px; padding: 4px 6px; font: 600 12px 'Inter', sans-serif; cursor: pointer; }
+.lang-select option { color: #0B1F3A; }
+.switch { width: 46px; height: 26px; border-radius: 99px; border: 0; background: rgba(255, 255, 255, .15); position: relative; cursor: pointer; padding: 0; }
+.switch span { position: absolute; top: 3px; left: 3px; width: 20px; height: 20px; border-radius: 50%; background: #fff; color: #0B1F3A; font-size: 11px; display: grid; place-items: center; transition: transform .2s; }
+.switch.on { background: var(--primary); }
+.switch.on span { transform: translateX(20px); }
+
+/* ---------- Dark theme ---------- */
+[data-theme="dark"] {
+  --text: #E6ECF5; --muted: #9AA8BD; --border: #22324D; --border-strong: #2E4366;
+  --bg: #0E1A2E; --bg-alt: #0A1426; --primary-tint: #16264A; --success-tint: #0F2E25; --danger-tint: #3A1A1D;
+  color-scheme: dark;
+}
+[data-theme="dark"] body { background: var(--bg); color: var(--text); }
+[data-theme="dark"] .card, [data-theme="dark"] .step, [data-theme="dark"] .balance-chip,
+[data-theme="dark"] .input, [data-theme="dark"] .btn-secondary, [data-theme="dark"] .login-card { background: #12223B; color: var(--text); }
+[data-theme="dark"] .topbar { background: rgba(14, 26, 46, .92); }
+[data-theme="dark"] .sidebar { background: #071022; }
+[data-theme="dark"] .table th { background: #0F1D33; }
+[data-theme="dark"] .notice { background: #12223B; border-color: #2E4366; }
+[data-theme="dark"] code { background: #0F1D33; color: var(--text); }
+
+/* ---------- XML bots / Support ---------- */
+.dropzone { display: flex; align-items: center; gap: 12px; padding: 22px; border: 2px dashed var(--border-strong); border-radius: var(--radius); cursor: pointer; color: var(--muted); }
+.dropzone:hover { border-color: var(--primary); color: var(--text); }
+textarea.input { resize: vertical; font-family: inherit; }
+.ticket-row { width: 100%; display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 12px 14px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: transparent; color: inherit; cursor: pointer; font: inherit; }
+.ticket-row:hover { border-color: var(--border-strong); }
+.thread { display: flex; flex-direction: column; gap: 10px; padding: 12px 4px 4px; }
+.bubble { padding: 10px 12px; border-radius: 10px; background: var(--bg-alt); border: 1px solid var(--border); max-width: 92%; }
+.bubble-owner { background: var(--primary-tint); align-self: flex-end; }

@@ -132,3 +132,50 @@ create table if not exists audit_log (
   created_at   timestamptz not null default now()
 );
 create index if not exists audit_log_target_idx on audit_log(target_id, created_at desc);
+
+-- ---------- XML bots, support, profile/settings ----------
+
+-- Deriv Bot (DBot) XML strategies operators share with their traders. Stored as text, never parsed
+-- server-side, always served as a download (attachment) — see api/platform.ts.
+create table if not exists xml_bots (
+  id           uuid primary key default gen_random_uuid(),
+  operator_id  uuid not null references operators(id) on delete cascade,
+  name         text not null check (length(name) between 1 and 80),
+  description  text not null default '' check (length(description) <= 500),
+  xml          text not null check (length(xml) <= 400000),
+  status       text not null default 'draft' check (status in ('draft', 'published')),
+  downloads    integer not null default 0,
+  created_at   timestamptz not null default now(),
+  updated_at   timestamptz not null default now()
+);
+create index if not exists xml_bots_operator_idx on xml_bots(operator_id, updated_at desc);
+
+-- Support tickets: operators write to the platform owner.
+create table if not exists tickets (
+  id           uuid primary key default gen_random_uuid(),
+  operator_id  uuid not null references operators(id) on delete cascade,
+  subject      text not null check (length(subject) between 3 and 120),
+  status       text not null default 'open' check (status in ('open', 'answered', 'closed')),
+  created_at   timestamptz not null default now(),
+  updated_at   timestamptz not null default now()
+);
+create index if not exists tickets_operator_idx on tickets(operator_id, updated_at desc);
+create index if not exists tickets_status_idx on tickets(status, updated_at desc);
+
+create table if not exists ticket_messages (
+  id          bigserial primary key,
+  ticket_id   uuid not null references tickets(id) on delete cascade,
+  author_id   uuid references operators(id) on delete set null,
+  from_owner  boolean not null default false,
+  body        text not null check (length(body) between 1 and 4000),
+  created_at  timestamptz not null default now()
+);
+create index if not exists ticket_messages_ticket_idx on ticket_messages(ticket_id, id);
+
+-- Profile + preferences.
+alter table operators add column if not exists display_name text check (display_name is null or length(display_name) <= 60);
+alter table operators add column if not exists contact text check (contact is null or length(contact) <= 120);
+alter table operators add column if not exists language text not null default 'en' check (language in ('en', 'sw', 'fr'));
+
+-- Owner support contacts shown on everyone's Support page.
+insert into settings (key, value) values ('support', '{"whatsapp": "", "telegram": "", "email": ""}') on conflict (key) do nothing;

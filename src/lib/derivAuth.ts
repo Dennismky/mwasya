@@ -31,7 +31,8 @@ export function redirectUri(): string {
   return `${window.location.origin}/callback`;
 }
 
-export async function startLogin(opts: { signup?: boolean; returnTo?: string } = {}): Promise<void> {
+/** `withEarnings` also asks for read-only `application_read` (Deriv markup statistics for the Commissions page). */
+export async function startLogin(opts: { signup?: boolean; returnTo?: string; withEarnings?: boolean } = {}): Promise<void> {
   const state = randomString(16);
   const verifier = randomString(32);
   const challenge = await challengeFromVerifier(verifier);
@@ -44,7 +45,7 @@ export async function startLogin(opts: { signup?: boolean; returnTo?: string } =
     response_type: 'code',
     client_id: await appId(),
     redirect_uri: redirectUri(),
-    scope: SCOPES.join(' '),
+    scope: (opts.withEarnings ? [...SCOPES, 'application_read'] : SCOPES).join(' '),
     state,
     code_challenge: challenge,
     code_challenge_method: 'S256',
@@ -62,6 +63,7 @@ export async function completeLogin(search: string): Promise<CallbackResult> {
   window.history.replaceState(null, '', window.location.pathname);
 
   const error = params.get('error');
+  if (error === 'invalid_scope') return { ok: false, error: 'Earnings access is not enabled for this Deriv app yet. In the Deriv developer dashboard, allow the application_read scope, then try again.' };
   if (error) return { ok: false, error: params.get('error_description') ?? error };
 
   const code = params.get('code');
