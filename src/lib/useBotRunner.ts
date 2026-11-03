@@ -1,6 +1,20 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { BotSpec } from '../shared/botSpec';
-import { listRuns, pauseRun, resumeRun, startRun, stopRun, watchRun, type AutoRun } from './autoTrade';
+import { getRun, listRuns, openContracts, pauseRun, resumeRun, startRun, stopRun, watchContract, watchRun, type AutoRun } from './autoTrade';
+
+/** Never let a stale update turn a settled trade back into "open". */
+function mergeRun(prev: AutoRun | undefined, next: AutoRun): AutoRun {
+  if (!prev?.contracts?.length || !next.contracts) return next;
+  const known = new Map(prev.contracts.map((c) => [c.contract_id, c]));
+  return {
+    ...next,
+    contracts: next.contracts.map((c) => {
+      const old = known.get(c.contract_id);
+      const nextOpen = !c.contract_status || c.contract_status === 'open';
+      return old && nextOpen && (old.contract_status === 'won' || old.contract_status === 'lost') ? old : c;
+    }),
+  };
+}
 import { accountSocket, type DerivSocket } from './derivWs';
 
 export type Launch = { phase: 'idle'; key?: string } | { phase: 'starting'; key?: string } | { phase: 'running'; runId: string; key?: string } | { phase: 'error'; message: string; key?: string };
@@ -25,11 +39,50 @@ export function useBotRunner(accountId: string | undefined, onExpired: () => voi
   tradeRef.current = onTrade;
   const tradeTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   // Every run update is a buy or a settle → refresh the real balance (debounced to respect Deriv's rate limit).
-  const onRunUpdate = useCallback((run: AutoRun) => {
-    setRuns((r) => ({ ...r, [run.run_id]: run }));
+  const bumpBalance = useCallback(() => {
     clearTimeout(tradeTimer.current);
     tradeTimer.current = setTimeout(() => tradeRef.current?.(), 1200);
   }, []);
+  const onRunUpdate = useCallback((run: AutoRun) => {
+    setRuns((r) => ({ ...r, [run.run_id]: mergeRun(r[run.run_id], run) }));
+    bumpBalance();
+  }, [bumpBalance]);
+
+  // After Stop, Deriv ends the run's stream but an open contract still runs to completion.
+  // Follow each such contract until it settles so its result (and payout) is never lost.
+  const tracked = useRef(new Map<number, { unsub?: () => void; done: boolean }>());
+  useEffect(() => {
+    const sock = ws.current;
+    if (!sock) return;
+    for (const run of Object.values(runs)) {
+      if (run.status !== 'stopped') continue;
+      for (const c of openContracts(run)) {
+        if (tracked.current.has(c.contract_id)) continue;
+        const entry: { unsub?: () => void; done: boolean } = { done: false };
+        tracked.current.set(c.contract_id, entry);
+        watchContract(sock, c.contract_id, (u) => {
+          const closed = u.is_sold || u.status === 'won' || u.status === 'lost' || u.status === 'sold' || u.status === 'cancelled';
+          if (!closed || entry.done) return;
+          entry.done = true;
+          entry.unsub?.();
+          const sell = u.sell_price ?? 0;
+          const status: 'won' | 'lost' = u.status === 'won' || u.status === 'lost' ? u.status : sell > u.buy_price ? 'won' : 'lost';
+          setRuns((r) => {
+            const cur = r[run.run_id];
+            if (!cur) return r;
+            const contracts = (cur.contracts ?? []).map((x) =>
+              x.contract_id === u.contract_id ? { ...x, contract_status: status, sell_price: sell, sell_time: u.sell_time ?? x.sell_time } : x);
+            return { ...r, [run.run_id]: { ...cur, contracts } };
+          });
+          bumpBalance();
+          // Then take Deriv's own final numbers for the run.
+          getRun(sock, run.run_id).then(onRunUpdate).catch(() => undefined);
+        }, () => undefined)
+          .then((unsub) => { if (entry.done) unsub(); else entry.unsub = unsub; })
+          .catch(() => tracked.current.delete(c.contract_id)); // retry on next update
+      }
+    }
+  }, [runs, bumpBalance, onRunUpdate]);
 
   useEffect(() => {
     if (!accountId) return;
@@ -64,12 +117,14 @@ export function useBotRunner(accountId: string | undefined, onExpired: () => voi
         });
     };
     const offDisconnect = sock.onDisconnect(() => {
-      subs.clear();
+      subs.clear(); // stream listeners died with the socket
+      for (const [id, t] of tracked.current) if (!t.done) tracked.current.delete(id); // re-follow open contracts after reconnect
       setConn('connecting');
       retry = setTimeout(attach, 2000);
     });
     attach();
-    return () => { cancelled = true; clearTimeout(retry); offDisconnect(); subs.forEach((u) => u()); subs.clear(); sock.close(); ws.current = null; };
+    const trackedMap = tracked.current;
+    return () => { cancelled = true; clearTimeout(retry); offDisconnect(); subs.forEach((u) => u()); subs.clear(); trackedMap.forEach((t) => t.unsub?.()); trackedMap.clear(); sock.close(); ws.current = null; };
   }, [accountId, onRunUpdate]);
 
   const start = useCallback(async (spec: BotSpec, key?: string) => {

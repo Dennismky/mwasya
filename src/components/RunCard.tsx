@@ -1,4 +1,4 @@
-import { runPnL, type AutoRun } from '../lib/autoTrade';
+import { openContracts, runPnL, runTotals, type AutoRun } from '../lib/autoTrade';
 import { contractLabel, marketLabel } from '../shared/botSpec';
 
 /** Live view of one Deriv auto-run: status, P/L, recent trades (stake → payout) and controls. */
@@ -12,20 +12,23 @@ export function RunCard({ run, currency, compact, onPause, onResume, onStop }: {
   const lost = contracts.filter((c) => c.contract_status === 'lost').length;
   const t = run.contract_template as { contract_type?: string; underlying_symbol?: string; barrier?: string };
   const recent = contracts.slice(-12);
+  const totals = runTotals(run);
+  const finishing = run.status === 'stopped' && openContracts(run).length > 0;
+  const hasOpen = openContracts(run).length > 0;
   return (
     <article className="stack" style={{ gap: 10, borderTop: '1px solid var(--border)', paddingTop: 14 }}>
       <div className="row" style={{ gap: 12, alignItems: 'center' }}>
         <b>{contractLabel(t.contract_type ?? '')}{t.barrier ? ` ${t.barrier}` : ''} · {marketLabel(t.underlying_symbol ?? '')}</b>
-        <span className={`badge ${run.status === 'running' ? 'badge-green' : 'badge-blue'}`}>{run.status}</span>
+        <span className={`badge ${run.status === 'running' ? 'badge-green' : 'badge-blue'}`}>{finishing ? 'finishing last trade…' : run.status}</span>
         {!compact && <span className="hint mono">{run.run_id}</span>}
         <span style={{ flex: 1 }} />
         <b className="mono" style={{ color: pnl > 0 ? 'var(--success)' : pnl < 0 ? 'var(--danger)' : undefined }}>{pnl >= 0 ? '+' : ''}{pnl.toFixed(2)} {currency}</b>
         {run.status === 'running' && <button className="btn btn-secondary" onClick={onPause}>Pause</button>}
         {run.status === 'paused' && <button className="btn btn-secondary" onClick={onResume}>Resume</button>}
-        {run.status !== 'stopped' && <button className="btn btn-secondary" onClick={onStop}>Stop</button>}
+        {run.status !== 'stopped' && <button className="btn btn-secondary" onClick={onStop} title="No new trades are bought. A trade that is already open finishes normally.">{hasOpen ? 'Stop after this trade' : 'Stop'}</button>}
       </div>
       <span className="hint">
-        {contracts.length} trades · {won} won · {lost} lost · staked {(run.total_stake ?? 0).toFixed(2)} · paid out {(run.total_payout ?? 0).toFixed(2)} {currency}
+        {contracts.length} trades · {won} won · {lost} lost · staked {totals.stake.toFixed(2)} · paid out {totals.payout.toFixed(2)} {currency}{finishing ? ' · waiting for the last trade to finish' : ''}
         {run.stop_reason && ` · stopped: ${run.stop_reason.replace('_', ' ')}${run.stop_reason_code ? ` (${run.stop_reason_code})` : ''}`}
       </span>
       {recent.length > 0 && (
