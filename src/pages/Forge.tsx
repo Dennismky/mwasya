@@ -22,6 +22,7 @@ const DIGIT_BARRIER = ['DIGITOVER', 'DIGITUNDER', 'DIGITMATCH', 'DIGITDIFF'];
 const TICK_ONLY = [...DIGIT_BARRIER, 'DIGITEVEN', 'DIGITODD', 'ASIANU', 'ASIAND'];
 
 type Status = 'loading' | 'relogin' | 'ready' | 'error';
+type Launch = { phase: 'idle' } | { phase: 'starting' } | { phase: 'running'; runId: string } | { phase: 'error'; message: string };
 
 export default function Forge() {
   const auth = useAuth();
@@ -36,7 +37,9 @@ export default function Forge() {
   const [saving, setSaving] = useState(false);
   const [serverChecks, setServerChecks] = useState<Check[] | null>(null);
   const [runs, setRuns] = useState<Record<string, AutoRun>>({});
-  const [busy, setBusy] = useState(false);
+  const [launch, setLaunch] = useState<Launch>({ phase: 'idle' });
+  const [conn, setConn] = useState<'connecting' | 'ready' | 'error'>('connecting');
+  const [connError, setConnError] = useState('');
   const ws = useRef<DerivSocket | null>(null);
   const unsubs = useRef<Map<string, () => void>>(new Map());
 
@@ -66,27 +69,47 @@ export default function Forge() {
 
   const onRunUpdate = useCallback((run: AutoRun) => setRuns((r) => ({ ...r, [run.run_id]: run })), []);
 
-  // Private socket per account → re-attach to runs that are still going
+  // Private socket per account → load runs and re-attach to the ones still going.
+  // If Deriv drops the connection, reconnect and re-attach automatically.
   useEffect(() => {
     if (!accountId) return;
     const sock = accountSocket(accountId);
     ws.current = sock;
     setRuns({});
+    setConn('connecting');
     const subs = unsubs.current;
-    listRuns(sock)
-      .then((list) => {
-        const map: Record<string, AutoRun> = {};
-        for (const run of list) {
-          map[run.run_id] = run;
-          if (run.status !== 'stopped') {
-            watchRun(sock, run.run_id, onRunUpdate, setError).then((u) => subs.set(run.run_id, u)).catch(() => undefined);
+    let cancelled = false;
+    let retry: ReturnType<typeof setTimeout> | undefined;
+
+    const attach = () => {
+      listRuns(sock)
+        .then((list) => {
+          if (cancelled) return;
+          setConn('ready');
+          const map: Record<string, AutoRun> = {};
+          for (const run of list) {
+            map[run.run_id] = run;
+            if (run.status !== 'stopped' && !subs.has(run.run_id)) {
+              watchRun(sock, run.run_id, onRunUpdate, () => undefined).then((u) => subs.set(run.run_id, u)).catch(() => undefined);
+            }
           }
-        }
-        setRuns(map);
-      })
-      .catch((e: Error) => setError(e.message === 'SESSION_EXPIRED' ? 'Your Deriv session has ended. Please log in again.' : e.message));
-    return () => { subs.forEach((u) => u()); subs.clear(); sock.close(); ws.current = null; };
-  }, [accountId, onRunUpdate]);
+          setRuns((prev) => ({ ...prev, ...map }));
+        })
+        .catch((e: Error) => {
+          if (cancelled) return;
+          if (e.message === 'SESSION_EXPIRED') return auth.expire();
+          setConn('error');
+          setConnError(e.message);
+        });
+    };
+    const offDisconnect = sock.onDisconnect(() => {
+      subs.clear(); // stream listeners died with the socket
+      setConn('connecting');
+      retry = setTimeout(attach, 2000);
+    });
+    attach();
+    return () => { cancelled = true; clearTimeout(retry); offDisconnect(); subs.forEach((u) => u()); subs.clear(); sock.close(); ws.current = null; };
+  }, [accountId, onRunUpdate]); // eslint-disable-line react-hooks/exhaustive-deps
 
   async function save(nextStatus?: 'draft' | 'published') {
     setSaving(true); setError('');
@@ -128,19 +151,29 @@ export default function Forge() {
   }
 
   async function run() {
-    if (!ws.current || !account) return;
+    if (!account) return setLaunch({ phase: 'error', message: 'Pick a trading account first.' });
+    if (!ws.current) return setLaunch({ phase: 'error', message: 'Still connecting to your Deriv account. Try again in a moment.' });
     if (!account.isVirtual && !confirm(`Run "${spec.name}" on your REAL account ${account.id}?\n\nYou can lose up to ${spec.params.stop_loss} ${spec.contract.currency}. Losses are not guaranteed to stop exactly at that amount.`)) return;
-    setBusy(true); setError('');
-    let first = true;
+
+    setLaunch({ phase: 'starting' });
+    let settled = false;
+    const fail = (message: string) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timer);
+      if (message === 'SESSION_EXPIRED') return auth.expire();
+      setLaunch({ phase: 'error', message });
+    };
+    const timer = setTimeout(() => fail('Deriv did not confirm the run within 20 seconds. Check "Runs on this account" below before trying again.'), 20_000);
+    let unsub: (() => void) | undefined;
     try {
-      const u = await startRun(ws.current, spec, (r) => {
+      unsub = await startRun(ws.current, spec, (r) => {
         onRunUpdate(r);
-        if (first) { first = false; unsubs.current.set(r.run_id, u); }
-      }, (m) => { setError(m); setBusy(false); });
+        if (unsub) unsubs.current.set(r.run_id, unsub);
+        if (!settled) { settled = true; clearTimeout(timer); setLaunch({ phase: 'running', runId: r.run_id }); }
+      }, fail);
     } catch (e) {
-      setError((e as Error).message);
-    } finally {
-      setBusy(false);
+      fail((e as Error).message);
     }
   }
 
@@ -358,10 +391,22 @@ export default function Forge() {
                 <section className="card stack" style={{ gap: 12 }}>
                   <h2 style={{ fontSize: 18, fontWeight: 600 }}>Test run</h2>
                   <p className="hint">Runs on {account?.label ?? 'your account'}. Deriv places the trades and stops at your limits.</p>
-                  {!account?.isVirtual && <p className="error">This is a real-money account.</p>}
-                  <button className="btn btn-primary" disabled={!valid || busy || !strategies} onClick={run}>
-                    <Icon.Chip /> {busy ? 'Starting…' : `Run on ${account?.isVirtual ? 'demo' : 'real'}`}
+                  {account && !account.isVirtual && <p className="error">This is a real-money account.</p>}
+                  <button className="btn btn-primary" disabled={!valid || !strategies || conn !== 'ready' || launch.phase === 'starting'} onClick={run}>
+                    <Icon.Chip /> {launch.phase === 'starting' ? 'Starting…' : `Run on ${account?.isVirtual ? 'demo' : 'real'}`}
                   </button>
+                  <div aria-live="polite" className="stack" style={{ gap: 8 }}>
+                    {!valid && <span className="hint">Fix the issues in Safety checks to enable this.</span>}
+                    {valid && !strategies && <span className="hint"><span className="spinner" />Loading Deriv's strategy rules…</span>}
+                    {valid && strategies && conn === 'connecting' && <span className="hint"><span className="spinner" />Connecting to your Deriv account…</span>}
+                    {conn === 'error' && <p className="error" role="alert">Can't reach your Deriv account: {connError}</p>}
+                    {launch.phase === 'starting' && <span className="hint"><span className="spinner" />Sending the bot to Deriv…</span>}
+                    {launch.phase === 'error' && <p className="error" role="alert">{launch.message}</p>}
+                    {launch.phase === 'running' && runs[launch.runId] && (
+                      <RunCard run={runs[launch.runId]} currency={account?.currency ?? ''} compact
+                        onPause={() => controlRun(pauseRun, launch.runId)} onResume={() => controlRun(resumeRun, launch.runId)} onStop={() => controlRun(stopRun, launch.runId)} />
+                    )}
+                  </div>
                   {error && <p className="error" role="alert">{error}</p>}
                 </section>
               </aside>
@@ -404,18 +449,19 @@ export default function Forge() {
   );
 }
 
-function RunCard({ run, currency, onPause, onResume, onStop }: { run: AutoRun; currency: string; onPause: () => void; onResume: () => void; onStop: () => void }) {
+function RunCard({ run, currency, compact, onPause, onResume, onStop }: { run: AutoRun; currency: string; compact?: boolean; onPause: () => void; onResume: () => void; onStop: () => void }) {
   const pnl = runPnL(run);
-  const contracts = run.contracts ?? [];
+  const contracts = [...(run.contracts ?? [])].sort((a, b) => a.purchase_time - b.purchase_time);
   const won = contracts.filter((c) => c.contract_status === 'won').length;
   const lost = contracts.filter((c) => c.contract_status === 'lost').length;
   const t = run.contract_template as { contract_type?: string; underlying_symbol?: string; barrier?: string };
+  const recent = contracts.slice(-12);
   return (
     <article className="stack" style={{ gap: 10, borderTop: '1px solid var(--border)', paddingTop: 14 }}>
       <div className="row" style={{ gap: 12, alignItems: 'center' }}>
         <b>{contractLabel(t.contract_type ?? '')}{t.barrier ? ` ${t.barrier}` : ''} · {marketLabel(t.underlying_symbol ?? '')}</b>
         <span className={`badge ${run.status === 'running' ? 'badge-green' : 'badge-blue'}`}>{run.status}</span>
-        <span className="hint mono">{run.run_id}</span>
+        {!compact && <span className="hint mono">{run.run_id}</span>}
         <span style={{ flex: 1 }} />
         <b className="mono" style={{ color: pnl > 0 ? 'var(--success)' : pnl < 0 ? 'var(--danger)' : undefined }}>{pnl >= 0 ? '+' : ''}{pnl.toFixed(2)} {currency}</b>
         {run.status === 'running' && <button className="btn btn-secondary" onClick={onPause}>Pause</button>}
@@ -426,6 +472,16 @@ function RunCard({ run, currency, onPause, onResume, onStop }: { run: AutoRun; c
         {contracts.length} trades · {won} won · {lost} lost · staked {(run.total_stake ?? 0).toFixed(2)}
         {run.stop_reason && ` · stopped: ${run.stop_reason.replace('_', ' ')}${run.stop_reason_code ? ` (${run.stop_reason_code})` : ''}`}
       </span>
+      {recent.length > 0 && (
+        <div className="row" style={{ gap: 6 }} aria-label="Recent stakes">
+          {recent.map((c) => (
+            <span key={c.contract_id} className="mono" title={`Contract ${c.contract_id}`} style={{
+              fontSize: 12, padding: '2px 8px', borderRadius: 6, border: '1px solid var(--border)',
+              background: c.contract_status === 'won' ? 'var(--success-tint)' : c.contract_status === 'lost' ? 'var(--danger-tint)' : '#fff',
+            }}>{c.buy_price.toFixed(2)}</span>
+          ))}
+        </div>
+      )}
     </article>
   );
 }
