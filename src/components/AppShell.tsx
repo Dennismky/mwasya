@@ -4,15 +4,17 @@ import { AuthProvider, useAuth } from '../lib/auth';
 import { LANGUAGES, useLang, useT, type Lang } from '../lib/i18n';
 import { useTheme } from '../lib/theme';
 import { Icon } from './ui';
+import DuesBell from './DuesBell';
 
 type NavKey = Parameters<ReturnType<typeof useT>>[0];
-const NAV: { to: string; key: NavKey; icon: ReactNode; soon?: boolean; section?: string }[] = [
+const NAV: { to: string; key: NavKey; icon: ReactNode; soon?: boolean; section?: string; owner?: boolean }[] = [
   { to: '/app', key: 'nav.overview', icon: <Icon.Chart />, section: 'BUILD & MANAGE' },
   { to: '/sites', key: 'nav.sites', icon: <Icon.Globe /> },
   { to: '/forge', key: 'nav.forge', icon: <Icon.Chip /> },
   { to: '/xml-bots', key: 'nav.xml', icon: <Icon.Code /> },
   { to: '/commissions', key: 'nav.commissions', icon: <Icon.Coin /> },
   { to: '/network', key: 'nav.network', icon: <Icon.Users />, section: 'ACCOUNT' },
+  { to: '/fees', key: 'nav.fees', icon: <Icon.Coin />, owner: true },
   { to: '/billing', key: 'nav.billing', icon: <Icon.Card /> },
   { to: '/support', key: 'nav.support', icon: <Icon.Help /> },
   { to: '/settings', key: 'nav.settings', icon: <Icon.Gear /> },
@@ -71,7 +73,7 @@ function Shell() {
           </div>
         </div>
         <nav className="stack sidebar-nav" style={{ gap: 2 }}>
-          {NAV.map((n) => (
+          {NAV.filter((n) => !n.owner || auth.me?.operator.role === 'owner').map((n) => (
             <Fragment key={n.to}>
               {n.section && <span className="side-section">{n.section}</span>}
               {n.soon ? (
@@ -111,6 +113,7 @@ function Shell() {
         <header className="topbar">
           <button className="btn btn-ghost menu-btn" aria-label="Menu" aria-expanded={open} onClick={() => setOpen((o) => !o)}>☰</button>
           <span style={{ flex: 1 }} />
+          <DuesBell />
         </header>
         <main className="shell-content">
           {auth.suspended && (

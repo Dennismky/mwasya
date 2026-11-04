@@ -30,3 +30,31 @@ export async function snapshotEarnings(operatorId: string, token: string): Promi
   await saveEarnings(operatorId, j.data);
   return j.data;
 }
+
+/** First day (UTC date string) of the month `offset` months from now, plus its last day (capped at today). */
+function monthRange(offset: number): { month: string; from: string; to: string } {
+  const now = new Date();
+  const start = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + offset, 1));
+  const end = new Date(Date.UTC(start.getUTCFullYear(), start.getUTCMonth() + 1, 0));
+  const cap = end > now ? now : end;
+  return { month: ymd(start), from: ymd(start), to: ymd(cap) };
+}
+
+/** Store this and last calendar month's markup (used for % fees and for the owner to verify payments). */
+export async function snapshotMonths(operatorId: string, token: string): Promise<void> {
+  for (const off of [0, -1]) {
+    const { month, from, to } = monthRange(off);
+    const r = await derivFetch(`/applications/v1/markup-statistics?date_from=${from}&date_to=${to}`, token);
+    if (!r.ok) return;
+    const d = ((await r.json()) as { data?: MarkupStats }).data;
+    if (!d) return;
+    await query(
+      `insert into operator_monthly_earnings (operator_id, month, markup_usd, volume_usd, contracts, clients, fetched_at)
+       values ($1, $2, $3, $4, $5, $6, now())
+       on conflict (operator_id, month) do update set markup_usd = excluded.markup_usd, volume_usd = excluded.volume_usd,
+         contracts = excluded.contracts, clients = excluded.clients, fetched_at = now()`,
+      [operatorId, month, Number(d.total_app_markup_usd ?? 0), Number(d.total_volume_usd ?? 0),
+        Math.round(Number(d.total_contract_count ?? 0)), Math.round(Number(d.total_client_count ?? 0))],
+    );
+  }
+}

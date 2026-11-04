@@ -5,7 +5,7 @@ import { audit, clientIp, getBilling, hasAccess, rateLimit, requireOperator, req
 import { mpesaConfigured, normalizePhone, stkPush, stkQuery, type StkOutcome } from './_lib/mpesa.js';
 import { getSession, noStore, sameOrigin } from './_lib/session.js';
 import { derivFetch } from './_lib/deriv.js';
-import { saveEarnings, type MarkupStats } from './_lib/earnings.js';
+import { saveEarnings, snapshotMonths, type MarkupStats } from './_lib/earnings.js';
 import { addDomain, buyDomain, checkDomain, domainPrice, domainsConfigured, registrarOrder, removeDomain, searchDomains, type RegistrantContact } from './_lib/vercelDomains.js';
 import { RESERVED_SUBDOMAINS, ROOT_DOMAIN } from './_lib/tenant.js';
 
@@ -56,6 +56,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       case 'settings': return await settingsRoute(req, res, rest);
       case 'domains': return await domains(req, res, rest);
       case 'sites': return await sitesRoute(req, res, rest);
+      case 'dues': return await duesRoute(req, res, rest);
       default: return res.status(404).json({ error: 'not_found' });
     }
   } catch (e) {
@@ -283,6 +284,10 @@ async function settle(paymentId: string, outcome: StkOutcome, receipt?: string) 
         [p.operator_id, p.period_days],
       );
     }
+    if (p && p.purpose === 'due' && outcome.state === 'paid') {
+      // Confirmed by Safaricom: settle the monthly fee automatically — the bell disappears.
+      await client.query(`update dues set status = 'paid', paid_via = 'mpesa_stk', paid_at = now(), mpesa_code = coalesce($2, mpesa_code), updated_at = now() where payment_id = $1 and status = 'due'`, [paymentId, receipt ?? null]);
+    }
     if (p && p.purpose === 'domain') {
       const d = await client.query<{ id: string }>(
         `update domain_orders set status = $2, updated_at = now() where payment_id = $1 and status = 'awaiting_payment' returning id`,
@@ -414,7 +419,10 @@ async function commissions(req: VercelRequest, res: VercelResponse) {
   if (!r.ok) return res.status(502).json({ error: 'deriv_error', status: r.status });
   const j = (await r.json()) as { data?: MarkupStats };
   // The default 30-day view doubles as the snapshot the owner/uplines see in Network.
-  if (j.data && !req.query.from && !req.query.to) await saveEarnings(op.id, j.data).catch(() => undefined);
+  if (j.data && !req.query.from && !req.query.to) {
+    await saveEarnings(op.id, j.data).catch(() => undefined);
+    await snapshotMonths(op.id, s.accessToken).catch(() => undefined);
+  }
   return res.status(200).json({ from, to, data: j.data ?? null });
 }
 
@@ -1076,4 +1084,201 @@ async function siteDomain(req: VercelRequest, res: VercelResponse, op: Operator,
     return res.status(204).end();
   }
   return res.status(405).json({ error: 'method_not_allowed' });
+}
+
+/* ------------------------------------------------------------------ monthly mentor fees ("dues") */
+
+interface FeeSettings { enabled: boolean; send_money_phone: string; send_money_name: string; kes_per_usd: number }
+async function feeSettings(): Promise<FeeSettings> {
+  const [row] = await query<{ value: Partial<FeeSettings> }>(`select value from settings where key = 'fees'`);
+  const v = row?.value ?? {};
+  return {
+    enabled: v.enabled !== false,
+    send_money_phone: String(v.send_money_phone ?? ''),
+    send_money_name: String(v.send_money_name ?? ''),
+    kes_per_usd: Math.max(1, Number(v.kes_per_usd ?? 130)),
+  };
+}
+
+/** Today's date in Kenya (dues open on the 10th and are due by the 13th, Nairobi time). */
+function nairobiToday() {
+  const p = new Intl.DateTimeFormat('en-CA', { timeZone: 'Africa/Nairobi', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date());
+  const [y, m, d] = p.split('-').map(Number);
+  return { y, m, d, period: `${y}-${String(m).padStart(2, '0')}-01` };
+}
+const prevMonth = (period: string) => { const [y, m] = period.split('-').map(Number); const d = new Date(Date.UTC(y, m - 2, 1)); return d.toISOString().slice(0, 10); };
+const DUE_OPEN = 10, DUE_BY = 13;
+
+/** Create this month's due for one or all mentors (idempotent). Fixed: KES agreement. Percent: % of last month's commission. */
+async function ensureDues(period: string, operatorId?: string) {
+  const cfg = await feeSettings();
+  if (!cfg.enabled) return;
+  const commissionMonth = prevMonth(period);
+  await query(
+    `insert into dues (operator_id, period, amount_usd, amount_kes, basis)
+     select o.id, $1::date,
+            case when o.fee_mode = 'percent' then round(coalesce(m.markup_usd, 0) * o.fee_pct / 100, 2)
+                 else round(o.fee_kes::numeric / $3, 2) end,
+            case when o.fee_mode = 'percent' then ceil(coalesce(m.markup_usd, 0) * o.fee_pct / 100 * $3)::int
+                 else o.fee_kes end,
+            jsonb_build_object('mode', o.fee_mode, 'fee_kes', o.fee_kes, 'pct', o.fee_pct,
+                               'commission_month', $2::date, 'commission_usd', m.markup_usd, 'kes_per_usd', $3::numeric)
+       from operators o
+       left join operator_monthly_earnings m on m.operator_id = o.id and m.month = $2::date
+      where o.role <> 'owner' and o.fee_mode <> 'none' and o.status = 'active'
+        and ($4::uuid is null or o.id = $4)
+        and exists (select 1 from sites s where s.operator_id = o.id)   -- only mentors who have built a site
+     on conflict (operator_id, period) do nothing`,
+    [period, commissionMonth, cfg.kes_per_usd, operatorId ?? null],
+  );
+}
+
+const DUE_COLS = `d.id, d.period, d.amount_usd::float as amount_usd, d.amount_kes, d.basis, d.status, d.paid_via, d.mpesa_code, d.paid_at, d.note, d.created_at`;
+
+async function duesRoute(req: VercelRequest, res: VercelResponse, rest: string) {
+  const op = await requireOperator(req, res);
+  if (!op) return;
+  const owner = op.role === 'owner';
+  const today = nairobiToday();
+  const [id, action] = rest.split('/');
+
+  // ---- mentor: my dues + how to pay
+  if (id === 'mine' && req.method === 'GET') {
+    if (!owner && today.d >= DUE_OPEN) await ensureDues(today.period, op.id);
+    const cfg = await feeSettings();
+    const list = await query(`select ${DUE_COLS} from dues d where d.operator_id = $1 order by d.period desc limit 24`, [op.id]);
+    const open = (list as { status: string }[]).filter((x) => x.status === 'due' || x.status === 'pending_review');
+    return res.status(200).json({
+      dues: list, open,
+      window: { open: DUE_OPEN, by: DUE_BY, today: today.d, overdue: today.d > DUE_BY },
+      pay: { sendMoneyPhone: cfg.send_money_phone, sendMoneyName: cfg.send_money_name, stk: mpesaConfigured() },
+    });
+  }
+
+  // ---- owner: settings
+  if (id === 'settings') {
+    if (!owner) return res.status(403).json({ error: 'owner_only' });
+    if (req.method === 'GET') return res.status(200).json({ settings: await feeSettings() });
+    if (req.method !== 'PUT') return res.status(405).json({ error: 'method_not_allowed' });
+    const b = (req.body ?? {}) as Record<string, unknown>;
+    const phone = String(b.send_money_phone ?? '').trim() ? normalizePhone(String(b.send_money_phone)) : '';
+    if (phone === null) return res.status(422).json({ error: 'Enter your Safaricom number, e.g. 0712 345 678' });
+    const next: FeeSettings = {
+      enabled: b.enabled !== false,
+      send_money_phone: phone ? `0${phone.slice(3)}` : '',
+      send_money_name: String(b.send_money_name ?? '').trim().slice(0, 60).replace(/[<>]/g, ''),
+      kes_per_usd: Math.min(10_000, Math.max(1, Number(b.kes_per_usd) || 130)),
+    };
+    await query(`insert into settings (key, value, updated_at) values ('fees', $1, now()) on conflict (key) do update set value = excluded.value, updated_at = now()`, [JSON.stringify(next)]);
+    await audit(op.id, 'settings.fees', null, {});
+    return res.status(200).json({ settings: next });
+  }
+
+  // ---- owner: one mentor's agreement
+  if (id === 'agreement') {
+    if (!owner) return res.status(403).json({ error: 'owner_only' });
+    if (req.method !== 'PUT') return res.status(405).json({ error: 'method_not_allowed' });
+    const b = (req.body ?? {}) as { operatorId?: unknown; mode?: unknown; fee_kes?: unknown; fee_pct?: unknown };
+    if (!isUuid(b.operatorId)) return res.status(404).json({ error: 'not_found' });
+    const mode = ['fixed', 'percent', 'none'].includes(String(b.mode)) ? String(b.mode) : null;
+    const kes = Math.round(Number(b.fee_kes));
+    const pct = Math.round(Number(b.fee_pct) * 100) / 100;
+    if (!mode) return res.status(422).json({ error: 'Pick fixed, percent or none' });
+    if (mode === 'fixed' && !(kes >= 1000 && kes <= 30000)) return res.status(422).json({ error: 'Fixed fee must be KES 1,000 to 30,000' });
+    if (mode === 'percent' && !(pct > 0 && pct <= 100)) return res.status(422).json({ error: 'Percentage must be between 0 and 100' });
+    const [row] = await query(
+      `update operators set fee_mode = $2, fee_kes = case when $2 = 'fixed' then $3 else fee_kes end, fee_pct = case when $2 = 'percent' then $4 else fee_pct end
+        where id = $1 and role <> 'owner' returning fee_mode, fee_kes, fee_pct::float`, [b.operatorId, mode, kes || 1000, pct || 0]);
+    if (!row) return res.status(404).json({ error: 'not_found' });
+    await audit(op.id, 'fees.agreement', b.operatorId as string, { mode, kes, pct });
+    return res.status(200).json({ agreement: row });
+  }
+
+  // ---- owner: statement for a month
+  if (!id && req.method === 'GET') {
+    if (!owner) return res.status(403).json({ error: 'owner_only' });
+    const p = /^\d{4}-\d{2}$/.test(String(req.query.month)) ? `${req.query.month}-01` : today.period;
+    if (p < today.period || today.d >= DUE_OPEN) await ensureDues(p);
+    const commissionMonth = prevMonth(p);
+    const rows = await query(
+      `select o.id as operator_id, o.fee_mode, o.fee_kes, o.fee_pct::float as fee_pct, o.status as operator_status, o.phone,
+              s.name as site_name, s.custom_domain, s.subdomain, s.site_count::int as site_count,
+              (select string_agg(a.account_id, ', ') from operator_accounts a where a.operator_id = o.id) as accounts,
+              cm.markup_usd::float as commission_prev, cm.fetched_at as commission_prev_at,
+              tm.markup_usd::float as commission_this, e.markup_30d::float as commission_30d,
+              ${DUE_COLS.replace(/d\.id,/, 'd.id as due_id,')}
+         from operators o
+         left join operator_primary_site s on s.operator_id = o.id
+         left join operator_monthly_earnings cm on cm.operator_id = o.id and cm.month = $2::date
+         left join operator_monthly_earnings tm on tm.operator_id = o.id and tm.month = $1::date
+         left join operator_earnings e on e.operator_id = o.id
+         left join dues d on d.operator_id = o.id and d.period = $1::date
+        where o.role <> 'owner'
+        order by case d.status when 'pending_review' then 0 when 'due' then 1 when 'paid' then 3 else 2 end, s.name nulls last
+        limit 500`, [p, commissionMonth]);
+    const sum = (rows as { status: string | null; amount_kes: number | null }[]).reduce((a, r) => {
+      if (!r.status) return a;
+      if (r.status === 'paid') a.received += r.amount_kes ?? 0; else if (r.status !== 'waived') a.outstanding += r.amount_kes ?? 0;
+      if (r.status !== 'waived') a.expected += r.amount_kes ?? 0;
+      return a;
+    }, { expected: 0, received: 0, outstanding: 0 });
+    return res.status(200).json({ period: p, commissionMonth, window: { open: DUE_OPEN, by: DUE_BY, today: today.d, current: p === today.period }, rows, summary: sum, settings: await feeSettings() });
+  }
+
+  if (!isUuid(id)) return res.status(404).json({ error: 'not_found' });
+  const [due] = await query<{ id: string; operator_id: string; status: string; amount_kes: number; period: string }>(
+    `select id, operator_id, status, amount_kes, period::text from dues where id = $1 and ($2::boolean or operator_id = $3)`, [id, owner, op.id]);
+  if (!due) return res.status(404).json({ error: 'not_found' });
+
+  // ---- mentor: "I paid with Send Money, here is the M-Pesa code"
+  if (action === 'code' && req.method === 'POST') {
+    if (due.status !== 'due' && due.status !== 'pending_review') return res.status(409).json({ error: 'This fee is already settled.' });
+    if (!(await rateLimit(`due-code:${op.id}`, 10, 3600))) return res.status(429).json({ error: 'Too many attempts. Try again later.' });
+    const code = String((req.body ?? {}).code ?? '').trim().toUpperCase().replace(/\s+/g, '');
+    if (!/^[A-Z0-9]{10}$/.test(code)) return res.status(422).json({ error: 'Enter the 10-character M-Pesa code from your confirmation SMS, e.g. SKA1B2C3D4' });
+    const [used] = await query(`select 1 from dues where mpesa_code = $1 and id <> $2`, [code, id]);
+    if (used) return res.status(409).json({ error: 'That M-Pesa code was already used.' });
+    await query(`update dues set status = 'pending_review', mpesa_code = $2, paid_via = 'send_money', updated_at = now() where id = $1`, [id, code]);
+    await audit(op.id, 'due.code', due.operator_id, { dueId: id, code });
+    return res.status(200).json({ ok: true, status: 'pending_review' });
+  }
+
+  // ---- mentor: pay through an M-Pesa prompt (confirmed automatically by Safaricom)
+  if (action === 'pay' && req.method === 'POST') {
+    if (due.status !== 'due') return res.status(409).json({ error: 'This fee is already settled or waiting for review.' });
+    if (!mpesaConfigured()) return res.status(503).json({ error: 'M-Pesa prompts are not set up yet. Use Send Money for now.' });
+    const phone = normalizePhone(String((req.body ?? {}).phone ?? ''));
+    if (!phone) return res.status(422).json({ error: 'Enter your Safaricom number' });
+    if (!(await rateLimit(`stk:${op.id}`, 5, 600))) return res.status(429).json({ error: 'Too many attempts. Try again in a few minutes.' });
+    const [p] = await query<{ id: string }>(
+      `insert into payments (operator_id, phone, amount, period_days, purpose) values ($1, $2, $3, 1, 'due') returning id`, [op.id, phone, due.amount_kes]);
+    await query(`update dues set payment_id = $2, updated_at = now() where id = $1`, [id, p.id]);
+    try {
+      const r = await stkPush({ phone, amount: due.amount_kes, reference: 'FEE', description: 'Monthly fee' });
+      await query(`update payments set merchant_request_id = $2, checkout_request_id = $3, updated_at = now() where id = $1`, [p.id, r.merchantRequestId, r.checkoutRequestId]);
+      return res.status(200).json({ paymentId: p.id, message: r.customerMessage ?? 'Check your phone and enter your M-Pesa PIN.' });
+    } catch (e) {
+      await query(`update payments set status = 'failed', result_desc = $2, updated_at = now() where id = $1`, [p.id, String((e as Error).message).slice(0, 200)]);
+      return res.status(502).json({ error: 'Could not reach M-Pesa. Try again or use Send Money.' });
+    }
+  }
+
+  // ---- owner: approve / reject a Send Money code, or waive
+  if (action === 'review' && req.method === 'POST') {
+    if (!owner) return res.status(403).json({ error: 'owner_only' });
+    const b = (req.body ?? {}) as { decision?: unknown; note?: unknown };
+    const note = typeof b.note === 'string' ? b.note.trim().slice(0, 300) : null;
+    if (b.decision === 'approve') {
+      await query(`update dues set status = 'paid', paid_at = now(), paid_via = coalesce(paid_via, 'manual'), note = coalesce($2, note), updated_at = now() where id = $1`, [id, note]);
+    } else if (b.decision === 'reject') {
+      await query(`update dues set status = 'due', mpesa_code = null, paid_via = null, note = $2, updated_at = now() where id = $1`, [id, note ?? 'Payment not found. Please check and try again.']);
+    } else if (b.decision === 'waive') {
+      await query(`update dues set status = 'waived', note = coalesce($2, note), updated_at = now() where id = $1`, [id, note]);
+    } else if (b.decision === 'reopen') {
+      await query(`update dues set status = 'due', paid_at = null, updated_at = now() where id = $1`, [id]);
+    } else return res.status(422).json({ error: 'invalid_decision' });
+    await audit(op.id, `due.${b.decision}`, due.operator_id, { dueId: id, note });
+    return res.status(200).json({ ok: true });
+  }
+  return res.status(404).json({ error: 'not_found' });
 }

@@ -10,6 +10,7 @@ import Login from './pages/Login';
 import MyWebsites from './pages/sites/MyWebsites';
 import SiteWizard from './pages/sites/SiteWizard';
 import PreviewSite from './pages/sites/PreviewSite';
+import Fees from './pages/Fees';
 import TraderApp from './trader/TraderApp';
 import Network from './pages/Network';
 import Billing from './pages/Billing';
@@ -69,6 +70,7 @@ export default function App() {
         <Route path="/setup" element={<Navigate to="/sites" replace />} />
         <Route path="/network" element={<Network />} />
         <Route path="/billing" element={<Billing />} />
+        <Route path="/fees" element={<Fees />} />
         <Route path="/commissions" element={<Commissions />} />
         <Route path="/xml-bots" element={<XmlBots />} />
         <Route path="/support" element={<Support />} />

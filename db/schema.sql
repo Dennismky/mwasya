@@ -251,7 +251,8 @@ create index if not exists xml_bots_catalog_idx on xml_bots(catalog) where catal
 alter table domain_orders add column if not exists site_id uuid references sites(id) on delete set null;
 
 -- One "main" site per operator (first live, else first) for lists that show one row per person.
-create or replace view operator_primary_site as
+drop view if exists operator_primary_site;
+create view operator_primary_site as
 select distinct on (s.operator_id) s.*, count(*) over (partition by s.operator_id) as site_count
   from sites s
  order by s.operator_id, (s.status = 'live') desc, s.created_at;
@@ -260,3 +261,48 @@ select distinct on (s.operator_id) s.*, count(*) over (partition by s.operator_i
 alter table sites add column if not exists client_logins integer not null default 0;
 alter table sites add column if not exists sub_login_at timestamptz;     -- last successful client login on <sub>.mwasya.site
 alter table sites add column if not exists domain_login_at timestamptz;  -- last successful client login on the custom domain
+
+-- ---------- Monthly mentor fees (due 10th–13th, shown in USD, paid via M-Pesa) ----------
+
+-- Agreement per mentor: fixed KES amount (default 1,000), a % of last month's Deriv commission, or none.
+alter table operators add column if not exists fee_mode text not null default 'fixed' check (fee_mode in ('fixed', 'percent', 'none'));
+alter table operators add column if not exists fee_kes integer not null default 1000 check (fee_kes between 0 and 1000000);
+alter table operators add column if not exists fee_pct numeric(5,2) not null default 0 check (fee_pct between 0 and 100);
+
+-- Commission per calendar month (from the mentor's own markup statistics), for % fees and verification.
+create table if not exists operator_monthly_earnings (
+  operator_id  uuid not null references operators(id) on delete cascade,
+  month        date not null,               -- first day of the month
+  markup_usd   numeric not null default 0,
+  volume_usd   numeric not null default 0,
+  contracts    integer not null default 0,
+  clients      integer not null default 0,
+  fetched_at   timestamptz not null default now(),
+  primary key (operator_id, month)
+);
+
+create table if not exists dues (
+  id           uuid primary key default gen_random_uuid(),
+  operator_id  uuid not null references operators(id) on delete cascade,
+  period       date not null,                -- first day of the month the fee is for
+  amount_usd   numeric(12,2) not null check (amount_usd >= 0),
+  amount_kes   integer not null check (amount_kes >= 0),
+  basis        jsonb not null default '{}',  -- {mode, fee_kes | pct + markup_usd, kes_per_usd}
+  status       text not null default 'due' check (status in ('due', 'pending_review', 'paid', 'waived')),
+  paid_via     text check (paid_via in ('mpesa_stk', 'send_money', 'manual')),
+  mpesa_code   text check (mpesa_code is null or mpesa_code ~ '^[A-Z0-9]{8,12}$'),
+  payment_id   uuid references payments(id) on delete set null,
+  paid_at      timestamptz,
+  note         text check (note is null or length(note) <= 300),
+  created_at   timestamptz not null default now(),
+  updated_at   timestamptz not null default now(),
+  unique (operator_id, period)
+);
+create index if not exists dues_status_idx on dues(status, period);
+create unique index if not exists dues_mpesa_code_idx on dues(mpesa_code) where mpesa_code is not null;
+
+alter table payments drop constraint if exists payments_purpose_check;
+alter table payments add constraint payments_purpose_check check (purpose in ('access', 'domain', 'due'));
+
+-- Owner settings for fees: where Send Money goes, rate for USD↔KES.
+insert into settings (key, value) values ('fees', '{"enabled": true, "send_money_phone": "", "send_money_name": "", "kes_per_usd": 130}') on conflict (key) do nothing;

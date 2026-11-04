@@ -451,3 +451,15 @@ textarea.input { resize: vertical; font-family: inherit; }
 
 .tp-preview { margin-bottom: 14px; padding: 10px 14px; border-radius: 8px; background: var(--primary-tint); border: 1px solid #C9D6F5; color: var(--navy); font-size: 14px; }
 [data-theme="dark"] .tp-preview { color: #E6ECF5; }
+
+/* Monthly fee bell (Mwasya yellow alert) */
+.bell { position: relative; display: grid; place-items: center; width: 42px; height: 42px; border-radius: 50%; border: 1px solid #F3D27A; background: #FFF4DB; color: #8A5A00; cursor: pointer; }
+.bell-late { animation: bell-ring 2.4s ease-in-out infinite; }
+@keyframes bell-ring { 0%, 90%, 100% { transform: rotate(0); } 93% { transform: rotate(12deg); } 96% { transform: rotate(-12deg); } }
+@media (prefers-reduced-motion: reduce) { .bell-late { animation: none; } }
+.bell-dot { position: absolute; top: 8px; right: 9px; width: 9px; height: 9px; border-radius: 50%; background: #F5B700; border: 2px solid #FFF4DB; }
+.bell-panel { position: absolute; right: 0; top: calc(100% + 8px); z-index: 50; width: min(380px, calc(100vw - 24px)); background: var(--bg); border: 1px solid var(--border); border-top: 4px solid #F5B700; border-radius: var(--radius); box-shadow: var(--shadow-lg); padding: 16px; display: flex; flex-direction: column; gap: 12px; }
+.bell-amount { display: flex; flex-direction: column; gap: 2px; padding: 12px; border-radius: 10px; background: #FFF8E1; }
+.bell-amount b { font-size: 24px; color: var(--navy); }
+.bell-steps { margin: 0; padding-left: 20px; line-height: 1.8; font-size: 14px; }
+.link-btn { border: 0; background: none; color: var(--primary); font: inherit; font-weight: 600; cursor: pointer; padding: 0; text-align: left; }

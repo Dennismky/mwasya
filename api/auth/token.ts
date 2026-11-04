@@ -4,7 +4,7 @@ import { query, upsertOperator, type DerivAccount } from '../_lib/db.js';
 import { noStore, sameOrigin, setSession } from '../_lib/session.js';
 import { resolveTenant } from '../_lib/tenant.js';
 import { clientIp, rateLimit } from '../_lib/guard.js';
-import { snapshotEarnings } from '../_lib/earnings.js';
+import { snapshotEarnings, snapshotMonths } from '../_lib/earnings.js';
 
 /** Map the Deriv login to a Mwasya operator. Login still succeeds if this fails (Bot Forge will ask to re-login). */
 async function resolveOperator(token: string, invite?: string): Promise<string | undefined> {
@@ -76,7 +76,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       ).catch(() => undefined);
     }
     // Refresh this mentor's commission snapshot (works when the login included read-only application_read). Never blocks login.
-    if (operatorId) await Promise.race([snapshotEarnings(operatorId, data.access_token).catch(() => null), new Promise((r) => setTimeout(r, 2500))]);
+    if (operatorId) await Promise.race([
+      Promise.all([snapshotEarnings(operatorId, data.access_token), snapshotMonths(operatorId, data.access_token)]).catch(() => null),
+      new Promise((r) => setTimeout(r, 3500)),
+    ]);
     setSession(res, { accessToken: data.access_token, expiresAt, operatorId, siteId: tenant.kind === 'site' ? tenant.site.id : undefined });
     return res.status(200).json({ ok: true, expiresAt });
   } catch {
