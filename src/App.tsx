@@ -12,6 +12,7 @@ import SiteWizard from './pages/sites/SiteWizard';
 import PreviewSite from './pages/sites/PreviewSite';
 import Fees from './pages/Fees';
 import TraderApp from './trader/TraderApp';
+import SiteLanding from './trader/SiteLanding';
 import Network from './pages/Network';
 import Billing from './pages/Billing';
 import Commissions from './pages/Commissions';
@@ -46,7 +47,7 @@ export default function App() {
     document.title = `${tenant.site.name} · Trading bots`;
     return (
       <Routes>
-        <Route path="/" element={<Login site={tenant.site} />} />
+        <Route path="/" element={<SiteLanding site={tenant.site} />} />
         <Route path="/callback" element={<Callback />} />
         <Route path="/app/*" element={<TraderApp site={tenant.site} bots={tenant.bots} xmlBots={tenant.xmlBots ?? []} />} />
         <Route path="*" element={<Navigate to="/" replace />} />

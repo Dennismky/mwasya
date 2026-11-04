@@ -1,12 +1,11 @@
-import { useEffect, useState, type CSSProperties } from 'react';
+import { useEffect, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { Icon } from '../components/ui';
 import { KEY_INVITE, getSession, safeReturnPath, startLogin } from '../lib/derivAuth';
-import type { SiteBranding } from '../lib/tenant';
 import { useT } from '../lib/i18n';
 
-/** `/` — sign in with Deriv (OAuth 2.0 + PKCE, trade scope only). Logged-in users go straight to the dashboard. */
-export default function Login({ site }: { site?: SiteBranding }) {
+/** `/` on mwasya.site — mentor sign-in with Deriv (OAuth 2.0 + PKCE). Logged-in users go straight to the studio. */
+export default function Login() {
   const navigate = useNavigate();
   const t = useT();
   const location = useLocation();
@@ -15,7 +14,6 @@ export default function Login({ site }: { site?: SiteBranding }) {
   const [checking, setChecking] = useState(true);
   const [busy, setBusy] = useState<'login' | 'signup' | null>(null);
   const [error, setError] = useState(state.error ?? '');
-
   const [inviter, setInviter] = useState<string | null>(null);
 
   useEffect(() => {
@@ -24,9 +22,8 @@ export default function Login({ site }: { site?: SiteBranding }) {
       .catch(() => setChecking(false));
   }, [navigate, returnTo]);
 
-  // Invite links (studio only): mwasya.site/?invite=CODE → remember it for the login, show who invited you.
+  // Invite links: mwasya.site/?invite=CODE → remember it for the login and show who invited you.
   useEffect(() => {
-    if (site) return;
     const fromUrl = new URLSearchParams(location.search).get('invite');
     if (fromUrl && /^[A-Za-z0-9_-]{10,40}$/.test(fromUrl)) {
       localStorage.setItem(KEY_INVITE, fromUrl);
@@ -37,11 +34,11 @@ export default function Login({ site }: { site?: SiteBranding }) {
     fetch(`/api/invites/info?code=${encodeURIComponent(code)}`)
       .then((r) => (r.ok ? r.json() : { valid: false }))
       .then((j: { valid: boolean; inviter?: string }) => {
-        if (j.valid) setInviter(j.inviter ?? 'a Mwasya operator');
+        if (j.valid) setInviter(j.inviter ?? 'a Mwasya mentor');
         else localStorage.removeItem(KEY_INVITE);
       })
       .catch(() => undefined);
-  }, [site, location.search]);
+  }, [location.search]);
 
   const go = (signup: boolean) => {
     setBusy(signup ? 'signup' : 'login');
@@ -50,52 +47,62 @@ export default function Login({ site }: { site?: SiteBranding }) {
   };
 
   return (
-    <div className="login-bg" style={site ? ({ background: `radial-gradient(1000px 520px at 10% -10%, ${site.accent} 0%, transparent 60%), #0B1F3A`, "--primary": site.accent, "--primary-hover": site.accent } as CSSProperties) : undefined}>
-      <main className="login-card" aria-busy={checking}>
-        <div className="row" style={{ alignItems: 'center', gap: 12 }}>
-          {site?.logoUrl ? <img className="brand-mark" src={site.logoUrl} alt="" style={{ width: 40, height: 40, objectFit: "cover" }} /> : <span className="brand-mark" style={{ width: 40, height: 40, background: site?.accent }}>{site ? site.name.charAt(0).toUpperCase() : <Icon.Logo />}</span>}
-          <div className="stack">
-            <b style={{ fontSize: 20 }}>{site?.name ?? "Mwasya"}</b>
-            <span className="hint" style={{ fontSize: 12, fontWeight: 600, letterSpacing: ".06em" }}>{site ? "TRADING BOTS" : "OPERATOR STUDIO"}</span>
-          </div>
+    <div className="auth">
+      <aside className="auth-brand">
+        <div className="auth-logo"><span className="brand-mark"><Icon.Logo /></span><b>Mwasya</b></div>
+        <div className="auth-pitch">
+          <h1>Launch your own Deriv trading brand.</h1>
+          <p>Build branded trading sites, give your clients ready-made bots, grow a network of mentors, and earn markup on every trade.</p>
+          <ul>
+            <li><span><Icon.Globe /></span><div><b>Your sites, your domain</b><small>Design, deploy and connect a domain in minutes.</small></div></li>
+            <li><span><Icon.Chip /></span><div><b>Bots your clients can run</b><small>Safety limits on every bot, run by Deriv.</small></div></li>
+            <li><span><Icon.Coin /></span><div><b>Markup paid by Deriv</b><small>Straight to your own Deriv account.</small></div></li>
+          </ul>
         </div>
-
-        {inviter && (
-          <div className="notice" style={{ padding: '12px 14px' }}>
-            <span>You've been invited by <b>{inviter}</b>. Log in to create your own site.</span>
-          </div>
-        )}
-
-        <div className="stack" style={{ gap: 8 }}>
-          <h1 style={{ fontSize: 26, fontWeight: 700 }}>{t('login.signIn')}</h1>
-          <p className="muted">{t('login.sub')}</p>
+        <div className="auth-facts">
+          <div><b>Deriv API</b><small>Official login</small></div>
+          <div><b>Trade only</b><small>Never withdrawals</small></div>
+          <div><b>M-Pesa</b><small>Local payments</small></div>
         </div>
+      </aside>
 
-        {checking ? (
-          <p className="muted" aria-live="polite"><span className="spinner" /> Checking session…</p>
-        ) : (
-          <div className="stack" style={{ gap: 12 }}>
-            <button className="btn btn-primary btn-lg" disabled={busy !== null} onClick={() => go(false)}>
-              {busy === 'login' ? 'Opening Deriv…' : t('login.button')} <Icon.Arrow />
-            </button>
-            <button className="btn btn-secondary btn-lg" disabled={busy !== null} onClick={() => go(true)}>
-              {busy === 'signup' ? 'Opening Deriv…' : t('login.create')}
-            </button>
-            {error && <p className="error" role="alert">{error}</p>}
+      <main className="auth-main">
+        <div className="auth-card" aria-busy={checking}>
+          <div className="stack" style={{ gap: 6 }}>
+            <span className="auth-kicker">OPERATOR STUDIO</span>
+            <h2>{t('login.signIn')}</h2>
+            <p className="muted">{t('login.sub')}</p>
           </div>
-        )}
 
-        <ul className="login-points">
-          <li><Icon.Shield /> Trade access only. We can never withdraw your funds.</li>
-          <li><Icon.Key /> We never see your password or ask for API tokens.</li>
-          <li><Icon.Lock /> Your session is encrypted and stays on our server.</li>
-        </ul>
+          {inviter && (
+            <div className="auth-invite"><Icon.Users /><span>You've been invited by <b>{inviter}</b>. Log in to create your own site.</span></div>
+          )}
 
-        {!site && <p className="hint" style={{ textAlign: "center" }}>
-          New to Mwasya? <Link to="/about">See what it does</Link>
-        </p>}
+          {checking ? (
+            <p className="muted" aria-live="polite"><span className="spinner" /> Checking your session…</p>
+          ) : (
+            <div className="stack" style={{ gap: 10 }}>
+              <button className="btn btn-primary auth-btn" disabled={busy !== null} onClick={() => go(false)}>
+                {busy === 'login' ? 'Opening Deriv…' : t('login.button')} <Icon.Arrow />
+              </button>
+              <div className="auth-or"><span>New to Deriv?</span></div>
+              <button className="btn btn-secondary auth-btn" disabled={busy !== null} onClick={() => go(true)}>
+                {busy === 'signup' ? 'Opening Deriv…' : t('login.create')}
+              </button>
+              {error && <p className="error" role="alert">{error}</p>}
+            </div>
+          )}
+
+          <ul className="auth-trust">
+            <li><Icon.Shield /> Trade access only — we can never withdraw.</li>
+            <li><Icon.Key /> We never see your password or API tokens.</li>
+            <li><Icon.Lock /> Encrypted session, kept on our server.</li>
+          </ul>
+        </div>
+        <p className="auth-legal">
+          <Link to="/about">About Mwasya</Link> · Built on the Deriv API · Trading carries risk.
+        </p>
       </main>
-      <p className="login-legal">Built on the Deriv API. Trading carries risk. Only trade with money you can afford to lose.</p>
     </div>
   );
 }

@@ -12,6 +12,17 @@ const TILES = [
   { to: '/risk', label: 'Risk Calculator', icon: <Icon.Card />, text: 'Plan your stakes', f: 'risk' },
 ];
 
+const TIPS_OF_DAY = [
+  'Practise a new bot on Demo first. Switch accounts in the top bar.',
+  'Set a stop loss you are comfortable losing before you press Run.',
+  'A run stops at its take profit too. Taking profit is part of the plan.',
+  'Doubling after losses can empty a balance fast. Check the Risk Calculator.',
+  'Small, steady stakes last longer than big ones.',
+  'Use Reports to review every trade, not just the wins.',
+  'Digit stats describe the past only. Each tick is random.',
+  'Take breaks. Bots keep their limits even when you step away.',
+];
+
 const FAQ = [
   ['Is my money safe here?', 'Your funds stay in your Deriv account. This site can place trades for you but can never withdraw.'],
   ['Demo or real?', 'Use the account switcher at the top. Practise on Demo first; it uses virtual money.'],
@@ -42,6 +53,10 @@ export default function TraderDashboard() {
         <section className="card stack" style={{ gap: 8 }}>
           <b style={{ fontSize: 18 }}>Welcome to {site.name}</b>
           <span className="muted">Automated trading without coding. {bots.length} bot{bots.length === 1 ? '' : 's'} and {xmlBots.length} bot file{xmlBots.length === 1 ? '' : 's'} ready for you.</span>
+        </section>
+        <section className="card stack tip-card" style={{ gap: 6 }}>
+          <span className="hint" style={{ fontWeight: 700, letterSpacing: '.06em' }}>TIP OF THE DAY</span>
+          <span>{TIPS_OF_DAY[Math.floor(Date.now() / 864e5) % TIPS_OF_DAY.length]}</span>
         </section>
         <section className="card stack" style={{ gap: 8 }}>
           <b>Get started</b>

@@ -1,5 +1,5 @@
 import { useEffect, useState, type CSSProperties, type ReactNode } from 'react';
-import { Navigate, NavLink, Route, Routes, useOutletContext, Outlet } from 'react-router-dom';
+import { Navigate, NavLink, Route, Routes, useLocation, useOutletContext, Outlet } from 'react-router-dom';
 import { Icon } from '../components/ui';
 import { AuthProvider, PreviewAuthProvider, useAuth } from '../lib/auth';
 import { reloadTenant, type PublishedBot, type SiteBranding } from '../lib/tenant';
@@ -13,6 +13,7 @@ import QuickBot from './QuickBot';
 import RiskCalculator from './RiskCalculator';
 import TraderDashboard from './TraderDashboard';
 import BotBuilderSoon from './BotBuilderSoon';
+import Reports from './Reports';
 import { Ticker } from './Ticker';
 
 export interface XmlBotLite { id: string; name: string; description: string }
@@ -27,15 +28,17 @@ export interface TraderCtx {
 }
 export const useTrader = () => useOutletContext<TraderCtx>();
 
-const TABS: { to: string; label: string; icon: ReactNode; end?: boolean; feature?: string }[] = [
-  { to: '', label: 'Dashboard', icon: <Icon.Chart />, end: true },
-  { to: '/bot-builder', label: 'Bot Builder', icon: <Icon.Gear /> },
-  { to: '/free-bots', label: 'Free Bots', icon: <Icon.Code />, feature: 'freebots' },
-  { to: '/quick-bot', label: 'Quick Bot', icon: <Icon.Chip />, feature: 'bots' },
-  { to: '/manual', label: 'Manual Trader', icon: <Icon.Window />, feature: 'manual' },
-  { to: '/charts', label: 'Charts', icon: <Icon.Chart />, feature: 'charts' },
-  { to: '/analysis', label: 'Analysis Tools', icon: <Icon.Help />, feature: 'analysis' },
-  { to: '/risk', label: 'Risk Calculator', icon: <Icon.Card />, feature: 'risk' },
+/** `short` = label in the phone bottom bar; `primary` tabs sit in that bar, the rest go under "More". */
+const TABS: { to: string; label: string; short: string; icon: ReactNode; end?: boolean; feature?: string; primary?: boolean }[] = [
+  { to: '', label: 'Dashboard', short: 'Home', icon: <Icon.Chart />, end: true, primary: true },
+  { to: '/quick-bot', label: 'Quick Bot', short: 'Bots', icon: <Icon.Chip />, feature: 'bots', primary: true },
+  { to: '/manual', label: 'Manual Trader', short: 'Trade', icon: <Icon.Window />, feature: 'manual', primary: true },
+  { to: '/reports', label: 'Reports', short: 'Reports', icon: <Icon.Card />, primary: true },
+  { to: '/free-bots', label: 'Free Bots', short: 'Free Bots', icon: <Icon.Code />, feature: 'freebots' },
+  { to: '/charts', label: 'Charts', short: 'Charts', icon: <Icon.Chart />, feature: 'charts' },
+  { to: '/analysis', label: 'Analysis Tools', short: 'Analysis', icon: <Icon.Help />, feature: 'analysis' },
+  { to: '/risk', label: 'Risk Calculator', short: 'Risk', icon: <Icon.Gear />, feature: 'risk' },
+  { to: '/bot-builder', label: 'Bot Builder', short: 'Builder', icon: <Icon.Gear /> },
 ];
 
 /** `/app/*` on <brand>.mwasya.site — the client trading platform. */
@@ -53,6 +56,7 @@ export default function TraderApp({ site, bots, xmlBots, base = '/app', preview 
           <Route path="charts" element={<Charts />} />
           <Route path="analysis" element={<Analysis />} />
           <Route path="risk" element={<RiskCalculator />} />
+          <Route path="reports" element={<Reports />} />
           <Route path="*" element={<Navigate to={base} replace />} />
         </Route>
       </Routes>
@@ -65,11 +69,26 @@ function Shell({ site, initialBots, initialXml, base, preview }: { site: SiteBra
   const [bots, setBots] = useState(initialBots);
   const [xmlBots, setXmlBots] = useState(initialXml);
   const [menu, setMenu] = useState(false);
+  const [more, setMore] = useState(false);
   const [disclaimer, setDisclaimer] = useState(false);
+  const [notice, setNotice] = useState('');
+  const location = useLocation();
+  useEffect(() => { setMore(false); setMenu(false); }, [location.pathname]);
+
+  const resetDemo = async () => {
+    setMenu(false);
+    if (!auth.account?.isVirtual || preview) return;
+    const r = await fetch('/api/deriv/accounts', { method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'same-origin',
+      body: JSON.stringify({ action: 'reset_demo', accountId: auth.account.id }) });
+    setNotice(r.ok ? 'Demo balance reset.' : r.status === 429 ? 'Too many resets. Try again later.' : 'Could not reset the demo balance.');
+    if (r.ok) auth.refreshBalance();
+    setTimeout(() => setNotice(''), 4000);
+  };
   const runner = useBotRunner(auth.account?.id, auth.expire, auth.refreshBalance);
   const dark = site.theme === 'dark';
   // Older sites have no feature list yet: show everything.
   const has = (f?: string) => !f || !site.features?.length || site.features.includes(f);
+  const tabs = TABS.filter((t) => has(t.feature));
 
   useEffect(() => {
     if (preview) return; // the studio already passed this site's bots
@@ -108,22 +127,26 @@ function Shell({ site, initialBots, initialXml, base, preview }: { site: SiteBra
           {menu && (
             <div className="tp-menu" role="menu">
               <span className="hint mono" style={{ padding: '6px 10px' }}>{account?.id}</span>
+              {account?.isVirtual && !preview && <button role="menuitem" onClick={resetDemo}><Icon.Coin /> Reset demo balance</button>}
+              <button role="menuitem" onClick={() => { setMenu(false); setDisclaimer(true); }}><Icon.Shield /> Risk disclaimer</button>
               <button role="menuitem" onClick={auth.signOut}><Icon.Logout /> Log out</button>
             </div>
           )}
         </div>
       </header>
 
+      {/* Laptop/tablet: every tab fits the width, no sideways scrolling. Phones use the bottom bar instead. */}
       <nav className="tp-nav" aria-label="Trading tools">
-        {TABS.filter((t) => has(t.feature)).map((t) => (
-          <NavLink key={t.to} to={base + t.to} end={t.end} className={({ isActive }) => `tp-tab ${isActive ? 'active' : ''}`}>
-            {t.icon}{t.label}
+        {tabs.map((t) => (
+          <NavLink key={t.to} to={base + t.to} end={t.end} className={({ isActive }) => `tp-tab ${isActive ? 'active' : ''}`} title={t.label}>
+            {t.icon}<span>{t.label}</span>
           </NavLink>
         ))}
       </nav>
       {has("charts") && <Ticker />}
 
       <main className="tp-main">
+        {notice && <div className="tp-preview" role="status">{notice}</div>}
         {preview && <div className="tp-preview"><b>Client preview.</b> This is exactly what your clients see. Prices and charts are live; trading is off until a client logs in on your deployed site.</div>}
         {account && !account.isVirtual && (
           <div className="tp-real">You're on a <b>real money</b> account. Switch to Demo in the top bar to practise.</div>
@@ -140,6 +163,33 @@ function Shell({ site, initialBots, initialXml, base, preview }: { site: SiteBra
         </span>
         <Clock />
       </footer>
+
+      {/* Phones: fixed bottom tab bar (always the same place, never scrolls) + "More" sheet. */}
+      <nav className="tp-bottom" aria-label="Trading tools">
+        {tabs.filter((t) => t.primary).slice(0, 4).map((t) => (
+          <NavLink key={t.to} to={base + t.to} end={t.end} className={({ isActive }) => (isActive ? 'on' : '')}>{t.icon}<span>{t.short}</span></NavLink>
+        ))}
+        <button className={more ? 'on' : ''} aria-expanded={more} onClick={() => setMore((m) => !m)}>☰<span>More</span></button>
+      </nav>
+      {more && (
+        <div className="tp-sheet-wrap" onClick={() => setMore(false)}>
+          <div className="tp-sheet" role="dialog" aria-label="More tools" onClick={(e) => e.stopPropagation()}>
+            <div className="tp-sheet-grid">
+              {tabs.filter((t) => !t.primary || tabs.filter((x) => x.primary).indexOf(t) >= 4).map((t) => (
+                <NavLink key={t.to} to={base + t.to} end={t.end} className={({ isActive }) => `tp-sheet-item ${isActive ? 'on' : ''}`}>{t.icon}<span>{t.label}</span></NavLink>
+              ))}
+            </div>
+            <div className="tp-sheet-foot">
+              <span className="tp-status" style={{ justifyContent: 'flex-start' }}>
+                {live.length > 0
+                  ? <><span className="dot dot-real pulse" /> {live.length} bot{live.length > 1 ? 's' : ''} running · <b className="mono" style={{ color: livePnl >= 0 ? 'var(--success)' : 'var(--danger)' }}>{livePnl >= 0 ? '+' : ''}{livePnl.toFixed(2)}</b></>
+                  : <><span className={`dot ${runner.conn === 'ready' || preview ? 'dot-real' : 'dot-demo'}`} /> {preview ? 'Preview' : runner.conn === 'ready' ? 'Connected' : 'Connecting…'}</>}
+              </span>
+              <button className="btn btn-secondary" onClick={() => { setMore(false); setDisclaimer(true); }}>Risk disclaimer</button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {disclaimer && (
         <div className="tp-modal" role="dialog" aria-modal="true" aria-labelledby="rd-title" onClick={() => setDisclaimer(false)}>
