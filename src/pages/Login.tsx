@@ -53,7 +53,7 @@ export default function Login({ site }: { site?: SiteBranding }) {
     <div className="login-bg" style={site ? ({ background: `radial-gradient(1000px 520px at 10% -10%, ${site.accent} 0%, transparent 60%), #0B1F3A`, "--primary": site.accent, "--primary-hover": site.accent } as CSSProperties) : undefined}>
       <main className="login-card" aria-busy={checking}>
         <div className="row" style={{ alignItems: 'center', gap: 12 }}>
-          <span className="brand-mark" style={{ width: 40, height: 40, background: site?.accent }}>{site ? site.name.charAt(0).toUpperCase() : <Icon.Logo />}</span>
+          {site?.logoUrl ? <img className="brand-mark" src={site.logoUrl} alt="" style={{ width: 40, height: 40, objectFit: "cover" }} /> : <span className="brand-mark" style={{ width: 40, height: 40, background: site?.accent }}>{site ? site.name.charAt(0).toUpperCase() : <Icon.Logo />}</span>}
           <div className="stack">
             <b style={{ fontSize: 20 }}>{site?.name ?? "Mwasya"}</b>
             <span className="hint" style={{ fontSize: 12, fontWeight: 600, letterSpacing: ".06em" }}>{site ? "TRADING BOTS" : "OPERATOR STUDIO"}</span>

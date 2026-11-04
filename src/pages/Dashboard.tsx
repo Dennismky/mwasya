@@ -15,6 +15,7 @@ export default function Dashboard() {
   const auth = useAuth();
   const t = useT();
   const [site, setSite] = useState<MySite | null | undefined>(undefined);
+  const [siteCount, setSiteCount] = useState(0);
   const [bots, setBots] = useState<number | null>(null);
   const [xml, setXml] = useState<number | null>(null);
   const [network, setNetwork] = useState<Summary | null>(null);
@@ -23,7 +24,7 @@ export default function Dashboard() {
   useEffect(() => {
     if (!auth.operator) return;
     const get = (u: string) => fetch(u, { credentials: 'same-origin' }).then((r) => (r.ok ? r.json() : null)).catch(() => null);
-    void get('/api/sites/mine').then((j) => setSite(j?.site ?? null));
+    void get('/api/sites').then((j) => { const list = (j?.sites ?? []) as (MySite & { status: string })[]; setSite(list.find((s) => s.status === 'live') ?? list[0] ?? null); setSiteCount(list.length); });
     void get('/api/bots').then((j) => setBots(j ? (j.bots as { status: string }[]).filter((b) => b.status === 'published').length : 0));
     void get('/api/xmlbots').then((j) => setXml(j ? (j.bots as { status: string }[]).filter((b) => b.status === 'published').length : 0));
     void get('/api/network').then((j) => setNetwork(j?.summary ?? null));
@@ -32,7 +33,7 @@ export default function Dashboard() {
 
   const steps = [
     { done: auth.accounts.length > 0, title: 'Connect your Deriv account', text: 'You log in with Deriv. We only get trade access and never see your password.' },
-    { done: !!site, title: 'Create your trading site', text: 'Your brand, your colours and your own Deriv app, so the markup is paid to you.', to: '/setup', cta: 'Create site' },
+    { done: !!site, title: 'Create your trading site', text: 'Your brand, your colours and your own Deriv app, so the markup is paid to you.', to: '/sites/new', cta: 'Build a site' },
     { done: (bots ?? 0) + (xml ?? 0) > 0, title: 'Give your clients bots', text: 'Publish a Bot Forge bot or upload Deriv Bot XML files.', to: '/forge', cta: 'Open Bot Forge' },
     { done: (network?.people ?? 0) > 0, title: 'Bring in other mentors', text: 'Share an invite link. They get their own site, under you.', to: '/network', cta: 'Invite' },
   ];
@@ -61,6 +62,7 @@ export default function Dashboard() {
       <div className="grid" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))' }}>
         <Tile label="MARKUP · 30 DAYS" value={earned === 'connect' ? undefined : earned === null ? '—' : usd(earned)} action={earned === 'connect' ? <Link to="/commissions" className="hint">Connect earnings →</Link> : <Link to="/commissions" className="hint">View commissions →</Link>} strong />
         <Tile label="MENTORS UNDER YOU" value={network ? String(network.people) : '—'} action={<Link to="/network" className="hint">Open network →</Link>} />
+        <Tile label="YOUR SITES" value={String(siteCount)} action={<Link to="/sites" className="hint">My websites →</Link>} />
         <Tile label="SITES IN YOUR NETWORK" value={network ? String(network.sites) : '—'} />
         <Tile label="BOTS ON YOUR SITE" value={bots === null || xml === null ? '—' : String(bots + xml)} action={<Link to="/xml-bots" className="hint">XML bots →</Link>} />
       </div>

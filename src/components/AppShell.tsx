@@ -1,4 +1,4 @@
-import { useEffect, useState, type ReactNode } from 'react';
+import { Fragment, useEffect, useState, type ReactNode } from 'react';
 import { Navigate, NavLink, Outlet, useLocation } from 'react-router-dom';
 import { AuthProvider, useAuth } from '../lib/auth';
 import { LANGUAGES, useLang, useT, type Lang } from '../lib/i18n';
@@ -6,13 +6,13 @@ import { useTheme } from '../lib/theme';
 import { Icon } from './ui';
 
 type NavKey = Parameters<ReturnType<typeof useT>>[0];
-const NAV: { to: string; key: NavKey; icon: ReactNode; soon?: boolean }[] = [
-  { to: '/app', key: 'nav.overview', icon: <Icon.Chart /> },
-  { to: '/setup', key: 'nav.sites', icon: <Icon.Globe /> },
+const NAV: { to: string; key: NavKey; icon: ReactNode; soon?: boolean; section?: string }[] = [
+  { to: '/app', key: 'nav.overview', icon: <Icon.Chart />, section: 'BUILD & MANAGE' },
+  { to: '/sites', key: 'nav.sites', icon: <Icon.Globe /> },
   { to: '/forge', key: 'nav.forge', icon: <Icon.Chip /> },
   { to: '/xml-bots', key: 'nav.xml', icon: <Icon.Code /> },
   { to: '/commissions', key: 'nav.commissions', icon: <Icon.Coin /> },
-  { to: '/network', key: 'nav.network', icon: <Icon.Users /> },
+  { to: '/network', key: 'nav.network', icon: <Icon.Users />, section: 'ACCOUNT' },
   { to: '/billing', key: 'nav.billing', icon: <Icon.Card /> },
   { to: '/support', key: 'nav.support', icon: <Icon.Help /> },
   { to: '/settings', key: 'nav.settings', icon: <Icon.Gear /> },
@@ -71,12 +71,17 @@ function Shell() {
           </div>
         </div>
         <nav className="stack sidebar-nav" style={{ gap: 2 }}>
-          {NAV.map((n) => n.soon ? (
-            <span key={n.to} className="side-link side-link-soon" aria-disabled="true">{n.icon}{t(n.key)}<span className="soon">{t('nav.soon')}</span></span>
-          ) : (
-            <NavLink key={n.to} to={n.to} end className={({ isActive }) => `side-link ${isActive ? 'active' : ''}`} onClick={() => setOpen(false)}>
-              {n.icon}{t(n.key)}
-            </NavLink>
+          {NAV.map((n) => (
+            <Fragment key={n.to}>
+              {n.section && <span className="side-section">{n.section}</span>}
+              {n.soon ? (
+                <span className="side-link side-link-soon" aria-disabled="true">{n.icon}{t(n.key)}<span className="soon">{t('nav.soon')}</span></span>
+              ) : (
+                <NavLink to={n.to} end={n.to !== '/sites'} className={({ isActive }) => `side-link ${isActive ? 'active' : ''}`} onClick={() => setOpen(false)}>
+                  {n.icon}{t(n.key)}
+                </NavLink>
+              )}
+            </Fragment>
           ))}
         </nav>
         <div className="sidebar-foot">
@@ -122,6 +127,12 @@ function Shell() {
           {auth.status === 'error' ? <p className="error" role="alert">{auth.error}</p> : <Outlet />}
         </main>
       </div>
+      <nav className="bottom-bar" aria-label="Quick navigation">
+        {([['/app', 'Home', <Icon.Chart key="i" />], ['/sites', 'Sites', <Icon.Globe key="i" />], ['/forge', 'Bots', <Icon.Chip key="i" />], ['/support', 'Support', <Icon.Help key="i" />]] as const).map(([to, label, icon]) => (
+          <NavLink key={to} to={to} end={to !== '/sites'} className={({ isActive }) => (isActive ? 'on' : '')}>{icon}<span>{label}</span></NavLink>
+        ))}
+        <button onClick={() => setOpen(true)}>☰<span>More</span></button>
+      </nav>
       {open && <button className="scrim" aria-label="Close menu" onClick={() => setOpen(false)} />}
     </div>
   );

@@ -1,13 +1,15 @@
 import { useEffect, useRef, useState } from 'react';
 import { Icon } from '../components/ui';
 import { useT } from '../lib/i18n';
+import { useAuth } from '../lib/auth';
 
-interface XmlBot { id: string; name: string; description: string; status: 'draft' | 'published'; downloads: number; size: number; updated_at: string }
+interface XmlBot { id: string; name: string; description: string; status: 'draft' | 'published'; catalog?: boolean; downloads: number; size: number; updated_at: string }
 
 const kb = (n: number) => `${(n / 1024).toFixed(n < 10240 ? 1 : 0)} KB`;
 
 export default function XmlBots() {
   const t = useT();
+  const isOwner = useAuth().me?.operator.role === 'owner';
   const [bots, setBots] = useState<XmlBot[]>([]);
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
@@ -98,7 +100,7 @@ export default function XmlBots() {
                     <td><b>{b.name}</b>{b.description && <div className="hint">{b.description}</div>}</td>
                     <td className="mono hint">{kb(b.size)}</td>
                     <td className="mono">{b.downloads}</td>
-                    <td><span className={`badge ${b.status === 'published' ? 'badge-green' : 'badge-blue'}`}>{b.status}</span></td>
+                    <td><span className={`badge ${b.status === 'published' ? 'badge-green' : 'badge-blue'}`}>{b.status}</span>{isOwner && <label className="row hint" style={{ gap: 6, marginTop: 6, alignItems: 'center' }}><input type="checkbox" checked={!!b.catalog} onChange={(e) => patch(b.id, { catalog: e.target.checked })} /> Catalog</label>}</td>
                     <td style={{ textAlign: 'right', whiteSpace: 'nowrap' }}>
                       <button className="btn btn-secondary" style={{ padding: '6px 12px' }} onClick={() => patch(b.id, { status: b.status === 'published' ? 'draft' : 'published' })}>
                         {b.status === 'published' ? 'Unpublish' : 'Publish to my site'}

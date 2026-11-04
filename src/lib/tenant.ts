@@ -1,6 +1,9 @@
 import type { BotSpec } from '../shared/botSpec';
 
-export interface SiteBranding { name: string; subdomain: string; accent: string; theme: 'light' | 'dark'; appId: string }
+export interface SiteBranding {
+  name: string; subdomain: string; accent: string; theme: 'light' | 'dark'; appId: string;
+  template?: string; features?: string[]; tagline?: string | null; logoUrl?: string | null;
+}
 export interface PublishedBot { id: string; name: string; spec: BotSpec; risk: 'low' | 'medium' | 'high'; updated_at: string }
 
 export type Tenant =

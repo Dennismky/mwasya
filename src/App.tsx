@@ -7,7 +7,8 @@ import Dashboard from './pages/Dashboard';
 import Forge from './pages/Forge';
 import Landing from './pages/Landing';
 import Login from './pages/Login';
-import Setup from './pages/Setup';
+import MyWebsites from './pages/sites/MyWebsites';
+import SiteWizard from './pages/sites/SiteWizard';
 import TraderApp from './trader/TraderApp';
 import Network from './pages/Network';
 import Billing from './pages/Billing';
@@ -60,7 +61,10 @@ export default function App() {
       <Route element={<AppShell />}>
         <Route path="/app" element={<Dashboard />} />
         <Route path="/forge" element={<Forge />} />
-        <Route path="/setup" element={<Setup />} />
+        <Route path="/sites" element={<MyWebsites />} />
+        <Route path="/sites/new" element={<SiteWizard />} />
+        <Route path="/sites/:id" element={<SiteWizard />} />
+        <Route path="/setup" element={<Navigate to="/sites" replace />} />
         <Route path="/network" element={<Network />} />
         <Route path="/billing" element={<Billing />} />
         <Route path="/commissions" element={<Commissions />} />

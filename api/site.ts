@@ -25,14 +25,25 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       `select id, name, spec, risk, updated_at from bots where operator_id = $1 and status = 'published' order by updated_at desc limit 50`,
       [t.site.operator_id],
     );
+    // Builder config: design, which tabs show, tagline, logo, and which free bots (catalog + own) appear.
+    const [cfg] = await query<{ template: string; features: string[]; free_bots: string[]; tagline: string | null; has_logo: boolean; updated_at: string }>(
+      `select template, features, free_bots, tagline, (logo is not null) as has_logo, updated_at from sites where id = $1`, [t.site.id]);
+    const picked = Array.isArray(cfg?.free_bots) ? cfg.free_bots : [];
     const xmlBots = await query<{ id: string; name: string; description: string }>(
-      `select id, name, description from xml_bots where operator_id = $1 and status = 'published' order by updated_at desc limit 50`,
-      [t.site.operator_id],
+      picked.length
+        ? `select b.id, b.name, b.description from xml_bots b join operators o on o.id = b.operator_id
+            where b.id = any($2::uuid[]) and ((b.catalog and o.role = 'owner') or (b.operator_id = $1)) order by b.name limit 200`
+        : `select id, name, description from xml_bots where operator_id = $1 and status = 'published' order by updated_at desc limit 50`,
+      picked.length ? [t.site.operator_id, picked] : [t.site.operator_id],
     );
     res.setHeader('Cache-Control', 'public, max-age=30');
     return res.status(200).json({
       kind: 'site',
-      site: { name: t.site.name, subdomain: t.site.subdomain, accent: t.site.accent, theme: t.site.theme, appId: t.site.deriv_app_id },
+      site: {
+        name: t.site.name, subdomain: t.site.subdomain, accent: t.site.accent, theme: t.site.theme, appId: t.site.deriv_app_id,
+        template: cfg?.template ?? 'bothub', features: cfg?.features ?? [], tagline: cfg?.tagline ?? null,
+        logoUrl: cfg?.has_logo ? `/api/sites/logo?id=${t.site.id}&v=${Date.parse(cfg.updated_at)}` : null,
+      },
       bots,
       xmlBots,
     });

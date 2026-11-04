@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { useAuth } from '../lib/auth';
+import { useAuth } from '../../lib/auth';
 
 interface Result { domain: string; available: boolean; buyable: boolean; premium?: boolean; kes: number | null; renewKes: number | null }
 type Phase =
@@ -14,7 +14,7 @@ const stepOf = (status: string, paid: boolean) =>
   status === 'completed' ? 3 : status === 'purchasing' ? 1 : status === 'paid' ? 1 : paid ? 1 : 0;
 
 /** Mentor buys a brand-new domain; we register it on Vercel and connect it to their trading site. */
-export default function BuyDomain({ onConnected }: { onConnected: (domain: string) => void }) {
+export default function BuyDomain({ siteId, onConnected }: { siteId: string; onConnected: (domain: string) => void }) {
   const auth = useAuth();
   const isOwner = auth.me?.operator.role === 'owner';
   const [q, setQ] = useState('');
@@ -63,7 +63,7 @@ export default function BuyDomain({ onConnected }: { onConnected: (domain: strin
     setBusy(true); setError('');
     const r = await fetch('/api/domains/order', {
       method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'same-origin',
-      body: JSON.stringify({ domain: pick.domain, contact: form, phone: form.phone }),
+      body: JSON.stringify({ siteId, domain: pick.domain, contact: form, phone: form.phone }),
     });
     const j = await r.json().catch(() => ({}));
     setBusy(false);

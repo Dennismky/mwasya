@@ -227,3 +227,31 @@ create unique index if not exists domain_orders_active_domain on domain_orders(d
 
 -- Owner settings: enabled, KES per USD, margin on top of Vercel's price, max Vercel price we'll buy at.
 insert into settings (key, value) values ('domains', '{"enabled": false, "kes_per_usd": 130, "margin_pct": 20, "max_usd": 60}') on conflict (key) do nothing;
+
+-- ---------- Many sites per mentor, site builder config, shared bot catalog ----------
+
+alter table sites drop constraint if exists sites_operator_id_key;
+create index if not exists sites_operator_idx on sites(operator_id, created_at);
+alter table sites drop constraint if exists sites_status_check;
+alter table sites add constraint sites_status_check check (status in ('draft', 'live', 'paused'));
+alter table sites alter column deriv_app_id drop not null;
+alter table sites drop constraint if exists sites_deriv_app_id_check;
+alter table sites add constraint sites_deriv_app_id_check check (deriv_app_id is null or deriv_app_id ~ '^[A-Za-z0-9_-]{2,64}$');
+-- Logo: small PNG/JPEG/WebP data URL (SVG is refused — it can carry scripts).
+alter table sites add column if not exists logo text check (logo is null or (length(logo) <= 200000 and logo ~ '^data:image/(png|jpeg|webp);base64,[A-Za-z0-9+/=]+$'));
+alter table sites add column if not exists template text not null default 'bothub' check (template in ('bothub', 'signaldesk', 'chartfloor', 'primedesk', 'nightmarket'));
+alter table sites add column if not exists features jsonb not null default '["bots","manual","charts","analysis","risk","learn"]';
+alter table sites add column if not exists free_bots jsonb not null default '[]';
+alter table sites add column if not exists tagline text check (tagline is null or length(tagline) <= 120);
+
+-- The owner's XML bots marked catalog=true can be offered on every mentor's site.
+alter table xml_bots add column if not exists catalog boolean not null default false;
+create index if not exists xml_bots_catalog_idx on xml_bots(catalog) where catalog;
+
+alter table domain_orders add column if not exists site_id uuid references sites(id) on delete set null;
+
+-- One "main" site per operator (first live, else first) for lists that show one row per person.
+create or replace view operator_primary_site as
+select distinct on (s.operator_id) s.*, count(*) over (partition by s.operator_id) as site_count
+  from sites s
+ order by s.operator_id, (s.status = 'live') desc, s.created_at;

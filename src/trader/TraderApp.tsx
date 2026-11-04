@@ -24,15 +24,15 @@ export interface TraderCtx {
 }
 export const useTrader = () => useOutletContext<TraderCtx>();
 
-const TABS: { to: string; label: string; icon: ReactNode; end?: boolean }[] = [
+const TABS: { to: string; label: string; icon: ReactNode; end?: boolean; feature?: string }[] = [
   { to: '/app', label: 'Dashboard', icon: <Icon.Chart />, end: true },
   { to: '/app/bot-builder', label: 'Bot Builder', icon: <Icon.Gear /> },
-  { to: '/app/free-bots', label: 'Free Bots', icon: <Icon.Code /> },
-  { to: '/app/quick-bot', label: 'Quick Bot', icon: <Icon.Chip /> },
-  { to: '/app/manual', label: 'Manual Trader', icon: <Icon.Window /> },
-  { to: '/app/charts', label: 'Charts', icon: <Icon.Chart /> },
-  { to: '/app/analysis', label: 'Analysis Tools', icon: <Icon.Help /> },
-  { to: '/app/risk', label: 'Risk Calculator', icon: <Icon.Card /> },
+  { to: '/app/free-bots', label: 'Free Bots', icon: <Icon.Code />, feature: 'freebots' },
+  { to: '/app/quick-bot', label: 'Quick Bot', icon: <Icon.Chip />, feature: 'bots' },
+  { to: '/app/manual', label: 'Manual Trader', icon: <Icon.Window />, feature: 'manual' },
+  { to: '/app/charts', label: 'Charts', icon: <Icon.Chart />, feature: 'charts' },
+  { to: '/app/analysis', label: 'Analysis Tools', icon: <Icon.Help />, feature: 'analysis' },
+  { to: '/app/risk', label: 'Risk Calculator', icon: <Icon.Card />, feature: 'risk' },
 ];
 
 /** `/app/*` on <brand>.mwasya.site — the client trading platform. */
@@ -64,6 +64,8 @@ function Shell({ site, initialBots, initialXml }: { site: SiteBranding; initialB
   const [disclaimer, setDisclaimer] = useState(false);
   const runner = useBotRunner(auth.account?.id, auth.expire, auth.refreshBalance);
   const dark = site.theme === 'dark';
+  // Older sites have no feature list yet: show everything.
+  const has = (f?: string) => !f || !site.features?.length || site.features.includes(f);
 
   useEffect(() => {
     reloadTenant().then((t) => { if (t.kind === 'site') { setBots(t.bots); setXmlBots(t.xmlBots ?? []); } }).catch(() => undefined);
@@ -78,15 +80,15 @@ function Shell({ site, initialBots, initialXml }: { site: SiteBranding; initialB
   const style = { '--primary': site.accent, '--primary-hover': site.accent, '--accent': site.accent } as CSSProperties;
 
   return (
-    <div className={`tp ${dark ? 'tp-dark' : ''}`} style={style} data-theme={dark ? 'dark' : undefined}>
+    <div className={`tp tpl-${site.template ?? 'bothub'} ${dark ? 'tp-dark' : ''}`} style={style} data-theme={dark ? 'dark' : undefined}>
       <header className="tp-head">
-        <span className="brand-mark" style={{ background: site.accent }}>{site.name.charAt(0).toUpperCase()}</span>
+        {site.logoUrl ? <img className="brand-mark" src={site.logoUrl} alt="" style={{ objectFit: "cover" }} /> : <span className="brand-mark" style={{ background: site.accent }}>{site.name.charAt(0).toUpperCase()}</span>}
         <div className="stack" style={{ lineHeight: 1.1 }}>
           <b style={{ fontSize: 16 }}>{site.name}</b>
           <span className="hint" style={{ fontSize: 10, letterSpacing: '.08em' }}>{site.subdomain.toUpperCase()}</span>
         </div>
         <span style={{ flex: 1 }} />
-        <a className="btn tp-deposit" href="https://app.deriv.com/cashier/deposit" target="_blank" rel="noreferrer">Deposit</a>
+        {has("deposit") && <a className="btn tp-deposit" href="https://app.deriv.com/cashier/deposit" target="_blank" rel="noreferrer">Deposit</a>}
         <label className="tp-acct">
           <span className={`dot ${account?.isVirtual ? 'dot-demo' : 'dot-real'}`} />
           <b className="mono">{auth.balance}</b>
@@ -108,13 +110,13 @@ function Shell({ site, initialBots, initialXml }: { site: SiteBranding; initialB
       </header>
 
       <nav className="tp-nav" aria-label="Trading tools">
-        {TABS.map((t) => (
+        {TABS.filter((t) => has(t.feature)).map((t) => (
           <NavLink key={t.to} to={t.to} end={t.end} className={({ isActive }) => `tp-tab ${isActive ? 'active' : ''}`}>
             {t.icon}{t.label}
           </NavLink>
         ))}
       </nav>
-      <Ticker />
+      {has("charts") && <Ticker />}
 
       <main className="tp-main">
         {account && !account.isVirtual && (

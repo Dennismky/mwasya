@@ -6,7 +6,8 @@ import { mpesaConfigured, normalizePhone, stkPush, stkQuery, type StkOutcome } f
 import { getSession, noStore, sameOrigin } from './_lib/session.js';
 import { derivFetch } from './_lib/deriv.js';
 import { saveEarnings, type MarkupStats } from './_lib/earnings.js';
-import { addDomain, buyDomain, domainPrice, domainsConfigured, registrarOrder, removeDomain, searchDomains, type RegistrantContact } from './_lib/vercelDomains.js';
+import { addDomain, buyDomain, checkDomain, domainPrice, domainsConfigured, registrarOrder, removeDomain, searchDomains, type RegistrantContact } from './_lib/vercelDomains.js';
+import { RESERVED_SUBDOMAINS, ROOT_DOMAIN } from './_lib/tenant.js';
 
 /**
  * One function for the operator platform (keeps us under Vercel's function limit and shares one warm DB pool).
@@ -39,6 +40,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     if (group === 'billing' && rest === 'mpesa-callback') return await mpesaCallback(req, res);
     // Public XML download (published bots only) — a plain link, so no Origin header.
     if (group === 'xmlbots' && rest === 'download') return await xmlDownload(req, res);
+    if (group === 'sites' && rest === 'logo') return await sitesRoute(req, res, rest);
 
     if (req.method !== 'GET' && !(group === 'invites' && rest === 'info') && !sameOrigin(req)) {
       return res.status(403).json({ error: 'bad_origin' });
@@ -53,6 +55,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       case 'support': return await support(req, res, rest);
       case 'settings': return await settingsRoute(req, res, rest);
       case 'domains': return await domains(req, res, rest);
+      case 'sites': return await sitesRoute(req, res, rest);
       default: return res.status(404).json({ error: 'not_found' });
     }
   } catch (e) {
@@ -84,7 +87,7 @@ async function me(req: VercelRequest, res: VercelResponse, rest: string) {
   if (!op) return;
   const bill = await getBilling();
   const [parent] = await query<{ name: string | null; subdomain: string | null }>(
-    `select s.name, s.subdomain from sites s where s.operator_id = $1`, [op.parent_id],
+    `select s.name, s.subdomain from operator_primary_site s where s.operator_id = $1`, [op.parent_id],
   );
   return res.status(200).json({
     operator: { id: op.id, role: op.role, status: op.status, paidUntil: op.paid_until, parent: op.parent_id ? (parent ?? { name: null, subdomain: null }) : null },
@@ -101,7 +104,7 @@ async function invites(req: VercelRequest, res: VercelResponse, rest: string) {
     const code = String(req.query.code ?? '');
     if (!/^[A-Za-z0-9_-]{10,40}$/.test(code)) return res.status(200).json({ valid: false });
     const [row] = await query<{ name: string | null }>(
-      `select s.name from invites i join operators o on o.id = i.operator_id left join sites s on s.operator_id = o.id
+      `select s.name from invites i join operators o on o.id = i.operator_id left join operator_primary_site s on s.operator_id = o.id
         where i.code = $1 and not i.revoked and i.expires_at > now() and i.uses < i.max_uses and o.status = 'active'`, [code],
     );
     return res.status(200).json(row ? { valid: true, inviter: row.name ?? 'a Mwasya operator' } : { valid: false });
@@ -172,8 +175,8 @@ async function network(req: VercelRequest, res: VercelResponse, rest: string) {
               count(*) over ()::int as total
          from tree t
          join operators o on o.id = t.id
-         left join sites s on s.operator_id = o.id
-         left join sites ps on ps.operator_id = o.parent_id
+         left join operator_primary_site s on s.operator_id = o.id
+         left join operator_primary_site ps on ps.operator_id = o.parent_id
          left join operator_earnings e on e.operator_id = o.id
         where t.depth > 0
           and ($2::boolean is false or t.depth = 1)
@@ -191,11 +194,11 @@ async function network(req: VercelRequest, res: VercelResponse, rest: string) {
          select o.id, t.depth + 1 from operators o join tree t on o.parent_id = t.id where t.depth < 25
        )
        select count(*) filter (where t.depth > 0)::int as people,
-              count(s.id) filter (where t.depth > 0)::int as sites,
+              coalesce(sum(s.site_count) filter (where t.depth > 0), 0)::int as sites,
               count(*) filter (where t.depth > 0 and o.status = 'suspended')::int as suspended,
               count(*) filter (where t.depth > 0 and o.paid_until > now())::int as paying,
               coalesce(sum(e.markup_30d) filter (where t.depth > 0), 0)::float as markup_30d
-         from tree t join operators o on o.id = t.id left join sites s on s.operator_id = o.id
+         from tree t join operators o on o.id = t.id left join operator_primary_site s on s.operator_id = o.id
          left join operator_earnings e on e.operator_id = o.id`,
       [op.id],
     );
@@ -219,7 +222,7 @@ async function network(req: VercelRequest, res: VercelResponse, rest: string) {
       `select o.id, o.role, o.status, o.paid_until, o.created_at, o.last_login_at, case when $2 then o.phone end as phone,
               s.name as site_name, s.subdomain, s.status as site_status, s.deriv_app_id, s.markup,
               ps.name as parent_site
-         from operators o left join sites s on s.operator_id = o.id left join sites ps on ps.operator_id = o.parent_id
+         from operators o left join operator_primary_site s on s.operator_id = o.id left join operator_primary_site ps on ps.operator_id = o.parent_id
         where o.id = $1`, [id, op.role === 'owner'],
     );
     const [earnings] = await query(`select markup_30d::float, volume_30d::float, contracts_30d, clients_30d, breakdown, fetched_at from operator_earnings where operator_id = $1`, [id]);
@@ -428,7 +431,7 @@ function checkXml(xml: unknown): string | null {
   return null;
 }
 
-const XML_COLS = 'id, name, description, status, downloads, length(xml) as size, created_at, updated_at';
+const XML_COLS = 'id, name, description, status, catalog, downloads, length(xml) as size, created_at, updated_at';
 
 async function xmlBots(req: VercelRequest, res: VercelResponse, rest: string) {
   const op = await requireOperator(req, res);
@@ -456,15 +459,17 @@ async function xmlBots(req: VercelRequest, res: VercelResponse, rest: string) {
   }
   if (!isUuid(id)) return res.status(404).json({ error: 'not_found' });
   if (req.method === 'PATCH') {
-    const b = (req.body ?? {}) as { status?: unknown; name?: unknown; description?: unknown };
+    const b = (req.body ?? {}) as { status?: unknown; name?: unknown; description?: unknown; catalog?: unknown };
+    // Only the owner can put a bot in the shared catalog every mentor can offer.
+    const catalog = op.role === 'owner' && typeof b.catalog === 'boolean' ? b.catalog : null;
     const status = b.status === 'published' || b.status === 'draft' ? b.status : null;
     if (status === 'published' && !hasAccess(op, await getBilling())) return res.status(402).json({ error: 'payment_required' });
     const [bot] = await query(
-      `update xml_bots set status = coalesce($3, status),
+      `update xml_bots set status = coalesce($3, status), catalog = coalesce($6, catalog),
               name = coalesce(nullif(left(trim($4), 80), ''), name),
               description = coalesce(left(trim($5), 500), description), updated_at = now()
         where id = $1 and operator_id = $2 returning ${XML_COLS}`,
-      [id, op.id, status, typeof b.name === 'string' ? b.name : null, typeof b.description === 'string' ? b.description : null]);
+      [id, op.id, status, typeof b.name === 'string' ? b.name : null, typeof b.description === 'string' ? b.description : null, catalog]);
     return bot ? res.status(200).json({ bot }) : res.status(404).json({ error: 'not_found' });
   }
   if (req.method === 'DELETE') {
@@ -484,7 +489,7 @@ async function xmlDownload(req: VercelRequest, res: VercelResponse) {
   const [bot] = await query<{ name: string; xml: string }>(
     `update xml_bots b set downloads = downloads + case when b.status = 'published' then 1 else 0 end
        from operators o
-      where b.id = $1 and o.id = b.operator_id and o.status = 'active' and (b.status = 'published' or b.operator_id = $2)
+      where b.id = $1 and o.id = b.operator_id and o.status = 'active' and (b.status = 'published' or b.catalog or b.operator_id = $2)
       returning b.name, b.xml`, [id, me]);
   if (!bot) return res.status(404).end();
   const file = (bot.name.replace(/[^A-Za-z0-9 _-]/g, '').trim().replace(/\s+/g, '_') || 'bot').slice(0, 60);
@@ -531,7 +536,7 @@ async function support(req: VercelRequest, res: VercelResponse, rest: string) {
       `select t.id, t.subject, t.status, t.created_at, t.updated_at, s.name as site_name, s.subdomain,
               (select string_agg(account_id, ', ') from operator_accounts a where a.operator_id = t.operator_id) as accounts,
               count(*) over ()::int as total
-         from tickets t left join sites s on s.operator_id = t.operator_id
+         from tickets t left join operator_primary_site s on s.operator_id = t.operator_id
         where ($1::boolean or t.operator_id = $2) and ($3 = '' or t.status = $3)
         order by case t.status when 'open' then 0 when 'answered' then 1 else 2 end, t.updated_at desc
         limit 25 offset $4`, [owner, op.id, status, (page - 1) * 25]);
@@ -619,8 +624,8 @@ const SUGGEST_TLDS = ['com', 'pro', 'net', 'online', 'site', 'trade', 'live', 'c
 
 /** Advance a domain order: paid → buy at Vercel → poll → attach to the project and the mentor's site. Safe to call repeatedly. */
 async function processDomainOrder(orderId: string): Promise<void> {
-  const [o] = await query<{ id: string; operator_id: string; domain: string; years: number; usd_price: string; status: string; vercel_order_id: string | null; contact: RegistrantContact }>(
-    `select id, operator_id, domain, years, usd_price, status, vercel_order_id, contact from domain_orders where id = $1`, [orderId]);
+  const [o] = await query<{ id: string; operator_id: string; site_id: string | null; domain: string; years: number; usd_price: string; status: string; vercel_order_id: string | null; contact: RegistrantContact }>(
+    `select id, operator_id, site_id, domain, years, usd_price, status, vercel_order_id, contact from domain_orders where id = $1`, [orderId]);
   if (!o) return;
 
   if (o.status === 'paid') {
@@ -658,9 +663,9 @@ async function processDomainOrder(orderId: string): Promise<void> {
     if (st.status !== 'completed') return; // still purchasing — checked again on the next status poll
     const attach = await addDomain(o.domain);
     const status = attach.verified && attach.configured ? 'verified' : 'pending';
-    const [prev] = await query<{ custom_domain: string | null }>(`select custom_domain from sites where operator_id = $1`, [o.operator_id]);
+    const [prev] = await query<{ custom_domain: string | null }>(`select custom_domain from sites where id = $1 and operator_id = $2`, [o.site_id, o.operator_id]);
     if (prev?.custom_domain && prev.custom_domain !== o.domain) await removeDomain(prev.custom_domain).catch(() => undefined);
-    await query(`update sites set custom_domain = $2, domain_status = $3, domain_checked_at = now(), updated_at = now() where operator_id = $1`, [o.operator_id, o.domain, status]);
+    await query(`update sites set custom_domain = $3, domain_status = $4, domain_checked_at = now(), updated_at = now() where id = $1 and operator_id = $2`, [o.site_id, o.operator_id, o.domain, status]);
     await query(`update domain_orders set status = 'completed', error = null, updated_at = now() where id = $1`, [o.id]);
     await audit(o.operator_id, 'domain.connected', o.operator_id, { domain: o.domain });
   }
@@ -719,10 +724,10 @@ async function domains(req: VercelRequest, res: VercelResponse, rest: string) {
     if (!cfg.enabled || !domainsConfigured()) return res.status(503).json({ error: 'Buying domains is not enabled yet.' });
     if (!hasAccess(op, await getBilling())) return res.status(402).json({ error: 'payment_required' });
     if (!(await rateLimit(`domain-order:${op.id}`, 5, 3600))) return res.status(429).json({ error: 'Too many orders. Try again later.' });
-    const [site] = await query(`select 1 from sites where operator_id = $1`, [op.id]);
-    if (!site) return res.status(409).json({ error: 'Publish your site first.' });
-
-    const b = (req.body ?? {}) as { domain?: unknown; contact?: Record<string, unknown>; phone?: unknown };
+    const b = (req.body ?? {}) as { domain?: unknown; contact?: Record<string, unknown>; phone?: unknown; siteId?: unknown };
+    const siteId = isUuid(b.siteId) ? b.siteId : null;
+    const [site] = siteId ? await query(`select 1 from sites where id = $1 and operator_id = $2`, [siteId, op.id]) : [];
+    if (!site) return res.status(409).json({ error: 'Choose which of your sites this domain is for.' });
     const domain = String(b.domain ?? '').trim().toLowerCase();
     if (!/^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?(\.[a-z0-9-]{2,24})+$/.test(domain) || /deriv|binary/.test(domain)) return res.status(422).json({ error: 'Invalid domain' });
     const c = b.contact ?? {};
@@ -751,8 +756,8 @@ async function domains(req: VercelRequest, res: VercelResponse, rest: string) {
     // The owner buys directly (charged to the Vercel team); everyone else pays with M-Pesa first.
     if (owner) {
       const [o] = await query<{ id: string }>(
-        `insert into domain_orders (operator_id, domain, usd_price, kes_amount, contact, status) values ($1, $2, $3, 0, $4, 'paid') returning id`,
-        [op.id, domain, avail.price, JSON.stringify(contact)]);
+        `insert into domain_orders (operator_id, domain, usd_price, kes_amount, contact, status, site_id) values ($1, $2, $3, 0, $4, 'paid', $5) returning id`,
+        [op.id, domain, avail.price, JSON.stringify(contact), siteId]);
       await processDomainOrder(o.id).catch((e) => console.error('owner domain', e));
       return res.status(200).json({ orderId: o.id, paymentId: null });
     }
@@ -762,8 +767,8 @@ async function domains(req: VercelRequest, res: VercelResponse, rest: string) {
     const [p] = await query<{ id: string }>(
       `insert into payments (operator_id, phone, amount, period_days, purpose) values ($1, $2, $3, 1, 'domain') returning id`, [op.id, mpesa, kes]);
     const [o] = await query<{ id: string }>(
-      `insert into domain_orders (operator_id, domain, usd_price, kes_amount, payment_id, contact) values ($1, $2, $3, $4, $5, $6) returning id`,
-      [op.id, domain, avail.price, kes, p.id, JSON.stringify(contact)]);
+      `insert into domain_orders (operator_id, domain, usd_price, kes_amount, payment_id, contact, site_id) values ($1, $2, $3, $4, $5, $6, $7) returning id`,
+      [op.id, domain, avail.price, kes, p.id, JSON.stringify(contact), siteId]);
     try {
       const r = await stkPush({ phone: mpesa, amount: kes, reference: 'DOMAIN', description: 'Domain' });
       await query(`update payments set merchant_request_id = $2, checkout_request_id = $3, updated_at = now() where id = $1`, [p.id, r.merchantRequestId, r.checkoutRequestId]);
@@ -779,7 +784,7 @@ async function domains(req: VercelRequest, res: VercelResponse, rest: string) {
     // Owner: every order (to review problems). Mentors: their own.
     const list = await query(
       `select d.id, d.domain, d.status, d.kes_amount, d.usd_price::float, d.error, d.created_at, s.name as site_name
-         from domain_orders d left join sites s on s.operator_id = d.operator_id
+         from domain_orders d left join operator_primary_site s on s.operator_id = d.operator_id
         where ($1::boolean or d.operator_id = $2) order by d.created_at desc limit 50`, [owner, op.id]);
     return res.status(200).json({ orders: list });
   }
@@ -799,4 +804,244 @@ async function domains(req: VercelRequest, res: VercelResponse, rest: string) {
     return res.status(200).json({ order: fresh });
   }
   return res.status(404).json({ error: 'not_found' });
+}
+
+/* ------------------------------------------------------------------ sites (many per mentor; built step by step) */
+
+const FEATURES = ['bots', 'freebots', 'manual', 'charts', 'analysis', 'risk', 'learn', 'contact', 'deposit'] as const;
+const TEMPLATES = ['bothub', 'signaldesk', 'chartfloor', 'primedesk', 'nightmarket'] as const;
+const SITE_FULL = `id, name, subdomain, tagline, accent, theme, template, features, free_bots, deriv_app_id, markup::float as markup, status,
+  custom_domain, domain_status, (logo is not null) as has_logo, created_at, updated_at`;
+
+interface SiteFull {
+  id: string; name: string; subdomain: string; tagline: string | null; accent: string; theme: string; template: string;
+  features: string[]; free_bots: string[]; deriv_app_id: string | null; markup: number; status: 'draft' | 'live' | 'paused';
+  custom_domain: string | null; domain_status: string; has_logo: boolean; created_at: string; updated_at: string;
+}
+
+const slugify = (s: string) => s.toLowerCase().normalize('NFKD').replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').replace(/deriv|binary/g, '').slice(0, 30) || 'site';
+
+async function uniqueSubdomain(base: string): Promise<string> {
+  let s = slugify(base);
+  if (s.length < 3) s = `${s}-site`;
+  if (RESERVED_SUBDOMAINS.has(s)) s = `${s}-site`;
+  for (let i = 0; i < 6; i++) {
+    const cand = i === 0 ? s : `${s}-${randomBytes(2).toString('hex')}`;
+    const [hit] = await query(`select 1 from sites where subdomain = $1`, [cand]);
+    if (!hit) return cand;
+  }
+  return `${s}-${randomBytes(4).toString('hex')}`;
+}
+
+function siteView(s: SiteFull) {
+  const needs: string[] = [];
+  if (!s.deriv_app_id) needs.push('deriv_app');
+  if (s.custom_domain && s.domain_status !== 'verified') needs.push('dns');
+  return {
+    ...s,
+    url: s.custom_domain && s.domain_status === 'verified' ? `https://${s.custom_domain}` : `https://${s.subdomain}.${ROOT_DOMAIN}`,
+    subdomainUrl: `https://${s.subdomain}.${ROOT_DOMAIN}`,
+    logoUrl: s.has_logo ? `/api/sites/logo?id=${s.id}&v=${Date.parse(s.updated_at)}` : null,
+    needs,
+  };
+}
+
+/** Accept only PNG/JPEG/WebP data URLs whose bytes really are that image type (≤ ~150 KB). */
+function checkLogo(v: unknown): string | null | 'invalid' {
+  if (v === null) return null;
+  if (typeof v !== 'string') return 'invalid';
+  const m = v.match(/^data:image\/(png|jpeg|webp);base64,([A-Za-z0-9+/=]+)$/);
+  if (!m || v.length > 200_000) return 'invalid';
+  const b = Buffer.from(m[2], 'base64');
+  const ok = (m[1] === 'png' && b.subarray(0, 8).equals(Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a])))
+    || (m[1] === 'jpeg' && b[0] === 0xff && b[1] === 0xd8 && b[2] === 0xff)
+    || (m[1] === 'webp' && b.subarray(0, 4).toString('latin1') === 'RIFF' && b.subarray(8, 12).toString('latin1') === 'WEBP');
+  return ok ? v : 'invalid';
+}
+
+async function sitesRoute(req: VercelRequest, res: VercelResponse, rest: string) {
+  // Public logo image (logos are public on trader sites anyway).
+  if (rest === 'logo') {
+    const id = String(req.query.id ?? '');
+    if (!isUuid(id)) return res.status(404).end();
+    const [row] = await query<{ logo: string | null }>(`select logo from sites where id = $1`, [id]);
+    const m = row?.logo?.match(/^data:(image\/(?:png|jpeg|webp));base64,(.+)$/);
+    if (!m) return res.status(404).end();
+    res.setHeader('Content-Type', m[1]);
+    res.setHeader('Cache-Control', 'public, max-age=86400, immutable');
+    res.setHeader('Content-Security-Policy', "default-src 'none'; sandbox");
+    res.setHeader('X-Content-Type-Options', 'nosniff');
+    return res.status(200).send(Buffer.from(m[2], 'base64'));
+  }
+
+  const op = await requireOperator(req, res);
+  if (!op) return;
+  const [id, action] = rest.split('/');
+
+  if (id === 'catalog') {
+    // Bots a mentor can show on a site: the shared catalog + their own uploads.
+    const list = await query(
+      `select b.id, b.name, b.description, b.catalog, (b.operator_id = $1) as mine
+         from xml_bots b join operators o on o.id = b.operator_id
+        where (b.catalog and o.role = 'owner') or (b.operator_id = $1)
+        order by b.catalog desc, b.name limit 300`, [op.id]);
+    return res.status(200).json({ bots: list });
+  }
+
+  if (!id) {
+    if (req.method === 'GET') {
+      const status = ['draft', 'live', 'paused'].includes(String(req.query.status)) ? String(req.query.status) : '';
+      const q = String(req.query.q ?? '').trim().slice(0, 60);
+      const like = q ? `%${q.replace(/[%_\\]/g, (x) => '\\' + x)}%` : '';
+      const rows = await query<SiteFull>(
+        `select ${SITE_FULL} from sites where operator_id = $1 and ($2 = '' or status = $2)
+            and ($3 = '' or name ilike $3 or subdomain ilike $3 or coalesce(custom_domain, '') ilike $3)
+          order by created_at desc limit 100`, [op.id, status, like]);
+      return res.status(200).json({ sites: rows.map(siteView) });
+    }
+    if (req.method === 'POST') {
+      if (!(await rateLimit(`site-create:${op.id}`, 20, 3600))) return res.status(429).json({ error: 'Too many new sites. Try again later.' });
+      const [{ n }] = await query<{ n: string }>(`select count(*) n from sites where operator_id = $1`, [op.id]);
+      if (Number(n) >= 25) return res.status(409).json({ error: 'You can have up to 25 sites.' });
+      const name = String((req.body ?? {}).name ?? '').trim().slice(0, 40);
+      if (name.length < 2) return res.status(422).json({ error: 'Give your site a name (2 to 40 characters).' });
+      if (/deriv|binary/i.test(name)) return res.status(422).json({ error: 'Deriv does not allow "Deriv" or "Binary" in site names.' });
+      const sub = await uniqueSubdomain(name);
+      const [site] = await query<SiteFull>(
+        `insert into sites (operator_id, name, subdomain, status, markup) values ($1, $2, $3, 'draft', 0) returning ${SITE_FULL}`, [op.id, name, sub]);
+      await audit(op.id, 'site.create', op.id, { siteId: site.id, name });
+      return res.status(201).json({ site: siteView(site) });
+    }
+    return res.status(405).json({ error: 'method_not_allowed' });
+  }
+
+  if (!isUuid(id)) return res.status(404).json({ error: 'not_found' });
+  const [site] = await query<SiteFull>(`select ${SITE_FULL} from sites where id = $1 and operator_id = $2`, [id, op.id]);
+  if (!site) return res.status(404).json({ error: 'not_found' });
+
+  if (action === 'domain') return await siteDomain(req, res, op, site);
+
+  if (action === 'publish' && req.method === 'POST') {
+    if (!site.deriv_app_id) return res.status(422).json({ error: 'Add your Deriv App ID first.', step: 'deriv' });
+    if (!hasAccess(op, await getBilling())) return res.status(402).json({ error: 'payment_required' });
+    const [s] = await query<SiteFull>(`update sites set status = 'live', updated_at = now() where id = $1 returning ${SITE_FULL}`, [id]);
+    await audit(op.id, 'site.publish', op.id, { siteId: id });
+    return res.status(200).json({ site: siteView(s) });
+  }
+  if (action === 'unpublish' && req.method === 'POST') {
+    const [s] = await query<SiteFull>(`update sites set status = 'paused', updated_at = now() where id = $1 returning ${SITE_FULL}`, [id]);
+    return res.status(200).json({ site: siteView(s) });
+  }
+  if (action) return res.status(404).json({ error: 'not_found' });
+
+  if (req.method === 'GET') return res.status(200).json({ site: siteView(site) });
+
+  if (req.method === 'DELETE') {
+    if (site.custom_domain) await removeDomain(site.custom_domain).catch(() => undefined);
+    await query(`delete from sites where id = $1 and operator_id = $2`, [id, op.id]);
+    await audit(op.id, 'site.delete', op.id, { siteId: id, name: site.name });
+    return res.status(204).end();
+  }
+
+  if (req.method === 'PUT') {
+    const b = (req.body ?? {}) as Record<string, unknown>;
+    const errors: Record<string, string> = {};
+    const sets: string[] = [];
+    const vals: unknown[] = [id];
+    const set = (col: string, v: unknown) => { vals.push(v); sets.push(`${col} = $${vals.length}`); };
+
+    if (b.name !== undefined) {
+      const name = String(b.name).trim();
+      if (name.length < 2 || name.length > 40) errors.name = 'Use 2 to 40 characters';
+      else if (/deriv|binary/i.test(name)) errors.name = 'Deriv does not allow "Deriv" or "Binary" in names';
+      else set('name', name);
+    }
+    if (b.subdomain !== undefined) {
+      const sub = String(b.subdomain).trim().toLowerCase();
+      if (!/^[a-z0-9]([a-z0-9-]{1,38}[a-z0-9])$/.test(sub)) errors.subdomain = '3 to 40 letters, numbers or dashes';
+      else if (RESERVED_SUBDOMAINS.has(sub) || /deriv|binary/.test(sub)) errors.subdomain = 'This address is not available';
+      else {
+        const [hit] = await query(`select 1 from sites where subdomain = $1 and id <> $2`, [sub, id]);
+        if (hit) errors.subdomain = 'Someone already uses this address';
+        else set('subdomain', sub);
+      }
+    }
+    if (b.tagline !== undefined) {
+      const t = String(b.tagline ?? '').trim().slice(0, 120);
+      if (/[<>]/.test(t)) errors.tagline = 'Remove < and >'; else set('tagline', t || null);
+    }
+    if (b.accent !== undefined) { if (/^#[0-9A-Fa-f]{6}$/.test(String(b.accent))) set('accent', b.accent); else errors.accent = 'Pick a colour'; }
+    if (b.theme !== undefined) set('theme', b.theme === 'dark' ? 'dark' : 'light');
+    if (b.template !== undefined) { if ((TEMPLATES as readonly string[]).includes(String(b.template))) set('template', b.template); else errors.template = 'Pick a design'; }
+    if (b.features !== undefined) {
+      const f = Array.isArray(b.features) ? [...new Set(b.features.map(String))].filter((x) => (FEATURES as readonly string[]).includes(x)) : null;
+      if (!f) errors.features = 'Invalid'; else set('features', JSON.stringify(f));
+    }
+    if (b.free_bots !== undefined) {
+      const ids = Array.isArray(b.free_bots) ? [...new Set(b.free_bots.map(String))].filter(isUuid).slice(0, 200) : null;
+      if (!ids) errors.free_bots = 'Invalid';
+      else {
+        // Only the shared catalog or this mentor's own uploads.
+        const ok = ids.length ? await query<{ id: string }>(
+          `select b.id from xml_bots b join operators o on o.id = b.operator_id
+            where b.id = any($1::uuid[]) and ((b.catalog and o.role = 'owner') or b.operator_id = $2)`, [ids, op.id]) : [];
+        set('free_bots', JSON.stringify(ok.map((r) => r.id)));
+      }
+    }
+    if (b.logo !== undefined) {
+      const l = checkLogo(b.logo);
+      if (l === 'invalid') errors.logo = 'Use a PNG, JPG or WebP image under 150 KB'; else set('logo', l);
+    }
+    if (b.derivAppId !== undefined) {
+      const appId = String(b.derivAppId ?? '').trim();
+      if (!appId) set('deriv_app_id', null);
+      else if (!/^[A-Za-z0-9_-]{2,64}$/.test(appId)) errors.derivAppId = 'Paste the App ID from your Deriv app';
+      else if (appId === process.env.DERIV_APP_ID) errors.derivAppId = 'Use your own Deriv app, not Mwasya\'s, so markup is paid to you';
+      else set('deriv_app_id', appId);
+    }
+    if (b.markup !== undefined) {
+      const m = Math.round(Number(b.markup) * 2) / 2;
+      if (!(m >= 0 && m <= 3)) errors.markup = 'Markup must be 0% to 3%'; else set('markup', m);
+    }
+    if (Object.keys(errors).length) return res.status(422).json({ error: 'invalid_site', errors });
+    if (!sets.length) return res.status(200).json({ site: siteView(site) });
+    const [s] = await query<SiteFull>(`update sites set ${sets.join(', ')}, updated_at = now() where id = $1 returning ${SITE_FULL}`, vals);
+    return res.status(200).json({ site: siteView(s) });
+  }
+  return res.status(405).json({ error: 'method_not_allowed' });
+}
+
+const DOMAIN_RE = /^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?(\.[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?)+$/;
+
+/** /api/sites/:id/domain — POST { domain } connect one you own · GET re-check DNS · DELETE disconnect. */
+async function siteDomain(req: VercelRequest, res: VercelResponse, op: Operator, site: SiteFull) {
+  if (!domainsConfigured()) return res.status(503).json({ error: 'Custom domains are not enabled yet. Ask the platform owner.' });
+  const verdict = (st: { verified: boolean; configured: boolean; error?: string }) => (st.error ? 'error' : st.verified && st.configured ? 'verified' : 'pending');
+  if (req.method === 'POST') {
+    if (!hasAccess(op, await getBilling())) return res.status(402).json({ error: 'payment_required' });
+    if (!(await rateLimit(`domain:${op.id}`, 10, 3600))) return res.status(429).json({ error: 'Too many changes. Try again later.' });
+    const d = String((req.body ?? {}).domain ?? '').trim().toLowerCase().replace(/^https?:\/\//, '').replace(/\/.*$/, '').replace(/^www\./, '');
+    if (d.length > 253 || !DOMAIN_RE.test(d)) return res.status(422).json({ error: 'Enter a domain like trade.yourbrand.com or yourbrand.com' });
+    if (d === ROOT_DOMAIN || d.endsWith(`.${ROOT_DOMAIN}`) || /(^|\.)(vercel\.app|deriv\.com|deriv\.me|binary\.com)$/.test(d)) return res.status(422).json({ error: 'This domain cannot be used' });
+    const [taken] = await query(`select 1 from sites where custom_domain = $1 and id <> $2`, [d, site.id]);
+    if (taken) return res.status(409).json({ error: 'Another site already uses this domain' });
+    if (site.custom_domain && site.custom_domain !== d) await removeDomain(site.custom_domain).catch(() => undefined);
+    const st = await addDomain(d);
+    await query(`update sites set custom_domain = $2, domain_status = $3, domain_checked_at = now(), updated_at = now() where id = $1`, [site.id, d, verdict(st)]);
+    await audit(op.id, 'site.domain.add', op.id, { siteId: site.id, domain: d });
+    return res.status(200).json({ domain: d, status: verdict(st), ...st });
+  }
+  if (!site.custom_domain) return res.status(200).json({ domain: null, status: 'none', records: [] });
+  if (req.method === 'GET') {
+    const st = await checkDomain(site.custom_domain);
+    await query(`update sites set domain_status = $2, domain_checked_at = now() where id = $1`, [site.id, verdict(st)]);
+    return res.status(200).json({ domain: site.custom_domain, status: verdict(st), ...st });
+  }
+  if (req.method === 'DELETE') {
+    await removeDomain(site.custom_domain).catch(() => undefined);
+    await query(`update sites set custom_domain = null, domain_status = 'none', updated_at = now() where id = $1`, [site.id]);
+    await audit(op.id, 'site.domain.remove', op.id, { siteId: site.id, domain: site.custom_domain });
+    return res.status(204).end();
+  }
+  return res.status(405).json({ error: 'method_not_allowed' });
 }

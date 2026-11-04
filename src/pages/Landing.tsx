@@ -29,7 +29,7 @@ export default function Landing() {
           </div>
           <div className="row" style={{ gap: 8 }}>
             <Link className="btn btn-ghost" to="/">Sign in</Link>
-            <Link className="btn btn-primary" to="/setup">Get started</Link>
+            <Link className="btn btn-primary" to="/">Get started</Link>
           </div>
         </nav>
       </header>
@@ -47,7 +47,7 @@ export default function Landing() {
                 Run branded trading sites, build bots from plain-English strategies and send signals to Telegram, all from one secure workspace.
               </p>
               <div className="row" style={{ gap: 12 }}>
-                <Link className="btn btn-primary btn-lg" to="/setup">Start free <Icon.Arrow /></Link>
+                <Link className="btn btn-primary btn-lg" to="/">Start free <Icon.Arrow /></Link>
                 <Link className="btn btn-secondary btn-lg" to="/app">View a live demo</Link>
               </div>
               <span className="muted" style={{ fontSize: 14 }}>Free to start · No card required · Cancel anytime</span>
@@ -149,7 +149,7 @@ export default function Landing() {
                   <ul className="stack" style={{ listStyle: 'none', margin: 0, padding: 0, gap: 10, fontSize: 15 }}>
                     {p.items.map((i) => <li key={i}>✓ {i}</li>)}
                   </ul>
-                  <Link className={`btn ${p.featured ? 'btn-primary' : 'btn-secondary'}`} to="/setup" style={{ marginTop: 'auto' }}>{p.cta}</Link>
+                  <Link className={`btn ${p.featured ? 'btn-primary' : 'btn-secondary'}`} to="/" style={{ marginTop: 'auto' }}>{p.cta}</Link>
                 </div>
               ))}
             </div>
@@ -179,7 +179,7 @@ export default function Landing() {
                 <h2 style={{ fontSize: 'clamp(28px, 3vw, 38px)', fontWeight: 700 }}>Start your trading brand today</h2>
                 <p style={{ fontSize: 17, color: '#C9D3E3' }}>Set up your first site in minutes. No card required.</p>
               </div>
-              <Link className="btn btn-primary btn-lg" to="/setup">Start free</Link>
+              <Link className="btn btn-primary btn-lg" to="/">Start free</Link>
             </div>
           </div>
         </section>

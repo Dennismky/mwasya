@@ -4,12 +4,12 @@ import { useAuth } from '../lib/auth';
 import { useTrader } from './TraderApp';
 
 const TILES = [
-  { to: '/app/quick-bot', label: 'Quick Bot', icon: <Icon.Chip />, text: 'Ready-made bots' },
-  { to: '/app/free-bots', label: 'Free Bots', icon: <Icon.Code />, text: 'Deriv Bot XML files' },
-  { to: '/app/manual', label: 'Manual Trader', icon: <Icon.Window />, text: 'Trade by hand' },
-  { to: '/app/charts', label: 'Charts', icon: <Icon.Chart />, text: 'Live prices' },
-  { to: '/app/analysis', label: 'Analysis Tools', icon: <Icon.Help />, text: 'Digit statistics' },
-  { to: '/app/risk', label: 'Risk Calculator', icon: <Icon.Card />, text: 'Plan your stakes' },
+  { to: '/app/quick-bot', label: 'Quick Bot', icon: <Icon.Chip />, text: 'Ready-made bots', f: 'bots' },
+  { to: '/app/free-bots', label: 'Free Bots', icon: <Icon.Code />, text: 'Deriv Bot XML files', f: 'freebots' },
+  { to: '/app/manual', label: 'Manual Trader', icon: <Icon.Window />, text: 'Trade by hand', f: 'manual' },
+  { to: '/app/charts', label: 'Charts', icon: <Icon.Chart />, text: 'Live prices', f: 'charts' },
+  { to: '/app/analysis', label: 'Analysis Tools', icon: <Icon.Help />, text: 'Digit statistics', f: 'analysis' },
+  { to: '/app/risk', label: 'Risk Calculator', icon: <Icon.Card />, text: 'Plan your stakes', f: 'risk' },
 ];
 
 const FAQ = [
@@ -22,13 +22,14 @@ const FAQ = [
 export default function TraderDashboard() {
   const { site, bots, xmlBots } = useTrader();
   const auth = useAuth();
+  const has = (f: string) => !site.features?.length || site.features.includes(f);
   return (
     <div className="tp-dash">
       <section className="tp-hero">
         <h1>Welcome{auth.account ? <>, <span className="mono">{auth.account.id}</span></> : ''}!</h1>
-        <p>Pick a ready-made bot, trade by hand, or study the market first. Everything runs on your own Deriv account.</p>
+        <p>{site.tagline || 'Pick a ready-made bot, trade by hand, or study the market first. Everything runs on your own Deriv account.'}</p>
         <div className="tp-tiles">
-          {TILES.map((t) => (
+          {TILES.filter((t) => has(t.f)).map((t) => (
             <Link key={t.to} to={t.to} className="tp-tile">
               <span className="tp-tile-icon">{t.icon}</span>
               <b>{t.label}</b>
@@ -50,12 +51,12 @@ export default function TraderDashboard() {
             <li>Watch the results, then decide on real money.</li>
           </ol>
         </section>
-        <section className="card stack" style={{ gap: 4 }}>
+        {has('learn') && <section className="card stack" style={{ gap: 4 }}>
           <b>Quick answers</b>
           {FAQ.map(([q, a]) => (
             <details key={q} className="tp-faq"><summary>{q}</summary><p className="hint">{a}</p></details>
           ))}
-        </section>
+        </section>}
       </aside>
     </div>
   );
