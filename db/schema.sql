@@ -198,3 +198,32 @@ create table if not exists operator_earnings (
   breakdown     jsonb not null default '[]',
   fetched_at    timestamptz not null default now()
 );
+
+-- ---------- Domain purchases (mentor pays with M-Pesa → we register via Vercel → auto-connect) ----------
+
+alter table payments add column if not exists purpose text not null default 'access' check (purpose in ('access', 'domain'));
+
+create table if not exists domain_orders (
+  id               uuid primary key default gen_random_uuid(),
+  operator_id      uuid not null references operators(id) on delete cascade,
+  domain           text not null,
+  years            integer not null default 1 check (years between 1 and 10),
+  usd_price        numeric not null check (usd_price > 0),
+  kes_amount       integer not null check (kes_amount >= 0),
+  payment_id       uuid unique references payments(id) on delete set null,
+  contact          jsonb not null,
+  status           text not null default 'awaiting_payment'
+                   check (status in ('awaiting_payment', 'paid', 'purchasing', 'completed', 'failed', 'needs_review', 'cancelled')),
+  vercel_order_id  text,
+  error            text,
+  created_at       timestamptz not null default now(),
+  updated_at       timestamptz not null default now()
+);
+create index if not exists domain_orders_operator_idx on domain_orders(operator_id, created_at desc);
+create index if not exists domain_orders_status_idx on domain_orders(status, updated_at);
+-- One live order per domain at a time.
+create unique index if not exists domain_orders_active_domain on domain_orders(domain)
+  where status in ('awaiting_payment', 'paid', 'purchasing', 'completed', 'needs_review');
+
+-- Owner settings: enabled, KES per USD, margin on top of Vercel's price, max Vercel price we'll buy at.
+insert into settings (key, value) values ('domains', '{"enabled": false, "kes_per_usd": 130, "margin_pct": 20, "max_usd": 60}') on conflict (key) do nothing;

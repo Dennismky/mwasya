@@ -6,6 +6,7 @@ import { mpesaConfigured, normalizePhone, stkPush, stkQuery, type StkOutcome } f
 import { getSession, noStore, sameOrigin } from './_lib/session.js';
 import { derivFetch } from './_lib/deriv.js';
 import { saveEarnings, type MarkupStats } from './_lib/earnings.js';
+import { addDomain, buyDomain, domainPrice, domainsConfigured, registrarOrder, removeDomain, searchDomains, type RegistrantContact } from './_lib/vercelDomains.js';
 
 /**
  * One function for the operator platform (keeps us under Vercel's function limit and shares one warm DB pool).
@@ -51,6 +52,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       case 'xmlbots': return await xmlBots(req, res, rest);
       case 'support': return await support(req, res, rest);
       case 'settings': return await settingsRoute(req, res, rest);
+      case 'domains': return await domains(req, res, rest);
       default: return res.status(404).json({ error: 'not_found' });
     }
   } catch (e) {
@@ -265,21 +267,32 @@ async function settle(paymentId: string, outcome: StkOutcome, receipt?: string) 
   const client = await db().connect();
   try {
     await client.query('begin');
-    const up = await client.query<{ operator_id: string; period_days: number; amount: number }>(
+    const up = await client.query<{ operator_id: string; period_days: number; amount: number; purpose: string }>(
       `update payments set status = $2, result_code = $3, result_desc = $4, mpesa_receipt = coalesce($5, mpesa_receipt), updated_at = now()
-        where id = $1 and status = 'pending' returning operator_id, period_days, amount`,
+        where id = $1 and status = 'pending' returning operator_id, period_days, amount, purpose`,
       [paymentId, outcome.state, outcome.resultCode ?? null, (outcome.resultDesc ?? '').slice(0, 200), receipt ?? null],
     );
     const p = up.rows[0];
-    if (p && outcome.state === 'paid') {
+    let domainOrder: string | undefined;
+    if (p && outcome.state === 'paid' && p.purpose === 'access') {
       await client.query(
         `update operators set paid_until = greatest(coalesce(paid_until, now()), now()) + make_interval(days => $2) where id = $1`,
         [p.operator_id, p.period_days],
       );
+    }
+    if (p && p.purpose === 'domain') {
+      const d = await client.query<{ id: string }>(
+        `update domain_orders set status = $2, updated_at = now() where payment_id = $1 and status = 'awaiting_payment' returning id`,
+        [paymentId, outcome.state === 'paid' ? 'paid' : 'cancelled']);
+      if (outcome.state === 'paid') domainOrder = d.rows[0]?.id;
+    }
+    if (p && outcome.state === 'paid') {
       await client.query(`insert into audit_log (actor_id, action, target_id, meta) values ($1, 'payment.paid', $1, $2)`,
-        [p.operator_id, JSON.stringify({ paymentId, amount: p.amount, receipt })]);
+        [p.operator_id, JSON.stringify({ paymentId, amount: p.amount, receipt, purpose: p.purpose })]);
     }
     await client.query('commit');
+    // Money is in: register the domain now (outside the payment transaction; idempotent).
+    if (domainOrder) await processDomainOrder(domainOrder).catch((e) => console.error('domain order', domainOrder, e));
   } catch (e) {
     await client.query('rollback');
     throw e;
@@ -585,4 +598,205 @@ async function settingsRoute(req: VercelRequest, res: VercelResponse, rest: stri
     return res.status(200).json({ profile: p });
   }
   return res.status(405).json({ error: 'method_not_allowed' });
+}
+
+/* ------------------------------------------------------------------ domains (mentors buy a domain; we register + connect it) */
+
+interface DomainSettings { enabled: boolean; kes_per_usd: number; margin_pct: number; max_usd: number }
+async function domainSettings(): Promise<DomainSettings> {
+  const [row] = await query<{ value: Partial<DomainSettings> }>(`select value from settings where key = 'domains'`);
+  const v = row?.value ?? {};
+  return {
+    enabled: v.enabled === true,
+    kes_per_usd: Math.max(1, Number(v.kes_per_usd ?? 130)),
+    margin_pct: Math.min(500, Math.max(0, Number(v.margin_pct ?? 20))),
+    max_usd: Math.max(1, Number(v.max_usd ?? 60)),
+  };
+}
+const kesFor = (usd: number, s: DomainSettings) => Math.ceil((usd * s.kes_per_usd * (1 + s.margin_pct / 100)) / 10) * 10;
+const NAME_RE = /^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?$/;
+const SUGGEST_TLDS = ['com', 'pro', 'net', 'online', 'site', 'trade', 'live', 'co'];
+
+/** Advance a domain order: paid → buy at Vercel → poll → attach to the project and the mentor's site. Safe to call repeatedly. */
+async function processDomainOrder(orderId: string): Promise<void> {
+  const [o] = await query<{ id: string; operator_id: string; domain: string; years: number; usd_price: string; status: string; vercel_order_id: string | null; contact: RegistrantContact }>(
+    `select id, operator_id, domain, years, usd_price, status, vercel_order_id, contact from domain_orders where id = $1`, [orderId]);
+  if (!o) return;
+
+  if (o.status === 'paid') {
+    const price = await domainPrice(o.domain, o.years);
+    const quoted = Number(o.usd_price);
+    if (!price || !(price.purchase > 0)) {
+      await query(`update domain_orders set status = 'needs_review', error = 'Price unavailable', updated_at = now() where id = $1`, [o.id]);
+      return;
+    }
+    // Never pay more than we quoted (+2% rounding). Otherwise the owner decides.
+    if (price.purchase > quoted * 1.02) {
+      await query(`update domain_orders set status = 'needs_review', error = $2, updated_at = now() where id = $1`, [o.id, `Price rose to $${price.purchase}`]);
+      return;
+    }
+    // Claim the order exactly once before spending money.
+    const claimed = await query(`update domain_orders set status = 'purchasing', updated_at = now() where id = $1 and status = 'paid' returning id`, [o.id]);
+    if (!claimed.length) return;
+    const r = await buyDomain(o.domain, o.years, price.purchase, o.contact);
+    if (!r.orderId) {
+      await query(`update domain_orders set status = 'needs_review', error = $2, updated_at = now() where id = $1`, [o.id, `Registrar: ${r.error}`]);
+      await audit(o.operator_id, 'domain.buy_failed', o.operator_id, { domain: o.domain, error: r.error });
+      return;
+    }
+    await query(`update domain_orders set vercel_order_id = $2, updated_at = now() where id = $1`, [o.id, r.orderId]);
+    await audit(o.operator_id, 'domain.buy', o.operator_id, { domain: o.domain, usd: price.purchase, orderId: r.orderId });
+    o.status = 'purchasing'; o.vercel_order_id = r.orderId;
+  }
+
+  if (o.status === 'purchasing' && o.vercel_order_id) {
+    const st = await registrarOrder(o.vercel_order_id);
+    if (st.status === 'failed') {
+      await query(`update domain_orders set status = 'needs_review', error = $2, updated_at = now() where id = $1`, [o.id, `Registration failed: ${st.error ?? 'unknown'}`]);
+      return;
+    }
+    if (st.status !== 'completed') return; // still purchasing — checked again on the next status poll
+    const attach = await addDomain(o.domain);
+    const status = attach.verified && attach.configured ? 'verified' : 'pending';
+    const [prev] = await query<{ custom_domain: string | null }>(`select custom_domain from sites where operator_id = $1`, [o.operator_id]);
+    if (prev?.custom_domain && prev.custom_domain !== o.domain) await removeDomain(prev.custom_domain).catch(() => undefined);
+    await query(`update sites set custom_domain = $2, domain_status = $3, domain_checked_at = now(), updated_at = now() where operator_id = $1`, [o.operator_id, o.domain, status]);
+    await query(`update domain_orders set status = 'completed', error = null, updated_at = now() where id = $1`, [o.id]);
+    await audit(o.operator_id, 'domain.connected', o.operator_id, { domain: o.domain });
+  }
+}
+
+async function domains(req: VercelRequest, res: VercelResponse, rest: string) {
+  const op = await requireOperator(req, res);
+  if (!op) return;
+  const owner = op.role === 'owner';
+  const cfg = await domainSettings();
+
+  if (rest === 'settings') {
+    if (req.method === 'GET') return res.status(200).json({ settings: cfg, configured: domainsConfigured() });
+    if (req.method !== 'PUT') return res.status(405).json({ error: 'method_not_allowed' });
+    if (!owner) return res.status(403).json({ error: 'owner_only' });
+    const b = (req.body ?? {}) as Record<string, unknown>;
+    const next: DomainSettings = {
+      enabled: b.enabled === true,
+      kes_per_usd: Math.min(10_000, Math.max(1, Number(b.kes_per_usd) || cfg.kes_per_usd)),
+      margin_pct: Math.min(500, Math.max(0, Number(b.margin_pct) || 0)),
+      max_usd: Math.min(500, Math.max(1, Number(b.max_usd) || cfg.max_usd)),
+    };
+    await query(`insert into settings (key, value, updated_at) values ('domains', $1, now()) on conflict (key) do update set value = excluded.value, updated_at = now()`, [JSON.stringify(next)]);
+    await audit(op.id, 'settings.domains', null, next as unknown as Record<string, unknown>);
+    return res.status(200).json({ settings: next });
+  }
+
+  if (rest === 'search') {
+    if (req.method !== 'GET') return res.status(405).json({ error: 'method_not_allowed' });
+    if (!cfg.enabled || !domainsConfigured()) return res.status(503).json({ error: 'Buying domains is not enabled yet.' });
+    if (!(await rateLimit(`domain-search:${op.id}`, 30, 600))) return res.status(429).json({ error: 'Too many searches. Wait a few minutes.' });
+    const q = String(req.query.q ?? '').trim().toLowerCase().replace(/^https?:\/\//, '').replace(/^www\./, '').replace(/\/.*$/, '');
+    const [label, ...tldParts] = q.split('.');
+    if (!NAME_RE.test(label ?? '') || /deriv|binary/.test(label)) return res.status(422).json({ error: 'Use letters, numbers and dashes, like statefx or statefx.pro' });
+    const names = tldParts.length ? [q, ...SUGGEST_TLDS.map((t) => `${label}.${t}`).filter((n) => n !== q)] : SUGGEST_TLDS.map((t) => `${label}.${t}`);
+    const results = await searchDomains(names.slice(0, 9));
+    return res.status(200).json({
+      results: results.map((r) => {
+        const buyable = r.available && !r.premium && (r.price ?? 0) > 0 && (r.price ?? 0) <= cfg.max_usd;
+        return { domain: r.domain, available: r.available, buyable, premium: r.premium, kes: buyable ? kesFor(r.price!, cfg) : null, renewKes: buyable && r.renewalPrice ? kesFor(r.renewalPrice, cfg) : null };
+      }),
+    });
+  }
+
+  if (rest === 'order') {
+    if (req.method === 'GET') {
+      const id = String(req.query.id ?? '');
+      if (!isUuid(id)) return res.status(404).json({ error: 'not_found' });
+      const [o] = await query<{ id: string; status: string }>(`select id, status from domain_orders where id = $1 and ($2::boolean or operator_id = $3)`, [id, owner, op.id]);
+      if (!o) return res.status(404).json({ error: 'not_found' });
+      if (o.status === 'paid' || o.status === 'purchasing') await processDomainOrder(o.id).catch((e) => console.error('domain poll', e));
+      const [fresh] = await query(`select id, domain, status, kes_amount, error, payment_id, created_at, updated_at from domain_orders where id = $1`, [id]);
+      return res.status(200).json({ order: fresh });
+    }
+    if (req.method !== 'POST') return res.status(405).json({ error: 'method_not_allowed' });
+    if (!cfg.enabled || !domainsConfigured()) return res.status(503).json({ error: 'Buying domains is not enabled yet.' });
+    if (!hasAccess(op, await getBilling())) return res.status(402).json({ error: 'payment_required' });
+    if (!(await rateLimit(`domain-order:${op.id}`, 5, 3600))) return res.status(429).json({ error: 'Too many orders. Try again later.' });
+    const [site] = await query(`select 1 from sites where operator_id = $1`, [op.id]);
+    if (!site) return res.status(409).json({ error: 'Publish your site first.' });
+
+    const b = (req.body ?? {}) as { domain?: unknown; contact?: Record<string, unknown>; phone?: unknown };
+    const domain = String(b.domain ?? '').trim().toLowerCase();
+    if (!/^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?(\.[a-z0-9-]{2,24})+$/.test(domain) || /deriv|binary/.test(domain)) return res.status(422).json({ error: 'Invalid domain' });
+    const c = b.contact ?? {};
+    const s = (k: string, max = 100) => (typeof c[k] === 'string' ? String(c[k]).trim().slice(0, max) : '');
+    const mpesa = normalizePhone(String(b.phone ?? s('phone')));
+    const contact: RegistrantContact = {
+      firstName: s('firstName', 50), lastName: s('lastName', 50), email: s('email', 120), phone: mpesa ? `+${mpesa}` : s('phone', 20),
+      address1: s('address1', 120), city: s('city', 60), state: s('state', 60), zip: s('zip', 16) || '00100', country: (s('country', 2) || 'KE').toUpperCase(),
+      ...(s('companyName') ? { companyName: s('companyName', 100) } : {}),
+    };
+    const missing = (['firstName', 'lastName', 'email', 'address1', 'city', 'state'] as const).filter((k) => !contact[k]);
+    if (missing.length) return res.status(422).json({ error: `Fill in: ${missing.join(', ')}` });
+    if (!/^[^\s@<>]{1,64}@[^\s@<>]{1,190}\.[A-Za-z]{2,}$/.test(contact.email)) return res.status(422).json({ error: 'Enter a valid email' });
+    if (!/^\+[1-9]\d{7,14}$/.test(contact.phone)) return res.status(422).json({ error: 'Enter a valid phone number' });
+    if (!/^[A-Z]{2}$/.test(contact.country)) return res.status(422).json({ error: 'Country must be a 2-letter code like KE' });
+    if (/[<>]/.test(Object.values(contact).join(''))) return res.status(422).json({ error: 'Remove < and > characters' });
+
+    // Re-check availability and price on the server — never trust the browser's quote.
+    const [avail] = await searchDomains([domain]);
+    if (!avail?.available || avail.premium || !(avail.price && avail.price > 0)) return res.status(409).json({ error: 'That domain is no longer available.' });
+    if (avail.price > cfg.max_usd) return res.status(409).json({ error: 'That domain is too expensive to buy here.' });
+    const kes = kesFor(avail.price, cfg);
+    const taken = await query(`select 1 from domain_orders where domain = $1 and status in ('awaiting_payment','paid','purchasing','completed','needs_review')`, [domain]);
+    if (taken.length) return res.status(409).json({ error: 'Someone is already buying this domain.' });
+
+    // The owner buys directly (charged to the Vercel team); everyone else pays with M-Pesa first.
+    if (owner) {
+      const [o] = await query<{ id: string }>(
+        `insert into domain_orders (operator_id, domain, usd_price, kes_amount, contact, status) values ($1, $2, $3, 0, $4, 'paid') returning id`,
+        [op.id, domain, avail.price, JSON.stringify(contact)]);
+      await processDomainOrder(o.id).catch((e) => console.error('owner domain', e));
+      return res.status(200).json({ orderId: o.id, paymentId: null });
+    }
+    if (!mpesaConfigured()) return res.status(503).json({ error: 'M-Pesa payments are not set up yet.' });
+    if (!mpesa) return res.status(422).json({ error: 'Enter your Safaricom number for M-Pesa' });
+
+    const [p] = await query<{ id: string }>(
+      `insert into payments (operator_id, phone, amount, period_days, purpose) values ($1, $2, $3, 1, 'domain') returning id`, [op.id, mpesa, kes]);
+    const [o] = await query<{ id: string }>(
+      `insert into domain_orders (operator_id, domain, usd_price, kes_amount, payment_id, contact) values ($1, $2, $3, $4, $5, $6) returning id`,
+      [op.id, domain, avail.price, kes, p.id, JSON.stringify(contact)]);
+    try {
+      const r = await stkPush({ phone: mpesa, amount: kes, reference: 'DOMAIN', description: 'Domain' });
+      await query(`update payments set merchant_request_id = $2, checkout_request_id = $3, updated_at = now() where id = $1`, [p.id, r.merchantRequestId, r.checkoutRequestId]);
+      return res.status(200).json({ orderId: o.id, paymentId: p.id, kes, message: r.customerMessage ?? 'Check your phone and enter your M-Pesa PIN.' });
+    } catch (e) {
+      await query(`update payments set status = 'failed', result_desc = $2, updated_at = now() where id = $1`, [p.id, String((e as Error).message).slice(0, 200)]);
+      await query(`update domain_orders set status = 'cancelled', error = 'M-Pesa prompt failed', updated_at = now() where id = $1`, [o.id]);
+      return res.status(502).json({ error: 'Could not reach M-Pesa. Try again.' });
+    }
+  }
+
+  if (!rest && req.method === 'GET') {
+    // Owner: every order (to review problems). Mentors: their own.
+    const list = await query(
+      `select d.id, d.domain, d.status, d.kes_amount, d.usd_price::float, d.error, d.created_at, s.name as site_name
+         from domain_orders d left join sites s on s.operator_id = d.operator_id
+        where ($1::boolean or d.operator_id = $2) order by d.created_at desc limit 50`, [owner, op.id]);
+    return res.status(200).json({ orders: list });
+  }
+  if (rest === 'retry' && req.method === 'POST') {
+    if (!owner) return res.status(403).json({ error: 'owner_only' });
+    const id = String((req.body ?? {}).id ?? '');
+    if (!isUuid(id)) return res.status(404).json({ error: 'not_found' });
+    // Owner approved a review: put a paid order back in the queue at today's price.
+    const [o] = await query<{ id: string; domain: string; years: number }>(`select id, domain, years from domain_orders where id = $1 and status = 'needs_review'`, [id]);
+    if (!o) return res.status(404).json({ error: 'not_found' });
+    const price = await domainPrice(o.domain, o.years);
+    if (!price) return res.status(409).json({ error: 'Price unavailable' });
+    await query(`update domain_orders set status = 'paid', usd_price = $2, error = null, vercel_order_id = null, updated_at = now() where id = $1`, [id, price.purchase]);
+    await audit(op.id, 'domain.retry', null, { orderId: id, usd: price.purchase });
+    await processDomainOrder(id).catch(() => undefined);
+    const [fresh] = await query(`select id, domain, status, error from domain_orders where id = $1`, [id]);
+    return res.status(200).json({ order: fresh });
+  }
+  return res.status(404).json({ error: 'not_found' });
 }

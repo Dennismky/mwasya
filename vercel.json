@@ -1,8 +1,8 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "rewrites": [
-    { "source": "/api/:group(me|invites|network|billing|commissions|xmlbots|support|settings)", "destination": "/api/platform?group=:group" },
-    { "source": "/api/:group(me|invites|network|billing|commissions|xmlbots|support|settings)/:rest*", "destination": "/api/platform?group=:group&rest=:rest*" },
+    { "source": "/api/:group(me|invites|network|billing|commissions|xmlbots|support|settings|domains)", "destination": "/api/platform?group=:group" },
+    { "source": "/api/:group(me|invites|network|billing|commissions|xmlbots|support|settings|domains)/:rest*", "destination": "/api/platform?group=:group&rest=:rest*" },
     { "source": "/((?!api/).*)", "destination": "/index.html" }
   ],
   "headers": [

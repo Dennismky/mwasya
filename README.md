@@ -163,7 +163,9 @@ vercel env add MPESA_PASSKEY production --sensitive
 node -e "process.stdout.write(require('crypto').randomBytes(24).toString('base64url'))" | vercel env add MPESA_CALLBACK_KEY production --sensitive
 vercel deploy --prod
 ```
-Then, as the owner, open **Network → Pricing** and set a price in KES. A price of 0 keeps Mwasya free.
+Then, as the owner, open **Settings → Pricing** and set a price in KES. A price of 0 keeps Mwasya free.
+
+**Domain sales:** with the Vercel variables above set, open **Settings → Domain sales** and tick *Let mentors buy domains*. Mentors search and pay with M-Pesa on **Sites → Choose your address**. Only after Safaricom confirms the payment do we register the domain on your Vercel account (never above the quoted price), then connect it automatically. Auto-renew is off, so renewals are never charged to you silently.
 
 Trader sites don't use these Deriv values. Each operator site logs in with **the operator's own Deriv App ID**, stored in the `sites` table, so markup is paid to the operator.
 

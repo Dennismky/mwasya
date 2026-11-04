@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../lib/auth';
 import { startLogin } from '../lib/derivAuth';
+import BuyDomain from './BuyDomain';
 import { ACCENTS, MAX_MARKUP, cleanSubdomain, isBadBrandName, useSiteConfig } from '../store/siteConfig';
 
 const STEPS = ['Brand', 'Look', 'Deriv app', 'Domain'] as const;
@@ -263,6 +264,7 @@ function CustomDomain() {
   const [input, setInput] = useState('');
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState('');
+  const [mode, setMode] = useState<'buy' | 'own'>('buy');
 
   const handle = async (r: Response) => {
     const j = await r.json().catch(() => ({}));
@@ -292,12 +294,20 @@ function CustomDomain() {
       <b>Your own domain</b>
       {!d ? (
         <>
-          <div className="row" style={{ gap: 8 }}>
-            <input className="input mono" style={{ flex: '1 1 240px' }} placeholder="yourbrand.com or trade.yourbrand.com" value={input}
-              onChange={(e) => setInput(e.target.value.trim().toLowerCase())} aria-label="Your domain" />
-            <button className="btn btn-primary" disabled={busy || input.length < 4} onClick={connect}>{busy ? 'Connecting…' : 'Connect'}</button>
+          <div className="seg" role="tablist" aria-label="Domain option">
+            <button role="tab" aria-selected={mode === 'buy'} className={mode === 'buy' ? 'on' : ''} onClick={() => setMode('buy')}>Buy a new domain</button>
+            <button role="tab" aria-selected={mode === 'own'} className={mode === 'own' ? 'on' : ''} onClick={() => setMode('own')}>I already own one</button>
           </div>
-          <span className="hint">Buy the domain anywhere (Namecheap, Truehost, GoDaddy…), then connect it here.</span>
+          {mode === 'buy' ? <BuyDomain onConnected={() => void check()} /> : (
+            <>
+              <div className="row" style={{ gap: 8 }}>
+                <input className="input mono" style={{ flex: '1 1 240px' }} placeholder="yourbrand.com or trade.yourbrand.com" value={input}
+                  onChange={(e) => setInput(e.target.value.trim().toLowerCase())} aria-label="Your domain" />
+                <button className="btn btn-primary" disabled={busy || input.length < 4} onClick={connect}>{busy ? 'Connecting…' : 'Connect'}</button>
+              </div>
+              <span className="hint">Bought it elsewhere (Namecheap, Truehost, GoDaddy…)? Connect it here and we'll show the DNS records to add.</span>
+            </>
+          )}
         </>
       ) : (
         <>

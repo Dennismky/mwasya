@@ -320,3 +320,10 @@ textarea.input { resize: vertical; font-family: inherit; }
   .tp-head { flex-wrap: wrap; }
   .digit-bars { height: 160px; gap: 4px; }
 }
+
+/* Domain purchase */
+.domain-row { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 10px 12px; border: 1px solid var(--border); border-radius: 8px; }
+.buy-steps { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+.buy-steps li { padding: 10px; border-radius: 8px; border: 1px solid var(--border); text-align: center; font-size: 13px; color: var(--muted); }
+.buy-steps li.now { border-color: var(--primary); color: var(--text); font-weight: 600; }
+.buy-steps li.done { background: var(--success-tint); border-color: var(--success); color: var(--success); font-weight: 600; }

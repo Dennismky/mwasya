@@ -82,6 +82,7 @@ export default function Settings() {
         <>
           <PricingSettings onSaved={() => void auth.reloadMe()} />
           <SupportContacts />
+          <DomainSales />
         </>
       )}
     </div>
@@ -114,6 +115,71 @@ function SupportContacts() {
         <button className="btn btn-primary" onClick={save}>Save contacts</button>
         {msg && <span className="hint" aria-live="polite">{msg}</span>}
       </div>
+    </section>
+  );
+}
+
+interface DomainOrder { id: string; domain: string; status: string; kes_amount: number; usd_price: number; error: string | null; created_at: string; site_name: string | null }
+
+/** Owner: domain sales settings + every order (retry the ones that need review). */
+function DomainSales() {
+  const [cfg, setCfg] = useState({ enabled: false, kes_per_usd: 130, margin_pct: 20, max_usd: 60 });
+  const [configured, setConfigured] = useState(true);
+  const [orders, setOrders] = useState<DomainOrder[]>([]);
+  const [msg, setMsg] = useState('');
+  const load = () => {
+    fetch('/api/domains/settings', { credentials: 'same-origin' }).then((r) => r.json()).then((j) => { if (j.settings) setCfg(j.settings); setConfigured(j.configured !== false); }).catch(() => undefined);
+    fetch('/api/domains', { credentials: 'same-origin' }).then((r) => r.json()).then((j) => setOrders(j.orders ?? [])).catch(() => undefined);
+  };
+  useEffect(load, []);
+  const save = async () => {
+    const r = await fetch('/api/domains/settings', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, credentials: 'same-origin', body: JSON.stringify(cfg) });
+    setMsg(r.ok ? 'Saved.' : 'Could not save.');
+  };
+  const retry = async (id: string) => {
+    if (!confirm('Buy this domain now at today\'s Vercel price? This charges your Vercel account.')) return;
+    const r = await fetch('/api/domains/retry', { method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'same-origin', body: JSON.stringify({ id }) });
+    const j = await r.json().catch(() => ({}));
+    setMsg(r.ok ? `Order is now: ${j.order?.status}` : (j.error ?? 'Retry failed'));
+    load();
+  };
+  const example = Math.ceil((11 * cfg.kes_per_usd * (1 + cfg.margin_pct / 100)) / 10) * 10;
+  return (
+    <section className="card stack" style={{ gap: 14 }}>
+      <h2 style={{ fontSize: 18, fontWeight: 600 }}>Domain sales <span className="badge badge-blue">Owner</span></h2>
+      <p className="hint">Mentors buy domains on Sites and pay you with M-Pesa; we then register the domain on your Vercel account and connect it automatically.</p>
+      {!configured && <p className="error">Add VERCEL_TOKEN, VERCEL_PROJECT_ID and VERCEL_TEAM_ID in Vercel first.</p>}
+      <label className="row" style={{ gap: 10, alignItems: 'center' }}>
+        <input type="checkbox" checked={cfg.enabled} onChange={(e) => setCfg({ ...cfg, enabled: e.target.checked })} /> <b>Let mentors buy domains</b>
+      </label>
+      <div className="grid" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(170px, 1fr))', gap: 12 }}>
+        <div className="field"><label className="label" htmlFor="ds-rate">KES per USD</label><input id="ds-rate" className="input mono" inputMode="decimal" value={cfg.kes_per_usd} onChange={(e) => setCfg({ ...cfg, kes_per_usd: Number(e.target.value.replace(/[^\d.]/g, '')) })} /></div>
+        <div className="field"><label className="label" htmlFor="ds-margin">Your margin (%)</label><input id="ds-margin" className="input mono" inputMode="decimal" value={cfg.margin_pct} onChange={(e) => setCfg({ ...cfg, margin_pct: Number(e.target.value.replace(/[^\d.]/g, '')) })} /></div>
+        <div className="field"><label className="label" htmlFor="ds-max">Max Vercel price (USD)</label><input id="ds-max" className="input mono" inputMode="decimal" value={cfg.max_usd} onChange={(e) => setCfg({ ...cfg, max_usd: Number(e.target.value.replace(/[^\d.]/g, '')) })} /></div>
+      </div>
+      <span className="hint">Example: an $11 .com sells for about KES {example.toLocaleString()}.</span>
+      <div className="row" style={{ gap: 12, alignItems: 'center' }}>
+        <button className="btn btn-primary" onClick={save}>Save</button>
+        {msg && <span className="hint" aria-live="polite">{msg}</span>}
+      </div>
+      {orders.length > 0 && (
+        <div style={{ overflowX: 'auto' }}>
+          <table className="table">
+            <thead><tr><th>Domain</th><th>Site</th><th>Paid</th><th>Status</th><th /></tr></thead>
+            <tbody>
+              {orders.map((o) => (
+                <tr key={o.id}>
+                  <td className="mono">{o.domain}</td>
+                  <td>{o.site_name ?? '—'}</td>
+                  <td className="mono">{o.kes_amount ? `KES ${o.kes_amount.toLocaleString()}` : 'Owner'}</td>
+                  <td><span className={`badge ${o.status === 'completed' ? 'badge-green' : 'badge-blue'}`}>{o.status.replace('_', ' ')}</span>{o.error && <div className="hint">{o.error}</div>}</td>
+                  <td>{o.status === 'needs_review' && <button className="btn btn-secondary" style={{ padding: '4px 10px' }} onClick={() => retry(o.id)}>Retry</button>}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
     </section>
   );
 }
