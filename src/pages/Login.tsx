@@ -15,6 +15,7 @@ export default function Login() {
   const [busy, setBusy] = useState<'login' | 'signup' | null>(null);
   const [error, setError] = useState(state.error ?? '');
   const [inviter, setInviter] = useState<string | null>(null);
+  const [view, setView] = useState<'login' | 'signup' | 'forgot'>('login');
 
   useEffect(() => {
     getSession()
@@ -68,36 +69,65 @@ export default function Login() {
 
       <main className="auth-main">
         <div className="auth-card" aria-busy={checking}>
-          <div className="stack" style={{ gap: 6 }}>
-            <span className="auth-kicker">OPERATOR STUDIO</span>
-            <h2>{t('login.signIn')}</h2>
-            <p className="muted">{t('login.sub')}</p>
+          {view !== 'forgot' && (
+            <div className="auth-tabs" role="tablist" aria-label="Account">
+              <button role="tab" aria-selected={view === 'login'} className={view === 'login' ? 'on' : ''} onClick={() => setView('login')}>Log in</button>
+              <button role="tab" aria-selected={view === 'signup'} className={view === 'signup' ? 'on' : ''} onClick={() => setView('signup')}>Sign up</button>
+              <span className="auth-tabs-ink" style={{ transform: `translateX(${view === 'signup' ? 100 : 0}%)` }} />
+            </div>
+          )}
+
+          <div className="stack auth-head" key={view} style={{ gap: 6 }}>
+            <span className="auth-kicker">MENTOR STUDIO</span>
+            <h2>{view === 'login' ? 'Welcome back' : view === 'signup' ? 'Create your account' : 'Reset your password'}</h2>
           </div>
 
-          {inviter && (
-            <div className="auth-invite"><Icon.Users /><span>You've been invited by <b>{inviter}</b>. Log in to create your own site.</span></div>
+          {inviter && view !== 'forgot' && (
+            <div className="auth-invite"><Icon.Users /><span>Invited by <b>{inviter}</b></span></div>
           )}
 
           {checking ? (
             <p className="muted" aria-live="polite"><span className="spinner" /> Checking your session…</p>
-          ) : (
-            <div className="stack" style={{ gap: 10 }}>
+          ) : view === 'forgot' ? (
+            <div className="stack auth-body" style={{ gap: 14 }}>
+              <ol className="auth-steps">
+                <li><span>1</span>Continue to the Deriv sign-in page.</li>
+                <li><span>2</span>Select <b>Forgot password?</b> and enter your email.</li>
+                <li><span>3</span>Open the link Deriv emails you and set a new password.</li>
+                <li><span>4</span>Log in here with the new password.</li>
+              </ol>
               <button className="btn btn-primary auth-btn" disabled={busy !== null} onClick={() => go(false)}>
-                {busy === 'login' ? 'Opening Deriv…' : t('login.button')} <Icon.Arrow />
+                {busy === 'login' ? 'Opening Deriv…' : 'Continue to Deriv'} <Icon.Arrow />
               </button>
-              <div className="auth-or"><span>New to Deriv?</span></div>
-              <button className="btn btn-secondary auth-btn" disabled={busy !== null} onClick={() => go(true)}>
-                {busy === 'signup' ? 'Opening Deriv…' : t('login.create')}
-              </button>
+              <button className="auth-link" onClick={() => setView('login')}>← Back to log in</button>
+              {error && <p className="error" role="alert">{error}</p>}
+            </div>
+          ) : (
+            <div className="stack auth-body" style={{ gap: 12 }}>
+              {view === 'login' ? (
+                <>
+                  <button className="btn btn-primary auth-btn" disabled={busy !== null} onClick={() => go(false)}>
+                    {busy === 'login' ? 'Opening Deriv…' : t('login.button')} <Icon.Arrow />
+                  </button>
+                  <div className="auth-row">
+                    <button className="auth-link" onClick={() => setView('forgot')}>Forgot password?</button>
+                    <button className="auth-link" onClick={() => setView('signup')}>Create account</button>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <button className="btn btn-primary auth-btn" disabled={busy !== null} onClick={() => go(true)}>
+                    {busy === 'signup' ? 'Opening Deriv…' : t('login.create')} <Icon.Arrow />
+                  </button>
+                  <div className="auth-row">
+                    <span className="muted">Already have an account?</span>
+                    <button className="auth-link" onClick={() => setView('login')}>Log in</button>
+                  </div>
+                </>
+              )}
               {error && <p className="error" role="alert">{error}</p>}
             </div>
           )}
-
-          <ul className="auth-trust">
-            <li><Icon.Shield /> Trade access only — we can never withdraw.</li>
-            <li><Icon.Key /> We never see your password or API tokens.</li>
-            <li><Icon.Lock /> Encrypted session, kept on our server.</li>
-          </ul>
         </div>
         <p className="auth-legal">
           <Link to="/about">About Mwasya</Link> · Built on the Deriv API · Trading carries risk.
