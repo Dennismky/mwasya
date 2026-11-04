@@ -437,3 +437,19 @@ textarea.input { resize: vertical; font-family: inherit; }
 .tpl-primedesk .tp-nav { background: #0B1A33; }
 .tpl-primedesk .tp-tab.active { color: #0B1A33; }
 .tpl-signaldesk .tp-hero { background: linear-gradient(135deg, var(--accent), #0B1530); }
+
+/* Ready for clients */
+.site-row { flex-wrap: wrap; }
+.ready-badge { border: 1px solid #F5C2BD; background: var(--danger-tint); color: var(--danger); border-radius: 99px; padding: 4px 10px; font-size: 12px; font-weight: 700; cursor: pointer; white-space: nowrap; }
+.ready-badge.ok { border-color: #BFE6D4; background: var(--success-tint); color: var(--success); }
+.ready { display: flex; flex-direction: column; gap: 10px; text-align: left; }
+.ready-compact { margin-top: 8px; padding: 12px; border: 1px solid var(--border); border-radius: 12px; background: var(--bg-alt); }
+.ready-head { display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; }
+.ready ul { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.ready li { display: flex; align-items: center; gap: 10px; }
+.ready-icon { width: 24px; height: 24px; flex: none; border-radius: 50%; display: grid; place-items: center; font-weight: 800; font-size: 12px; }
+.ready-ok .ready-icon { background: var(--success-tint); color: var(--success); }
+.ready-warn .ready-icon { background: #FFF4DB; color: #8A5A00; }
+.ready-todo .ready-icon { background: var(--danger-tint); color: var(--danger); }
+.ready-fix { padding: 6px 12px; flex: none; }
+.wiz .ready-ok .ready-icon { background: rgba(16, 185, 129, .2); color: #34D399; }

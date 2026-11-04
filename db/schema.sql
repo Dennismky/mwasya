@@ -255,3 +255,8 @@ create or replace view operator_primary_site as
 select distinct on (s.operator_id) s.*, count(*) over (partition by s.operator_id) as site_count
   from sites s
  order by s.operator_id, (s.status = 'live') desc, s.created_at;
+
+-- ---------- "Ready for clients": proof that client login works on each address ----------
+alter table sites add column if not exists client_logins integer not null default 0;
+alter table sites add column if not exists sub_login_at timestamptz;     -- last successful client login on <sub>.mwasya.site
+alter table sites add column if not exists domain_login_at timestamptz;  -- last successful client login on the custom domain

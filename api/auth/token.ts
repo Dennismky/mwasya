@@ -1,6 +1,6 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { DERIV_AUTH_TOKEN_URL, derivFetch, env } from '../_lib/deriv.js';
-import { upsertOperator, type DerivAccount } from '../_lib/db.js';
+import { query, upsertOperator, type DerivAccount } from '../_lib/db.js';
 import { noStore, sameOrigin, setSession } from '../_lib/session.js';
 import { resolveTenant } from '../_lib/tenant.js';
 import { clientIp, rateLimit } from '../_lib/guard.js';
@@ -67,6 +67,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const expiresAt = Date.now() + data.expires_in * 1000;
     // Only studio logins create/attach an operator workspace. Traders never become operators.
     const operatorId = tenant.kind === 'platform' ? await resolveOperator(data.access_token, typeof invite === 'string' ? invite : undefined) : undefined;
+    // A client login that reached us proves this address's redirect URI is registered on the mentor's Deriv app.
+    if (tenant.kind === 'site') {
+      const onSub = tenant.host.endsWith('.mwasya.site');
+      await query(
+        `update sites set client_logins = client_logins + 1, ${onSub ? 'sub_login_at' : 'domain_login_at'} = now() where id = $1`,
+        [tenant.site.id],
+      ).catch(() => undefined);
+    }
     // Refresh this mentor's commission snapshot (works when the login included read-only application_read). Never blocks login.
     if (operatorId) await Promise.race([snapshotEarnings(operatorId, data.access_token).catch(() => null), new Promise((r) => setTimeout(r, 2500))]);
     setSession(res, { accessToken: data.access_token, expiresAt, operatorId, siteId: tenant.kind === 'site' ? tenant.site.id : undefined });

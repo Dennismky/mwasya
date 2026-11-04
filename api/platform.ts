@@ -811,12 +811,13 @@ async function domains(req: VercelRequest, res: VercelResponse, rest: string) {
 const FEATURES = ['bots', 'freebots', 'manual', 'charts', 'analysis', 'risk', 'learn', 'contact', 'deposit'] as const;
 const TEMPLATES = ['bothub', 'signaldesk', 'chartfloor', 'primedesk', 'nightmarket'] as const;
 const SITE_FULL = `id, name, subdomain, tagline, accent, theme, template, features, free_bots, deriv_app_id, markup::float as markup, status,
-  custom_domain, domain_status, (logo is not null) as has_logo, created_at, updated_at`;
+  custom_domain, domain_status, (logo is not null) as has_logo, client_logins, sub_login_at, domain_login_at, created_at, updated_at`;
 
 interface SiteFull {
   id: string; name: string; subdomain: string; tagline: string | null; accent: string; theme: string; template: string;
   features: string[]; free_bots: string[]; deriv_app_id: string | null; markup: number; status: 'draft' | 'live' | 'paused';
   custom_domain: string | null; domain_status: string; has_logo: boolean; created_at: string; updated_at: string;
+  client_logins: number; sub_login_at: string | null; domain_login_at: string | null;
 }
 
 const slugify = (s: string) => s.toLowerCase().normalize('NFKD').replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').replace(/deriv|binary/g, '').slice(0, 30) || 'site';
@@ -843,7 +844,38 @@ function siteView(s: SiteFull) {
     subdomainUrl: `https://${s.subdomain}.${ROOT_DOMAIN}`,
     logoUrl: s.has_logo ? `/api/sites/logo?id=${s.id}&v=${Date.parse(s.updated_at)}` : null,
     needs,
+    ready: readiness(s),
   };
+}
+
+/**
+ * "Ready for clients": everything that must be true for a client to open the site, log in and trade.
+ * Redirect URIs can't be read from Deriv, so a successful client login on that address is the proof.
+ */
+type CheckState = 'ok' | 'todo' | 'warn';
+function readiness(s: SiteFull) {
+  const sub = `https://${s.subdomain}.${ROOT_DOMAIN}`;
+  const items: { id: string; state: CheckState; title: string; detail: string; fix?: { label: string; step?: string; copy?: string } }[] = [];
+  items.push(s.status === 'live'
+    ? { id: 'deployed', state: 'ok', title: 'Site is deployed', detail: 'Visitors can open it.' }
+    : { id: 'deployed', state: 'todo', title: 'Deploy the site', detail: s.status === 'paused' ? 'It is offline right now.' : 'It is still a draft.', fix: { label: 'Deploy', step: 'review' } });
+  items.push(s.deriv_app_id
+    ? { id: 'app', state: 'ok', title: 'Deriv app connected', detail: `App ID ${s.deriv_app_id}. Markup is paid to you.` }
+    : { id: 'app', state: 'todo', title: 'Connect your Deriv app', detail: 'Clients log in through your app.', fix: { label: 'Add App ID', step: 'deriv' } });
+  items.push(s.sub_login_at
+    ? { id: 'login_sub', state: 'ok', title: `Client login works on ${s.subdomain}.${ROOT_DOMAIN}`, detail: 'A client has logged in successfully.' }
+    : { id: 'login_sub', state: 'warn', title: `Add ${sub}/callback to your Deriv app`, detail: 'Then log in once on that address to confirm. Without it, Deriv shows a redirect error.', fix: { label: 'Copy', copy: `${sub}/callback` } });
+  if (s.custom_domain) {
+    const dom = `https://${s.custom_domain}`;
+    items.push(s.domain_status === 'verified'
+      ? { id: 'domain', state: 'ok', title: `${s.custom_domain} is connected`, detail: 'HTTPS is set up automatically.' }
+      : { id: 'domain', state: 'todo', title: `Finish connecting ${s.custom_domain}`, detail: s.domain_status === 'error' ? 'There is a problem with the domain.' : 'Waiting for DNS.', fix: { label: 'Check DNS', step: 'domain' } });
+    items.push(s.domain_login_at
+      ? { id: 'login_domain', state: 'ok', title: `Client login works on ${s.custom_domain}`, detail: 'A client has logged in successfully.' }
+      : { id: 'login_domain', state: 'warn', title: `Add ${dom}/callback to your Deriv app`, detail: 'Then log in once on your domain to confirm.', fix: { label: 'Copy', copy: `${dom}/callback` } });
+  }
+  const left = items.filter((i) => i.state !== 'ok').length;
+  return { items, left, done: left === 0, clientLogins: s.client_logins };
 }
 
 /** Accept only PNG/JPEG/WebP data URLs whose bytes really are that image type (≤ ~150 KB). */

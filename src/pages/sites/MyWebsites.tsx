@@ -1,10 +1,12 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Icon } from '../../components/ui';
+import { ReadyChecklist, type Readiness } from './ReadyChecklist';
 
 export interface SiteSummary {
   id: string; name: string; subdomain: string; status: 'draft' | 'live' | 'paused'; accent: string;
   custom_domain: string | null; domain_status: string; url: string; logoUrl: string | null; needs: string[]; updated_at: string;
+  ready: Readiness;
 }
 
 type Tab = 'all' | 'live' | 'setup';
@@ -16,6 +18,7 @@ export default function MyWebsites() {
   const [tab, setTab] = useState<Tab>('all');
   const [q, setQ] = useState('');
   const [menu, setMenu] = useState<string | null>(null);
+  const [openReady, setOpenReady] = useState<string | null>(null);
   const [error, setError] = useState('');
 
   const load = useCallback(() => {
@@ -85,6 +88,9 @@ export default function MyWebsites() {
                       <span className="row" style={{ gap: 6, alignItems: 'center', fontSize: 13 }}><span className={`dot ${st.dot}`} />{st.label}</span>
                     </span>
                   </button>
+                  <button className={`ready-badge ${s.ready.done ? 'ok' : ''}`} aria-expanded={openReady === s.id} onClick={() => setOpenReady(openReady === s.id ? null : s.id)}>
+                    {s.ready.done ? '✓ Ready' : `${s.ready.left} to fix`}
+                  </button>
                   <div style={{ position: 'relative' }}>
                     <button className="btn btn-ghost" aria-label={`Actions for ${s.name}`} aria-expanded={menu === s.id} onClick={() => setMenu(menu === s.id ? null : s.id)}>⋮</button>
                     {menu === s.id && (
@@ -98,6 +104,7 @@ export default function MyWebsites() {
                       </div>
                     )}
                   </div>
+                  {openReady === s.id && <div style={{ flexBasis: '100%' }}><ReadyChecklist siteId={s.id} ready={s.ready} compact /></div>}
                 </li>
               );
             })}

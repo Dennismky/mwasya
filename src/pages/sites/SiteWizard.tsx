@@ -3,11 +3,13 @@ import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../../lib/auth';
 import { DEFAULT_FEATURES, SITE_FEATURES, SITE_TEMPLATES, templateOf } from '../../shared/templates';
 import DomainStep from './DomainStep';
+import { ReadyChecklist, type Readiness } from './ReadyChecklist';
 
 interface Site {
   id: string; name: string; subdomain: string; tagline: string | null; accent: string; theme: 'light' | 'dark'; template: string;
   features: string[]; free_bots: string[]; deriv_app_id: string | null; markup: number; status: string;
   custom_domain: string | null; domain_status: string; logoUrl: string | null; url: string; subdomainUrl: string;
+  ready?: Readiness;
 }
 interface CatalogBot { id: string; name: string; description: string; catalog: boolean; mine: boolean }
 
@@ -234,6 +236,7 @@ export default function SiteWizard() {
                   <li><span>Free bots</span><b>{view.free_bots.length || 'All your published files'}</b></li>
                   <li><span>Deriv app</span><b className="mono">{view.deriv_app_id ?? <span className="error">Missing</span>}</b></li>
                 </ul>
+                {view.ready && <div className="wiz-panel"><ReadyChecklist siteId={view.id} ready={view.ready} /></div>}
                 {view.status === 'live' && <a className="btn btn-secondary" href={view.url} target="_blank" rel="noreferrer">Open {view.url.replace('https://', '')} ↗</a>}
                 {!auth.operator && <p className="error">Log in again to publish.</p>}
               </section>
