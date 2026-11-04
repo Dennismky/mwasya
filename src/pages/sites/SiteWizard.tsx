@@ -16,7 +16,8 @@ interface CatalogBot { id: string; name: string; description: string; catalog: b
 const STEPS = ['name', 'address', 'features', 'logo', 'design', 'colours', 'bots', 'deriv', 'domain', 'review'] as const;
 type Step = (typeof STEPS)[number];
 const SUGGEST = ['Apex Desk', 'Night Pips', 'Signal Harbor', 'Forge Markets', 'Volt Traders', 'Pip Republic'];
-const ACCENTS = ['#F97316', '#2563EB', '#10B981', '#8B5CF6', '#E11D48', '#C9A227', '#0EA5E9', '#111827'];
+// Mwasya's palette first; mentors can still pick any custom colour for their own site.
+const ACCENTS = ['#1F4FD1', '#0B1F3A', '#0E7C66', '#3B3FB6', '#0F6E9E', '#2D3748', '#E11D48', '#C9A227'];
 
 /** `/sites/new` and `/sites/:id` — full-screen, one question per screen; every step saves. */
 export default function SiteWizard() {
@@ -97,7 +98,7 @@ export default function SiteWizard() {
   const canNext = step === 'name' ? name.trim().length >= 2 : true;
 
   return (
-    <div className="wiz" style={{ '--accent': view?.accent ?? '#F97316' } as CSSProperties}>
+    <div className="wiz">
       <header className="wiz-top">
         <button className="btn btn-ghost wiz-exit" onClick={() => navigate('/sites')}>Exit</button>
         <div className="wiz-progress" aria-label={`Step ${stepIdx + 1} of ${STEPS.length}`}>
