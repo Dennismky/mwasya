@@ -22,7 +22,7 @@ const NAV: { to: string; key: NavKey; icon: ReactNode; soon?: boolean }[] = [
 /** Logged-in area: auth guard + sidebar + top bar. Pages render in <Outlet />. */
 export default function AppShell() {
   return (
-    <AuthProvider>
+    <AuthProvider live={false}>
       <Shell />
     </AuthProvider>
   );
@@ -106,19 +106,6 @@ function Shell() {
         <header className="topbar">
           <button className="btn btn-ghost menu-btn" aria-label="Menu" aria-expanded={open} onClick={() => setOpen((o) => !o)}>☰</button>
           <span style={{ flex: 1 }} />
-          {auth.status === 'ready' && auth.accounts.length > 0 && (
-            <>
-              <select className="input" style={{ width: 'auto', padding: '8px 12px' }} aria-label="Trading account"
-                value={auth.account?.id ?? ''} onChange={(e) => auth.setAccountId(e.target.value)}>
-                {auth.accounts.map((a) => <option key={a.id} value={a.id}>{a.label}</option>)}
-              </select>
-              <div className="balance-chip">
-                <span className={`dot ${auth.account?.isVirtual ? 'dot-demo' : 'dot-real'}`} />
-                <span className="hint" style={{ fontSize: 11, fontWeight: 600 }}>{auth.account?.isVirtual ? 'DEMO' : 'REAL'}</span>
-                <b className="mono">{auth.balance}</b>
-              </div>
-            </>
-          )}
         </header>
         <main className="shell-content">
           {auth.suspended && (

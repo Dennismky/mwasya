@@ -8,7 +8,7 @@ import Forge from './pages/Forge';
 import Landing from './pages/Landing';
 import Login from './pages/Login';
 import Setup from './pages/Setup';
-import TraderHome from './pages/TraderHome';
+import TraderApp from './trader/TraderApp';
 import Network from './pages/Network';
 import Billing from './pages/Billing';
 import Commissions from './pages/Commissions';
@@ -45,7 +45,7 @@ export default function App() {
       <Routes>
         <Route path="/" element={<Login site={tenant.site} />} />
         <Route path="/callback" element={<Callback />} />
-        <Route path="/app" element={<TraderHome site={tenant.site} bots={tenant.bots} />} />
+        <Route path="/app/*" element={<TraderApp site={tenant.site} bots={tenant.bots} xmlBots={tenant.xmlBots ?? []} />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     );

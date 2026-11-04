@@ -1,9 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Icon } from '../components/ui';
 import { useAuth } from '../lib/auth';
 import { listStrategies } from '../lib/autoTrade';
-import { useBotRunner } from '../lib/useBotRunner';
-import { RunCard } from '../components/RunCard';
 import { startLogin } from '../lib/derivAuth';
 
 import {
@@ -22,7 +19,6 @@ type Status = 'loading' | 'relogin' | 'ready' | 'error';
 export default function Forge() {
   const auth = useAuth();
   const account = auth.account;
-  const accountId = account?.id ?? '';
   const [status, setStatus] = useState<Status>(auth.operator ? 'loading' : 'relogin');
   const [error, setError] = useState('');
   const [strategies, setStrategies] = useState<DerivStrategy[] | undefined>();
@@ -36,8 +32,6 @@ export default function Forge() {
 
 
 
-  const runner = useBotRunner(accountId || undefined, auth.expire, auth.refreshBalance);
-  const { runs, launch, conn, connError } = runner;
 
   const checks = useMemo(() => serverChecks ?? validateSpec(spec, strategies), [spec, strategies, serverChecks]);
   const valid = isValid(checks);
@@ -103,14 +97,7 @@ export default function Forge() {
     }
   }
 
-  function run() {
-    if (!account) return;
-    if (!account.isVirtual && !confirm(`Run "${spec.name}" on your REAL account ${account.id}?\n\nYou can lose up to ${spec.params.stop_loss} ${spec.contract.currency}. Losses are not guaranteed to stop exactly at that amount.`)) return;
-    void runner.start(spec);
-  }
 
-  const controlRun = (action: 'pause' | 'resume' | 'stop', runId: string) =>
-    runner.control(action, runId).then((err) => { if (err) setError(err); });
 
   function setContractType(type: string) {
     update((s) => {
@@ -151,7 +138,6 @@ export default function Forge() {
 
   const ctype = spec.contract.contract_type;
   const supported = strategies?.find((s) => s.strategy_id === (spec.strategy === 'fixed' ? 'martingale' : spec.strategy))?.supported_contract_types;
-  const runList = Object.values(runs).sort((a, b) => b.start_time - a.start_time);
 
   return (
     <div className="stack" style={{ gap: 24 }}>
@@ -318,38 +304,14 @@ export default function Forge() {
                   </div>
                 </section>
 
-                <section className="card stack" style={{ gap: 12 }}>
-                  <h2 style={{ fontSize: 18, fontWeight: 600 }}>Test run</h2>
-                  <p className="hint">Runs on {account?.label ?? 'your account'}. Deriv places the trades and stops at your limits.</p>
-                  {account && !account.isVirtual && <p className="error">This is a real-money account.</p>}
-                  <button className="btn btn-primary" disabled={!valid || !strategies || conn !== 'ready' || launch.phase === 'starting'} onClick={run}>
-                    <Icon.Chip /> {launch.phase === 'starting' ? 'Starting…' : `Run on ${account?.isVirtual ? 'demo' : 'real'}`}
-                  </button>
-                  <div aria-live="polite" className="stack" style={{ gap: 8 }}>
-                    {!valid && <span className="hint">Fix the issues in Safety checks to enable this.</span>}
-                    {valid && !strategies && <span className="hint"><span className="spinner" />Loading Deriv's strategy rules…</span>}
-                    {valid && strategies && conn === 'connecting' && <span className="hint"><span className="spinner" />Connecting to your Deriv account…</span>}
-                    {conn === 'error' && <p className="error" role="alert">Can't reach your Deriv account: {connError}</p>}
-                    {launch.phase === 'starting' && <span className="hint"><span className="spinner" />Sending the bot to Deriv…</span>}
-                    {launch.phase === 'error' && <p className="error" role="alert">{launch.message}</p>}
-                    {launch.phase === 'running' && runs[launch.runId] && (
-                      <RunCard run={runs[launch.runId]} currency={account?.currency ?? ''} compact
-                        onPause={() => controlRun('pause', launch.runId)} onResume={() => controlRun('resume', launch.runId)} onStop={() => controlRun('stop', launch.runId)} />
-                    )}
-                  </div>
+                <section className="card stack" style={{ gap: 10 }}>
+                  <h2 style={{ fontSize: 18, fontWeight: 600 }}>Where it runs</h2>
+                  <p className="hint">Published bots appear under <b>Quick Bot</b> on your trading site. Your clients run them on their own Deriv accounts, and you earn your markup on every trade.</p>
+                  <p className="hint">To test a bot, open your trading site, log in there and run it on a <b>demo</b> account.</p>
                   {error && <p className="error" role="alert">{error}</p>}
                 </section>
               </aside>
             </div>
-
-            {/* Runs */}
-            {runList.length > 0 && (
-              <section className="card stack" style={{ gap: 16 }}>
-                <h2 style={{ fontSize: 18, fontWeight: 600 }}>Runs on this account</h2>
-                {runList.map((r) => <RunCard key={r.run_id} run={r} currency={account?.currency ?? ''}
-                  onPause={() => controlRun('pause', r.run_id)} onResume={() => controlRun('resume', r.run_id)} onStop={() => controlRun('stop', r.run_id)} />)}
-              </section>
-            )}
 
             {/* Saved bots */}
             <section className="card stack" style={{ gap: 12 }}>

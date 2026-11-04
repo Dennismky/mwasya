@@ -34,7 +34,8 @@ interface AuthState {
 const Ctx = createContext<AuthState | null>(null);
 const KEY_ACCOUNT = 'mw_account';
 
-export function AuthProvider({ children }: { children: ReactNode }) {
+/** `live` = open a trading connection for the live balance. Off on the studio (mwasya.site has no trading). */
+export function AuthProvider({ children, live = true }: { children: ReactNode; live?: boolean }) {
   const [status, setStatus] = useState<AuthStatus>('checking');
   const [error, setError] = useState('');
   const [operator, setOperator] = useState(false);
@@ -78,7 +79,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // 2) a fresh read every 10s (Deriv's own bot engine may not push to this socket),
   // 3) an immediate read whenever a page calls refreshBalance() (e.g. a trade settled).
   useEffect(() => {
-    if (!accountId) return;
+    if (!accountId || !live) return;
     setBalance('—');
     const ws = accountSocket(accountId);
     let stop: (() => void) | undefined;
@@ -113,7 +114,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       stop?.();
       ws.close();
     };
-  }, [accountId, expire]);
+  }, [accountId, expire, live]);
 
   const refreshBalance = useCallback(() => refreshRef.current(), []);
 
