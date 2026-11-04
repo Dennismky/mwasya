@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import type { PublishedBot, SiteBranding } from '../../lib/tenant';
 import TraderApp, { type XmlBotLite } from '../../trader/TraderApp';
+import { Loader } from '../../components/Loader';
 
 /** `/preview/:id/*` — the mentor sees their trading site exactly as a client would (no login, trading off). */
 export default function PreviewSite() {
@@ -35,6 +36,6 @@ export default function PreviewSite() {
       <p className="error">{error}</p><Link className="btn btn-primary" to="/sites">Back to my websites</Link>
     </div></main>
   );
-  if (!data) return <div className="shell-loading"><span className="spinner" /> Loading preview…</div>;
+  if (!data) return <Loader label="Loading preview" />;
   return <TraderApp site={data.site} bots={data.bots} xmlBots={data.xml} base={`/preview/${id}`} preview />;
 }

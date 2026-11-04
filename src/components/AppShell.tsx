@@ -5,6 +5,7 @@ import { LANGUAGES, useLang, useT, type Lang } from '../lib/i18n';
 import { useTheme } from '../lib/theme';
 import { Icon } from './ui';
 import DuesBell from './DuesBell';
+import { Loader } from './Loader';
 
 type NavKey = Parameters<ReturnType<typeof useT>>[0];
 const NAV: { to: string; key: NavKey; icon: ReactNode; soon?: boolean; section?: string; owner?: boolean }[] = [
@@ -59,7 +60,7 @@ function Shell() {
     return <Navigate to="/" replace state={{ from: location.pathname, error: auth.error }} />;
   }
   if (auth.status === 'checking') {
-    return <div className="shell-loading" aria-live="polite"><span className="spinner" /> Checking your session…</div>;
+    return <Loader label="Checking your session" />;
   }
 
   return (

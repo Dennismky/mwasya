@@ -12,9 +12,10 @@ import ManualTrader from './ManualTrader';
 import QuickBot from './QuickBot';
 import RiskCalculator from './RiskCalculator';
 import TraderDashboard from './TraderDashboard';
-import BotBuilderSoon from './BotBuilderSoon';
+import BotBuilder from './BotBuilder';
 import Reports from './Reports';
 import { Ticker } from './Ticker';
+import { Loader } from '../components/Loader';
 
 export interface XmlBotLite { id: string; name: string; description: string }
 export interface TraderCtx {
@@ -31,6 +32,7 @@ export const useTrader = () => useOutletContext<TraderCtx>();
 /** `short` = label in the phone bottom bar; `primary` tabs sit in that bar, the rest go under "More". */
 const TABS: { to: string; label: string; short: string; icon: ReactNode; end?: boolean; feature?: string; primary?: boolean }[] = [
   { to: '', label: 'Dashboard', short: 'Home', icon: <Icon.Chart />, end: true, primary: true },
+  { to: '/bot-builder', label: 'Bot Builder', short: 'Builder', icon: <Icon.Gear />, feature: 'bots' },
   { to: '/quick-bot', label: 'Quick Bot', short: 'Bots', icon: <Icon.Chip />, feature: 'bots', primary: true },
   { to: '/manual', label: 'Manual Trader', short: 'Trade', icon: <Icon.Window />, feature: 'manual', primary: true },
   { to: '/reports', label: 'Reports', short: 'Reports', icon: <Icon.Card />, primary: true },
@@ -38,7 +40,6 @@ const TABS: { to: string; label: string; short: string; icon: ReactNode; end?: b
   { to: '/charts', label: 'Charts', short: 'Charts', icon: <Icon.Chart />, feature: 'charts' },
   { to: '/analysis', label: 'Analysis Tools', short: 'Analysis', icon: <Icon.Help />, feature: 'analysis' },
   { to: '/risk', label: 'Risk Calculator', short: 'Risk', icon: <Icon.Gear />, feature: 'risk' },
-  { to: '/bot-builder', label: 'Bot Builder', short: 'Builder', icon: <Icon.Gear /> },
 ];
 
 /** `/app/*` on <brand>.mwasya.site — the client trading platform. */
@@ -49,7 +50,7 @@ export default function TraderApp({ site, bots, xmlBots, base = '/app', preview 
       <Routes>
         <Route element={<Shell site={site} initialBots={bots} initialXml={xmlBots} base={base} preview={preview} />}>
           <Route index element={<TraderDashboard />} />
-          <Route path="bot-builder" element={<BotBuilderSoon />} />
+          <Route path="bot-builder" element={<BotBuilder />} />
           <Route path="free-bots" element={<FreeBots />} />
           <Route path="quick-bot" element={<QuickBot />} />
           <Route path="manual" element={<ManualTrader />} />
@@ -96,7 +97,7 @@ function Shell({ site, initialBots, initialXml, base, preview }: { site: SiteBra
   }, [preview]);
 
   if (auth.status === 'signed-out') return <Navigate to="/" replace state={{ from: '/app', error: auth.error }} />;
-  if (auth.status === 'checking') return <div className="shell-loading"><span className="spinner" /> Loading…</div>;
+  if (auth.status === 'checking') return <Loader label={`Opening ${site.name}`} mark={site.name.slice(0, 2).toUpperCase()} />;
 
   const account = auth.account;
   const live = Object.values(runner.runs).filter((r) => r.status !== 'stopped');

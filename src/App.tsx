@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Navigate, Route, Routes } from 'react-router-dom';
 import AppShell from './components/AppShell';
+import { Loader } from './components/Loader';
 import { loadTenant, type Tenant } from './lib/tenant';
 import Callback from './pages/Callback';
 import Dashboard from './pages/Dashboard';
@@ -29,7 +30,7 @@ export default function App() {
   const [tenant, setTenant] = useState<Tenant | null>(null);
   useEffect(() => { loadTenant().then(setTenant); }, []);
 
-  if (!tenant) return <div className="shell-loading"><span className="spinner" /> Loading…</div>;
+  if (!tenant) return <Loader label="Loading" />;
 
   if (tenant.kind === 'unknown') {
     return (
