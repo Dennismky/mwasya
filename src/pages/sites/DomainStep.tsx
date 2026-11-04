@@ -6,12 +6,12 @@ interface DomainInfo { domain: string | null; status: 'none' | 'pending' | 'veri
 
 /** Connect the mentor's own domain (e.g. statefx.pro): we attach it on Vercel and show the DNS records to set. */
 /** Connect a domain to one site: buy a new one, or connect one the mentor already owns. */
-export default function DomainStep({ siteId, onChange }: { siteId: string; onChange?: () => void }) {
+export default function DomainStep({ siteId, onChange, initialMode = 'buy' }: { siteId: string; onChange?: () => void; initialMode?: 'buy' | 'own' }) {
   const [info, setInfo] = useState<DomainInfo | null>(null);
   const [input, setInput] = useState('');
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState('');
-  const [mode, setMode] = useState<'buy' | 'own'>('buy');
+  const [mode, setMode] = useState<'buy' | 'own'>(initialMode);
 
   const handle = async (r: Response) => {
     const j = await r.json().catch(() => ({}));

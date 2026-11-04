@@ -38,7 +38,7 @@ const defaults: SiteConfig = {
   customDomain: '',
 };
 
-export const isBadBrandName = (name: string) => /deriv|binary/i.test(name);
+export const isBadBrandName = (name: string) => /deriv/i.test(name);
 export const cleanSubdomain = (v: string) => v.toLowerCase().replace(/[^a-z0-9-]/g, '').slice(0, 40);
 export const clampMarkup = (n: number) => Math.min(MAX_MARKUP, Math.max(0, Math.round(n * 2) / 2));
 

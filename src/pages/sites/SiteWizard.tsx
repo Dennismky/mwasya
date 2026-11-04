@@ -31,6 +31,7 @@ export default function SiteWizard() {
   const [busy, setBusy] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [error, setError] = useState('');
+  const [ownDomain, setOwnDomain] = useState(false);
   const stepIdx = Math.max(0, Math.min(STEPS.length - 1, Number(params.get('step') ?? (id ? 8 : 0)) || 0));
   const step: Step = id ? STEPS[stepIdx] : 'name';
 
@@ -107,7 +108,6 @@ export default function SiteWizard() {
       </header>
 
       <main className="wiz-body">
-        {error && <p className="error" role="alert" style={{ textAlign: 'center' }}>{error}</p>}
         {id && !view ? <p className="muted"><span className="spinner" />Loading…</p> : (
           <>
             {step === 'name' && (
@@ -123,13 +123,16 @@ export default function SiteWizard() {
             {step === 'address' && view && (
               <section className="wiz-q">
                 <h1>Pick your free address</h1>
-                <p>You can add your own domain later.</p>
+                <p>Free on mwasya.site. Your own domain can point here too.</p>
                 <div className="wiz-addr">
                   <span>https://</span>
                   <input value={draft.subdomain ?? view.subdomain} onChange={(e) => setDraft({ ...draft, subdomain: e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, '').slice(0, 40) })} aria-label="Subdomain" />
                   <span>.mwasya.site</span>
                 </div>
                 {errors.subdomain && <p className="error">{errors.subdomain}</p>}
+                <button className="wiz-own" onClick={async () => { if (draft.subdomain && draft.subdomain !== site?.subdomain && !(await save({ subdomain: draft.subdomain }))) return; setOwnDomain(true); go(STEPS.indexOf('domain')); }}>
+                  Already own a domain (Namecheap, GoDaddy, Truehost…)? <b>Connect it</b>
+                </button>
               </section>
             )}
 
@@ -222,7 +225,7 @@ export default function SiteWizard() {
               <section className="wiz-q">
                 <h1>Your address</h1>
                 <p>Live now on <span className="mono">{view.subdomain}.mwasya.site</span>. Buy a domain or connect one you own.</p>
-                <div className="wiz-panel"><DomainStep siteId={view.id} onChange={() => fetch(`/api/sites/${view.id}`, { credentials: 'same-origin' }).then((r) => r.json()).then((j) => setSite(j.site))} /></div>
+                <div className="wiz-panel"><DomainStep siteId={view.id} initialMode={ownDomain ? 'own' : 'buy'} onChange={() => fetch(`/api/sites/${view.id}`, { credentials: 'same-origin' }).then((r) => r.json()).then((j) => setSite(j.site))} /></div>
               </section>
             )}
 
@@ -243,6 +246,7 @@ export default function SiteWizard() {
                 {!auth.operator && <p className="error">Log in again to publish.</p>}
               </section>
             )}
+            {error && <p className="error wiz-err" role="alert">{error}</p>}
           </>
         )}
       </main>

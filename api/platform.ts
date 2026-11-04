@@ -707,7 +707,7 @@ async function domains(req: VercelRequest, res: VercelResponse, rest: string) {
     if (!(await rateLimit(`domain-search:${op.id}`, 30, 600))) return res.status(429).json({ error: 'Too many searches. Wait a few minutes.' });
     const q = String(req.query.q ?? '').trim().toLowerCase().replace(/^https?:\/\//, '').replace(/^www\./, '').replace(/\/.*$/, '');
     const [label, ...tldParts] = q.split('.');
-    if (!NAME_RE.test(label ?? '') || /deriv|binary/.test(label)) return res.status(422).json({ error: 'Use letters, numbers and dashes, like statefx or statefx.pro' });
+    if (!NAME_RE.test(label ?? '') || /deriv/.test(label)) return res.status(422).json({ error: 'Use letters, numbers and dashes, like statefx or statefx.pro' });
     const names = tldParts.length ? [q, ...SUGGEST_TLDS.map((t) => `${label}.${t}`).filter((n) => n !== q)] : SUGGEST_TLDS.map((t) => `${label}.${t}`);
     const results = await searchDomains(names.slice(0, 9));
     return res.status(200).json({
@@ -737,7 +737,7 @@ async function domains(req: VercelRequest, res: VercelResponse, rest: string) {
     const [site] = siteId ? await query(`select 1 from sites where id = $1 and operator_id = $2`, [siteId, op.id]) : [];
     if (!site) return res.status(409).json({ error: 'Choose which of your sites this domain is for.' });
     const domain = String(b.domain ?? '').trim().toLowerCase();
-    if (!/^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?(\.[a-z0-9-]{2,24})+$/.test(domain) || /deriv|binary/.test(domain)) return res.status(422).json({ error: 'Invalid domain' });
+    if (!/^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?(\.[a-z0-9-]{2,24})+$/.test(domain) || /deriv/.test(domain)) return res.status(422).json({ error: 'Invalid domain' });
     const c = b.contact ?? {};
     const s = (k: string, max = 100) => (typeof c[k] === 'string' ? String(c[k]).trim().slice(0, max) : '');
     const mpesa = normalizePhone(String(b.phone ?? s('phone')));
@@ -828,7 +828,7 @@ interface SiteFull {
   client_logins: number; sub_login_at: string | null; domain_login_at: string | null;
 }
 
-const slugify = (s: string) => s.toLowerCase().normalize('NFKD').replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').replace(/deriv|binary/g, '').slice(0, 30) || 'site';
+const slugify = (s: string) => s.toLowerCase().normalize('NFKD').replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').replace(/deriv/g, '').slice(0, 30) || 'site';
 
 async function uniqueSubdomain(base: string): Promise<string> {
   let s = slugify(base);
@@ -945,7 +945,7 @@ async function sitesRoute(req: VercelRequest, res: VercelResponse, rest: string)
       if (Number(n) >= 25) return res.status(409).json({ error: 'You can have up to 25 sites.' });
       const name = String((req.body ?? {}).name ?? '').trim().slice(0, 40);
       if (name.length < 2) return res.status(422).json({ error: 'Give your site a name (2 to 40 characters).' });
-      if (/deriv|binary/i.test(name)) return res.status(422).json({ error: 'Deriv does not allow "Deriv" or "Binary" in site names.' });
+      if (/deriv/i.test(name)) return res.status(422).json({ error: 'Deriv does not allow the word "Deriv" in site names.' });
       const sub = await uniqueSubdomain(name);
       const [site] = await query<SiteFull>(
         `insert into sites (operator_id, name, subdomain, status, markup) values ($1, $2, $3, 'draft', 0) returning ${SITE_FULL}`, [op.id, name, sub]);
@@ -993,13 +993,14 @@ async function sitesRoute(req: VercelRequest, res: VercelResponse, rest: string)
     if (b.name !== undefined) {
       const name = String(b.name).trim();
       if (name.length < 2 || name.length > 40) errors.name = 'Use 2 to 40 characters';
-      else if (/deriv|binary/i.test(name)) errors.name = 'Deriv does not allow "Deriv" or "Binary" in names';
+      else if (/deriv/i.test(name)) errors.name = 'Deriv does not allow the word "Deriv" in names';
       else set('name', name);
     }
     if (b.subdomain !== undefined) {
       const sub = String(b.subdomain).trim().toLowerCase();
       if (!/^[a-z0-9]([a-z0-9-]{1,38}[a-z0-9])$/.test(sub)) errors.subdomain = '3 to 40 letters, numbers or dashes';
-      else if (RESERVED_SUBDOMAINS.has(sub) || /deriv|binary/.test(sub)) errors.subdomain = 'This address is not available';
+      else if (RESERVED_SUBDOMAINS.has(sub)) errors.subdomain = 'This address is reserved. Try another one.';
+      else if (/deriv/.test(sub)) errors.subdomain = 'Deriv does not allow the word "deriv" in addresses.';
       else {
         const [hit] = await query(`select 1 from sites where subdomain = $1 and id <> $2`, [sub, id]);
         if (hit) errors.subdomain = 'Someone already uses this address';
