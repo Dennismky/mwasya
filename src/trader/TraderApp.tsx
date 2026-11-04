@@ -1,7 +1,7 @@
 import { useEffect, useState, type CSSProperties, type ReactNode } from 'react';
 import { Navigate, NavLink, Route, Routes, useOutletContext, Outlet } from 'react-router-dom';
 import { Icon } from '../components/ui';
-import { AuthProvider, useAuth } from '../lib/auth';
+import { AuthProvider, PreviewAuthProvider, useAuth } from '../lib/auth';
 import { reloadTenant, type PublishedBot, type SiteBranding } from '../lib/tenant';
 import { useBotRunner } from '../lib/useBotRunner';
 import { runPnL } from '../lib/autoTrade';
@@ -21,26 +21,30 @@ export interface TraderCtx {
   bots: PublishedBot[];
   xmlBots: XmlBotLite[];
   runner: ReturnType<typeof useBotRunner>;
+  /** Where the trading site is mounted: '/app' on a live site, '/preview/<id>' in the studio preview. */
+  base: string;
+  preview: boolean;
 }
 export const useTrader = () => useOutletContext<TraderCtx>();
 
 const TABS: { to: string; label: string; icon: ReactNode; end?: boolean; feature?: string }[] = [
-  { to: '/app', label: 'Dashboard', icon: <Icon.Chart />, end: true },
-  { to: '/app/bot-builder', label: 'Bot Builder', icon: <Icon.Gear /> },
-  { to: '/app/free-bots', label: 'Free Bots', icon: <Icon.Code />, feature: 'freebots' },
-  { to: '/app/quick-bot', label: 'Quick Bot', icon: <Icon.Chip />, feature: 'bots' },
-  { to: '/app/manual', label: 'Manual Trader', icon: <Icon.Window />, feature: 'manual' },
-  { to: '/app/charts', label: 'Charts', icon: <Icon.Chart />, feature: 'charts' },
-  { to: '/app/analysis', label: 'Analysis Tools', icon: <Icon.Help />, feature: 'analysis' },
-  { to: '/app/risk', label: 'Risk Calculator', icon: <Icon.Card />, feature: 'risk' },
+  { to: '', label: 'Dashboard', icon: <Icon.Chart />, end: true },
+  { to: '/bot-builder', label: 'Bot Builder', icon: <Icon.Gear /> },
+  { to: '/free-bots', label: 'Free Bots', icon: <Icon.Code />, feature: 'freebots' },
+  { to: '/quick-bot', label: 'Quick Bot', icon: <Icon.Chip />, feature: 'bots' },
+  { to: '/manual', label: 'Manual Trader', icon: <Icon.Window />, feature: 'manual' },
+  { to: '/charts', label: 'Charts', icon: <Icon.Chart />, feature: 'charts' },
+  { to: '/analysis', label: 'Analysis Tools', icon: <Icon.Help />, feature: 'analysis' },
+  { to: '/risk', label: 'Risk Calculator', icon: <Icon.Card />, feature: 'risk' },
 ];
 
 /** `/app/*` on <brand>.mwasya.site — the client trading platform. */
-export default function TraderApp({ site, bots, xmlBots }: { site: SiteBranding; bots: PublishedBot[]; xmlBots: XmlBotLite[] }) {
+export default function TraderApp({ site, bots, xmlBots, base = '/app', preview = false }: { site: SiteBranding; bots: PublishedBot[]; xmlBots: XmlBotLite[]; base?: string; preview?: boolean }) {
+  const Provider = preview ? PreviewAuthProvider : AuthProvider;
   return (
-    <AuthProvider>
+    <Provider>
       <Routes>
-        <Route element={<Shell site={site} initialBots={bots} initialXml={xmlBots} />}>
+        <Route element={<Shell site={site} initialBots={bots} initialXml={xmlBots} base={base} preview={preview} />}>
           <Route index element={<TraderDashboard />} />
           <Route path="bot-builder" element={<BotBuilderSoon />} />
           <Route path="free-bots" element={<FreeBots />} />
@@ -49,14 +53,14 @@ export default function TraderApp({ site, bots, xmlBots }: { site: SiteBranding;
           <Route path="charts" element={<Charts />} />
           <Route path="analysis" element={<Analysis />} />
           <Route path="risk" element={<RiskCalculator />} />
-          <Route path="*" element={<Navigate to="/app" replace />} />
+          <Route path="*" element={<Navigate to={base} replace />} />
         </Route>
       </Routes>
-    </AuthProvider>
+    </Provider>
   );
 }
 
-function Shell({ site, initialBots, initialXml }: { site: SiteBranding; initialBots: PublishedBot[]; initialXml: XmlBotLite[] }) {
+function Shell({ site, initialBots, initialXml, base, preview }: { site: SiteBranding; initialBots: PublishedBot[]; initialXml: XmlBotLite[]; base: string; preview: boolean }) {
   const auth = useAuth();
   const [bots, setBots] = useState(initialBots);
   const [xmlBots, setXmlBots] = useState(initialXml);
@@ -68,8 +72,9 @@ function Shell({ site, initialBots, initialXml }: { site: SiteBranding; initialB
   const has = (f?: string) => !f || !site.features?.length || site.features.includes(f);
 
   useEffect(() => {
+    if (preview) return; // the studio already passed this site's bots
     reloadTenant().then((t) => { if (t.kind === 'site') { setBots(t.bots); setXmlBots(t.xmlBots ?? []); } }).catch(() => undefined);
-  }, []);
+  }, [preview]);
 
   if (auth.status === 'signed-out') return <Navigate to="/" replace state={{ from: '/app', error: auth.error }} />;
   if (auth.status === 'checking') return <div className="shell-loading"><span className="spinner" /> Loading…</div>;
@@ -111,7 +116,7 @@ function Shell({ site, initialBots, initialXml }: { site: SiteBranding; initialB
 
       <nav className="tp-nav" aria-label="Trading tools">
         {TABS.filter((t) => has(t.feature)).map((t) => (
-          <NavLink key={t.to} to={t.to} end={t.end} className={({ isActive }) => `tp-tab ${isActive ? 'active' : ''}`}>
+          <NavLink key={t.to} to={base + t.to} end={t.end} className={({ isActive }) => `tp-tab ${isActive ? 'active' : ''}`}>
             {t.icon}{t.label}
           </NavLink>
         ))}
@@ -119,10 +124,11 @@ function Shell({ site, initialBots, initialXml }: { site: SiteBranding; initialB
       {has("charts") && <Ticker />}
 
       <main className="tp-main">
+        {preview && <div className="tp-preview"><b>Client preview.</b> This is exactly what your clients see. Prices and charts are live; trading is off until a client logs in on your deployed site.</div>}
         {account && !account.isVirtual && (
           <div className="tp-real">You're on a <b>real money</b> account. Switch to Demo in the top bar to practise.</div>
         )}
-        <Outlet context={{ site, bots, xmlBots, runner } satisfies TraderCtx} />
+        <Outlet context={{ site, bots, xmlBots, runner, base, preview } satisfies TraderCtx} />
       </main>
 
       <footer className="tp-foot">
@@ -130,7 +136,7 @@ function Shell({ site, initialBots, initialXml }: { site: SiteBranding; initialB
         <span className="tp-status">
           {live.length > 0
             ? <><span className="dot dot-real pulse" /> {live.length} bot{live.length > 1 ? 's' : ''} running · <b className="mono" style={{ color: livePnl >= 0 ? 'var(--success)' : 'var(--danger)' }}>{livePnl >= 0 ? '+' : ''}{livePnl.toFixed(2)}</b></>
-            : <><span className={`dot ${runner.conn === 'ready' ? 'dot-real' : 'dot-demo'}`} /> {runner.conn === 'ready' ? 'Connected' : 'Connecting…'}</>}
+            : preview ? <><span className="dot dot-demo" /> Preview</> : <><span className={`dot ${runner.conn === 'ready' ? 'dot-real' : 'dot-demo'}`} /> {runner.conn === 'ready' ? 'Connected' : 'Connecting…'}</>}
         </span>
         <Clock />
       </footer>

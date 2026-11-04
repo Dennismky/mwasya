@@ -85,7 +85,7 @@ export function useBotRunner(accountId: string | undefined, onExpired: () => voi
   }, [runs, bumpBalance, onRunUpdate]);
 
   useEffect(() => {
-    if (!accountId) return;
+    if (!accountId || accountId === 'PREVIEW') return; // studio preview: no Deriv connection
     const sock = accountSocket(accountId);
     ws.current = sock;
     setRuns({});

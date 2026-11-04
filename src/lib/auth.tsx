@@ -145,3 +145,15 @@ export function useAuth(): AuthState {
   if (!v) throw new Error('useAuth must be used inside <AuthProvider>');
   return v;
 }
+
+/** Owner/mentor "Preview as client": a pretend demo account, no Deriv connection, nothing can be traded. */
+export const PREVIEW_ACCOUNT_ID = 'PREVIEW';
+export function PreviewAuthProvider({ children }: { children: ReactNode }) {
+  const account: Account = { id: PREVIEW_ACCOUNT_ID, label: 'Demo · USD · preview', currency: 'USD', isVirtual: true };
+  const value = useMemo<AuthState>(() => ({
+    status: 'ready', error: '', operator: false, me: null, suspended: false, reloadMe: async () => undefined,
+    accounts: [account], account, setAccountId: () => undefined, balance: '10000.00 USD',
+    refreshBalance: () => undefined, expire: () => undefined, signOut: async () => { window.close(); },
+  }), []); // eslint-disable-line react-hooks/exhaustive-deps
+  return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
+}

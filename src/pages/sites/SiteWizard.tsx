@@ -237,6 +237,7 @@ export default function SiteWizard() {
                   <li><span>Free bots</span><b>{view.free_bots.length || 'All your published files'}</b></li>
                   <li><span>Deriv app</span><b className="mono">{view.deriv_app_id ?? <span className="error">Missing</span>}</b></li>
                 </ul>
+                <a className="btn btn-secondary" style={{ alignSelf: 'center' }} href={`/preview/${view.id}`} target="_blank" rel="noreferrer">Preview as a client ↗</a>
                 {view.ready && <div className="wiz-panel"><ReadyChecklist siteId={view.id} ready={view.ready} /></div>}
                 {view.status === 'live' && <a className="btn btn-secondary" href={view.url} target="_blank" rel="noreferrer">Open {view.url.replace('https://', '')} ↗</a>}
                 {!auth.operator && <p className="error">Log in again to publish.</p>}

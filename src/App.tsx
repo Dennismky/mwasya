@@ -9,6 +9,7 @@ import Landing from './pages/Landing';
 import Login from './pages/Login';
 import MyWebsites from './pages/sites/MyWebsites';
 import SiteWizard from './pages/sites/SiteWizard';
+import PreviewSite from './pages/sites/PreviewSite';
 import TraderApp from './trader/TraderApp';
 import Network from './pages/Network';
 import Billing from './pages/Billing';
@@ -57,6 +58,7 @@ export default function App() {
       <Route path="/" element={<Login />} />
       <Route path="/about" element={<Landing />} />
       <Route path="/callback" element={<Callback />} />
+      <Route path="/preview/:id/*" element={<PreviewSite />} />
       {/* Logged-in area: sidebar + auth guard */}
       <Route element={<AppShell />}>
         <Route path="/app" element={<Dashboard />} />

@@ -25,7 +25,7 @@ function describe(spec: BotSpec) {
 
 /** Published Bot Forge bots — Deriv runs them server-side on the client's own account. */
 export default function QuickBot() {
-  const { bots, runner } = useTrader();
+  const { bots, runner, preview } = useTrader();
   const auth = useAuth();
   const [error, setError] = useState('');
   const account = auth.account;
@@ -70,11 +70,11 @@ export default function QuickBot() {
                   <div><dt>Max trades</dt><dd className="mono">{p.max_contracts}</dd></div>
                 </dl>
                 <span className="hint">{d.after}</span>
-                <button className="btn btn-primary" disabled={runner.conn !== 'ready' || runner.launch.phase === 'starting'} onClick={() => run(bot)}>
-                  <Icon.Chip /> {mine?.phase === 'starting' ? 'Starting…' : `Run on ${account?.isVirtual ? 'demo' : 'real'}`}
+                <button className="btn btn-primary" disabled={preview || runner.conn !== 'ready' || runner.launch.phase === 'starting'} onClick={() => run(bot)}>
+                  <Icon.Chip /> {preview ? 'Clients press Run here' : mine?.phase === 'starting' ? 'Starting…' : `Run on ${account?.isVirtual ? 'demo' : 'real'}`}
                 </button>
                 <div aria-live="polite">
-                  {runner.conn === 'connecting' && <span className="hint"><span className="spinner" />Connecting to your account…</span>}
+                  {!preview && runner.conn === 'connecting' && <span className="hint"><span className="spinner" />Connecting to your account…</span>}
                   {mine?.phase === 'error' && <p className="error" role="alert">{mine.message}</p>}
                   {mine?.phase === 'running' && runner.runs[mine.runId] && (
                     <RunCard run={runner.runs[mine.runId]} currency={currency} compact

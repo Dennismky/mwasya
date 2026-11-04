@@ -96,6 +96,7 @@ export default function MyWebsites() {
                     {menu === s.id && (
                       <div className="tp-menu" role="menu">
                         <button role="menuitem" onClick={() => navigate(`/sites/${s.id}`)}><Icon.Gear /> Edit</button>
+                        <a role="menuitem" className="menu-link" href={`/preview/${s.id}`} target="_blank" rel="noreferrer"><Icon.Users /> Preview as client</a>
                         {s.status === 'live' && <a role="menuitem" className="menu-link" href={s.url} target="_blank" rel="noreferrer"><Icon.Globe /> Open site</a>}
                         {s.status !== 'live'
                           ? <button role="menuitem" onClick={() => act(s, 'publish')}><Icon.Arrow /> Publish</button>

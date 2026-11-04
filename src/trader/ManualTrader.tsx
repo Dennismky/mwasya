@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { useAuth } from '../lib/auth';
-import { accountSocket, type DerivSocket } from '../lib/derivWs';
+import { PREVIEW_ACCOUNT_ID, useAuth } from '../lib/auth';
+import { accountSocket, publicSocket, type DerivSocket } from '../lib/derivWs';
 import { TickChart, type ChartLine } from './TickChart';
 import { SYMBOLS, decimalsOf, symbolName, useTicks } from './ticks';
 
@@ -30,6 +30,7 @@ export default function ManualTrader() {
   const auth = useAuth();
   const account = auth.account;
   const currency = account?.currency ?? 'USD';
+  const isPreview = account?.id === PREVIEW_ACCOUNT_ID;
   const [symbol, setSymbol] = useState('1HZ100V');
   const [kind, setKind] = useState<Kind>('risefall');
   const [stake, setStake] = useState('10');
@@ -51,7 +52,8 @@ export default function ManualTrader() {
   // Private trading socket for the selected account.
   useEffect(() => {
     if (!account?.id) return;
-    const s = accountSocket(account.id);
+    // Preview has no client login: quote prices on Deriv's public feed, trading stays off.
+    const s = account.id === PREVIEW_ACCOUNT_ID ? publicSocket() : accountSocket(account.id);
     ws.current = s;
     const w = watchers.current;
     return () => { w.forEach((u) => u()); w.clear(); s.close(); ws.current = null; };
@@ -200,7 +202,7 @@ export default function ManualTrader() {
             {SIDES[kind].map((side) => {
               const q = quotes[side.type];
               return (
-                <button key={side.type} className={`buy-btn ${side.tone}`} disabled={!q?.id || buying !== null || !!(kind === 'accu' && open?.type === 'ACCU')} onClick={() => buy(side.type)}>
+                <button key={side.type} className={`buy-btn ${side.tone}`} disabled={isPreview || !q?.id || buying !== null || !!(kind === 'accu' && open?.type === 'ACCU')} onClick={() => buy(side.type)}>
                   <span>{buying === side.type ? 'Buying…' : side.label}{(kind === 'overunder' || kind === 'matchdiff') ? ` ${side.type === 'DIGITUNDER' ? Math.max(1, digit) : side.type === 'DIGITOVER' ? Math.min(8, digit) : digit}` : ''}</span>
                   <span className="mono">{q?.error ? '—' : q ? (kind === 'accu' ? `${q.ask.toFixed(2)} ${currency}` : `Payout ${q.payout.toFixed(2)}`) : '…'}</span>
                 </button>

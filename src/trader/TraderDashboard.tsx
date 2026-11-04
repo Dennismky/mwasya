@@ -4,12 +4,12 @@ import { useAuth } from '../lib/auth';
 import { useTrader } from './TraderApp';
 
 const TILES = [
-  { to: '/app/quick-bot', label: 'Quick Bot', icon: <Icon.Chip />, text: 'Ready-made bots', f: 'bots' },
-  { to: '/app/free-bots', label: 'Free Bots', icon: <Icon.Code />, text: 'Deriv Bot XML files', f: 'freebots' },
-  { to: '/app/manual', label: 'Manual Trader', icon: <Icon.Window />, text: 'Trade by hand', f: 'manual' },
-  { to: '/app/charts', label: 'Charts', icon: <Icon.Chart />, text: 'Live prices', f: 'charts' },
-  { to: '/app/analysis', label: 'Analysis Tools', icon: <Icon.Help />, text: 'Digit statistics', f: 'analysis' },
-  { to: '/app/risk', label: 'Risk Calculator', icon: <Icon.Card />, text: 'Plan your stakes', f: 'risk' },
+  { to: '/quick-bot', label: 'Quick Bot', icon: <Icon.Chip />, text: 'Ready-made bots', f: 'bots' },
+  { to: '/free-bots', label: 'Free Bots', icon: <Icon.Code />, text: 'Deriv Bot XML files', f: 'freebots' },
+  { to: '/manual', label: 'Manual Trader', icon: <Icon.Window />, text: 'Trade by hand', f: 'manual' },
+  { to: '/charts', label: 'Charts', icon: <Icon.Chart />, text: 'Live prices', f: 'charts' },
+  { to: '/analysis', label: 'Analysis Tools', icon: <Icon.Help />, text: 'Digit statistics', f: 'analysis' },
+  { to: '/risk', label: 'Risk Calculator', icon: <Icon.Card />, text: 'Plan your stakes', f: 'risk' },
 ];
 
 const FAQ = [
@@ -20,7 +20,7 @@ const FAQ = [
 ];
 
 export default function TraderDashboard() {
-  const { site, bots, xmlBots } = useTrader();
+  const { site, bots, xmlBots, base } = useTrader();
   const auth = useAuth();
   const has = (f: string) => !site.features?.length || site.features.includes(f);
   return (
@@ -30,7 +30,7 @@ export default function TraderDashboard() {
         <p>{site.tagline || 'Pick a ready-made bot, trade by hand, or study the market first. Everything runs on your own Deriv account.'}</p>
         <div className="tp-tiles">
           {TILES.filter((t) => has(t.f)).map((t) => (
-            <Link key={t.to} to={t.to} className="tp-tile">
+            <Link key={t.to} to={base + t.to} className="tp-tile">
               <span className="tp-tile-icon">{t.icon}</span>
               <b>{t.label}</b>
               <span className="hint">{t.text}</span>
@@ -47,7 +47,7 @@ export default function TraderDashboard() {
           <b>Get started</b>
           <ol className="hint" style={{ margin: 0, paddingLeft: 18, lineHeight: 1.8 }}>
             <li>Switch to your <b>Demo</b> account.</li>
-            <li>Open <Link to="/app/quick-bot">Quick Bot</Link> and run a bot.</li>
+            <li>Open <Link to={`${base}/quick-bot`}>Quick Bot</Link> and run a bot.</li>
             <li>Watch the results, then decide on real money.</li>
           </ol>
         </section>

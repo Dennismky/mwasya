@@ -448,3 +448,6 @@ textarea.input { resize: vertical; font-family: inherit; }
 .ready-todo .ready-icon { background: var(--danger-tint); color: var(--danger); }
 .ready-fix { padding: 6px 12px; flex: none; }
 .wiz .ready-ok .ready-icon { background: rgba(16, 185, 129, .2); color: #34D399; }
+
+.tp-preview { margin-bottom: 14px; padding: 10px 14px; border-radius: 8px; background: var(--primary-tint); border: 1px solid #C9D6F5; color: var(--navy); font-size: 14px; }
+[data-theme="dark"] .tp-preview { color: #E6ECF5; }
