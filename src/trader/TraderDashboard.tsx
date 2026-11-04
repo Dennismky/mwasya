@@ -9,14 +9,14 @@ const TILES = [
   { to: '/manual', label: 'Manual Trader', icon: <Icon.Window />, text: 'Trade by hand', f: 'manual' },
   { to: '/charts', label: 'Charts', icon: <Icon.Chart />, text: 'Live prices', f: 'charts' },
   { to: '/analysis', label: 'Analysis Tools', icon: <Icon.Help />, text: 'Digit statistics', f: 'analysis' },
-  { to: '/risk', label: 'Risk Calculator', icon: <Icon.Card />, text: 'Plan your stakes', f: 'risk' },
+  { to: '/risk', label: 'Daily Plan', icon: <Icon.Card />, text: 'Target, stop loss and stake', f: 'risk' },
 ];
 
 const TIPS_OF_DAY = [
   'Practise a new bot on Demo first. Switch accounts in the top bar.',
   'Set a stop loss you are comfortable losing before you press Run.',
   'A run stops at its take profit too. Taking profit is part of the plan.',
-  'Doubling after losses can empty a balance fast. Check the Risk Calculator.',
+  'Doubling after losses can empty a balance fast. Set a Daily Plan first.',
   'Small, steady stakes last longer than big ones.',
   'Use Reports to review every trade, not just the wins.',
   'Digit stats describe the past only. Each tick is random.',

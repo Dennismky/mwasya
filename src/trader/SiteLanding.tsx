@@ -13,7 +13,7 @@ const FEATURE_CARDS: { f: string; title: string; text: string; icon: ReactNode }
   { f: 'manual', title: 'Trade by hand', text: 'Rise/Fall, Digits, Accumulators, Multipliers and more, on a live chart.', icon: <Icon.Window /> },
   { f: 'charts', title: 'Live charts', text: 'Every synthetic index, streaming tick by tick.', icon: <Icon.Chart /> },
   { f: 'analysis', title: 'Analysis tools', text: 'Last-digit stats, even/odd and over/under at a glance.', icon: <Icon.Help /> },
-  { f: 'risk', title: 'Risk calculator', text: 'See how far a losing streak can go before you trade.', icon: <Icon.Shield /> },
+  { f: 'risk', title: 'Daily plan', text: 'Set a daily target and stop loss, get the right stake.', icon: <Icon.Shield /> },
 ];
 
 /** `/` on a trading site: public welcome page. Logged-in clients go straight to the platform. */

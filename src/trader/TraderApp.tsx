@@ -40,7 +40,7 @@ const TABS: { to: string; label: string; short: string; icon: ReactNode; end?: b
   { to: '/free-bots', label: 'Free Bots', short: 'Free Bots', icon: <Icon.Code />, feature: 'freebots' },
   { to: '/charts', label: 'Charts', short: 'Charts', icon: <Icon.Chart />, feature: 'charts' },
   { to: '/analysis', label: 'Analysis Tools', short: 'Analysis', icon: <Icon.Help />, feature: 'analysis' },
-  { to: '/risk', label: 'Risk Calculator', short: 'Risk', icon: <Icon.Gear />, feature: 'risk' },
+  { to: '/risk', label: 'Daily Plan', short: 'Plan', icon: <Icon.Gear />, feature: 'risk' },
 ];
 
 /** `/app/*` on <brand>.mwasya.site — the client trading platform. */

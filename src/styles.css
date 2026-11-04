@@ -870,3 +870,28 @@ html, body { overflow-x: clip; }
   .wiz-addr > span:first-child { display: none; }
   .wiz-addr input { width: auto; max-width: none; }
 }
+
+/* =================== Daily Plan =================== */
+.dp-plans { flex-wrap: wrap; }
+.dp-plans button { flex: 1 1 120px; display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 10px 8px; }
+.dp-plans small { font-size: 12px; opacity: .7; font-weight: 600; }
+.dp-tiles { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px; }
+.dp-tile { display: flex; flex-direction: column; gap: 6px; padding: 18px; }
+.dp-tile small { font-size: 12px; font-weight: 700; letter-spacing: .06em; color: var(--muted); }
+.dp-tile b { font-size: 28px; color: var(--navy); }
+.dp-tile span { font-size: 13px; color: var(--muted); }
+.dp-win b { color: var(--success); } .dp-loss b { color: var(--danger); }
+.tp-dark .dp-tile b { color: #fff; } .tp-dark .dp-win b { color: #2BD4A0; } .tp-dark .dp-loss b { color: #FF6B6F; }
+.dp-bar { position: relative; display: flex; height: 14px; border-radius: 99px; overflow: hidden; gap: 3px; }
+.dp-bar-loss { background: linear-gradient(90deg, #E5484D, #F5A3A5); transform-origin: 100% 50%; animation: dp-grow .7s cubic-bezier(.2, .7, .2, 1) both; }
+.dp-bar-win { background: linear-gradient(90deg, #8FE3C6, #12A07A); transform-origin: 0 50%; animation: dp-grow .7s cubic-bezier(.2, .7, .2, 1) both; }
+.dp-bar i { position: absolute; top: -3px; bottom: -3px; width: 4px; margin-left: -2px; border-radius: 4px; background: var(--navy); box-shadow: 0 0 0 2px var(--bg); }
+@keyframes dp-grow { from { transform: scaleX(0); } }
+.dp-scale { display: flex; justify-content: space-between; font-size: 13px; color: var(--muted); }
+.dp-steps { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 10px; }
+.dp-steps li { display: flex; align-items: center; gap: 12px; padding: 12px 14px; border-radius: 12px; background: var(--bg); border: 1px solid var(--tp-line, var(--border)); }
+.dp-steps li > span { flex: none; width: 26px; height: 26px; border-radius: 50%; display: grid; place-items: center; color: #fff; font-weight: 800; font-size: 13px;
+  background: linear-gradient(135deg, var(--accent, var(--primary)), color-mix(in srgb, var(--accent, var(--primary)) 60%, #0B1F3A)); }
+.dp-apply { align-self: flex-start; padding: 13px 22px; }
+@media (max-width: 900px) { .dp-tiles { grid-template-columns: repeat(2, minmax(0, 1fr)); } .dp-tile b { font-size: 22px; } }
+@media (max-width: 600px) { .dp-apply { align-self: stretch; } }

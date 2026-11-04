@@ -16,7 +16,7 @@ export const SITE_FEATURES = [
   { id: 'manual', label: 'Trade by hand', text: 'Manual Trader with live chart' },
   { id: 'charts', label: 'Live prices', text: 'Charts and the price ticker' },
   { id: 'analysis', label: 'Analysis tools', text: 'Last-digit statistics' },
-  { id: 'risk', label: 'Risk calculator', text: 'Plan stakes and limits' },
+  { id: 'risk', label: 'Daily plan', text: 'Daily target, stop loss and stake' },
   { id: 'learn', label: 'Learn', text: 'Getting-started guide and FAQ' },
   { id: 'deposit', label: 'Deposit button', text: 'Opens the Deriv cashier' },
 ] as const;
