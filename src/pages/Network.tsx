@@ -7,8 +7,11 @@ interface Person {
   site_name: string | null; subdomain: string | null; site_status: string | null;
   parent_site: string | null; parent_subdomain: string | null; accounts: string | null;
   bots_published: number; direct_children: number;
+  markup_30d: number | null; earnings_at: string | null; custom_domain: string | null;
 }
-interface Summary { people: number; sites: number; suspended: number; paying: number }
+interface Summary { people: number; sites: number; suspended: number; paying: number; markup_30d: number }
+const usd = (n: number) => `$${n.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+const ago = (s: string) => { const h = Math.round((Date.now() - new Date(s).getTime()) / 36e5); return h < 1 ? 'just now' : h < 48 ? `${h}h ago` : `${Math.round(h / 24)}d ago`; };
 interface Invite { code: string; max_uses: number; uses: number; revoked: boolean; expires_at: string; created_at: string }
 interface Detail {
   person: Person & { phone: string | null; deriv_app_id: string | null; markup: string | null };
@@ -16,6 +19,7 @@ interface Detail {
   bots: { id: string; name: string; risk: string; status: string; updated_at: string }[];
   payments: { id: string; amount: number; status: string; mpesa_receipt: string | null; phone: string; created_at: string }[];
   history: { action: string; meta: Record<string, unknown>; created_at: string }[];
+  earnings: { markup_30d: number; volume_30d: number; contracts_30d: number; clients_30d: number; fetched_at: string } | null;
 }
 
 const fmtDate = (s: string | null) => (s ? new Date(s).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' }) : '—');
@@ -78,6 +82,7 @@ export default function Network() {
       <div className="grid" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(170px, 1fr))' }}>
         <Stat label="PEOPLE" value={data?.summary.people} />
         <Stat label="SITES" value={data?.summary.sites} />
+        <Stat label="NETWORK MARKUP · 30 DAYS" text={data ? usd(data.summary.markup_30d ?? 0) : undefined} />
         {(billing?.priceKes ?? 0) > 0 && <Stat label="PAID ACCESS" value={data?.summary.paying} />}
         <Stat label="SUSPENDED" value={data?.summary.suspended} />
       </div>
@@ -107,17 +112,18 @@ export default function Network() {
         <div style={{ overflowX: 'auto', opacity: loading ? 0.6 : 1, transition: 'opacity .15s' }} aria-busy={loading}>
           <table className="table">
             <thead>
-              <tr><th>Site</th><th>Deriv accounts</th><th>Invited by</th><th>Under them</th><th>Bots</th>{(billing?.priceKes ?? 0) > 0 && <th>Access until</th>}<th>Joined</th><th>Status</th></tr>
+              <tr><th>Site</th><th>Deriv accounts</th><th>Invited by</th><th>Markup · 30d</th><th>Under them</th><th>Bots</th>{(billing?.priceKes ?? 0) > 0 && <th>Access until</th>}<th>Joined</th><th>Status</th></tr>
             </thead>
             <tbody>
               {data?.people.map((p) => (
                 <tr key={p.id} onClick={() => setSelected(p.id)} style={{ cursor: 'pointer', background: selected === p.id ? 'var(--primary-tint)' : undefined }}>
                   <td>
                     <b>{p.site_name ?? <span className="muted">No site yet</span>}</b>
-                    {p.subdomain && <div className="hint mono">{p.subdomain}.mwasya.site</div>}
+                    {p.subdomain && <div className="hint mono">{p.custom_domain ?? `${p.subdomain}.mwasya.site`}</div>}
                   </td>
                   <td className="mono hint">{p.accounts ?? '—'}</td>
                   <td className="hint">{p.depth === 1 ? (isOwner ? 'You' : 'You') : (p.parent_site ?? '—')}</td>
+                  <td className="mono" title={p.earnings_at ? `Updated ${ago(p.earnings_at)}` : "Not connected yet"}>{p.markup_30d === null ? <span className="hint">—</span> : <b style={{ color: "var(--success)" }}>{usd(p.markup_30d)}</b>}{p.earnings_at && <div className="hint" style={{ fontSize: 11 }}>{ago(p.earnings_at)}</div>}</td>
                   <td className="mono">{p.direct_children}</td>
                   <td className="mono">{p.bots_published}</td>
                   {(billing?.priceKes ?? 0) > 0 && <td className="hint">{p.paid_until && new Date(p.paid_until) > new Date() ? fmtDate(p.paid_until) : <span className="error">Expired</span>}</td>}
@@ -126,7 +132,7 @@ export default function Network() {
                 </tr>
               ))}
               {data && data.people.length === 0 && (
-                <tr><td colSpan={8} className="muted" style={{ textAlign: 'center', padding: 28 }}>{query || status ? 'Nobody matches.' : 'Nobody yet. Share an invite link to grow your network.'}</td></tr>
+                <tr><td colSpan={9} className="muted" style={{ textAlign: 'center', padding: 28 }}>{query || status ? 'Nobody matches.' : 'Nobody yet. Share an invite link to grow your network.'}</td></tr>
               )}
             </tbody>
           </table>
@@ -147,11 +153,11 @@ export default function Network() {
   );
 }
 
-function Stat({ label, value }: { label: string; value: number | undefined }) {
+function Stat({ label, value, text }: { label: string; value?: number; text?: string }) {
   return (
     <section className="card stack" style={{ gap: 6, padding: 20 }}>
       <span className="hint" style={{ fontWeight: 600 }}>{label}</span>
-      <b className="mono" style={{ fontSize: 28 }}>{value ?? '—'}</b>
+      <b className="mono" style={{ fontSize: 28, color: text ? 'var(--success)' : undefined }}>{text ?? value ?? '—'}</b>
     </section>
   );
 }
@@ -284,6 +290,8 @@ function PersonPanel({ id, isOwner, onClose, onChanged }: { id: string; isOwner:
       {!d ? <p className="muted"><span className="spinner" />Loading…</p> : (
         <>
           <div className="grid" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 12 }}>
+            <Fact k="Markup · 30 days" v={d.earnings ? `${usd(Number(d.earnings.markup_30d))} · ${d.earnings.contracts_30d} trades · ${d.earnings.clients_30d} clients` : "Not connected yet"} />
+            {d.earnings && <Fact k="Earnings updated" v={ago(d.earnings.fetched_at)} />}
             <Fact k="Status" v={p!.status} />
             <Fact k="Invited by" v={p!.parent_site ?? 'You'} />
             <Fact k="Joined" v={fmtDate(p!.created_at)} />

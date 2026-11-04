@@ -41,11 +41,14 @@ export async function startLogin(opts: { signup?: boolean; returnTo?: string; wi
   sessionStorage.setItem(KEY_VERIFIER, verifier);
   sessionStorage.setItem(KEY_RETURN, opts.returnTo ?? '/app');
 
+  // Studio logins also read the mentor's markup stats once the platform has enabled it (see DERIV_EARNINGS_SCOPE).
+  const tenant = await loadTenant();
+  const studioEarnings = tenant.kind === 'platform' && tenant.earningsScope === true;
   const params = new URLSearchParams({
     response_type: 'code',
     client_id: await appId(),
     redirect_uri: redirectUri(),
-    scope: (opts.withEarnings ? [...SCOPES, 'application_read'] : SCOPES).join(' '),
+    scope: (opts.withEarnings || studioEarnings ? [...SCOPES, 'application_read'] : SCOPES).join(' '),
     state,
     code_challenge: challenge,
     code_challenge_method: 'S256',

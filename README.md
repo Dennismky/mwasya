@@ -139,6 +139,19 @@ Then register a Deriv app at https://developers.deriv.com with the **trade** sco
 | `MPESA_PARTY_B` | server | Till number when `MPESA_TYPE=till`; leave empty for a Paybill |
 | `MPESA_CALLBACK_KEY` | server | Long random string. Safaricom calls us back with it, and anything without it is rejected |
 
+| `VERCEL_TOKEN` | server | Vercel access token (scope: this team) so mentors can connect their own domains |
+| `VERCEL_PROJECT_ID` / `VERCEL_TEAM_ID` | server | Values from `.vercel/project.json` (`projectId`, `orgId`) |
+| `DERIV_EARNINGS_SCOPE` | server | `1` once `application_read` is enabled on Mwasya's Deriv app. Studio logins then also read each mentor's markup, so the owner sees every mentor's commission |
+
+### Turning on custom domains and commission tracking
+```bash
+vercel env add VERCEL_TOKEN production --sensitive      # create at vercel.com/account/settings/tokens (scope: your team)
+vercel env add VERCEL_PROJECT_ID production             # projectId from .vercel/project.json
+vercel env add VERCEL_TEAM_ID production                # orgId from .vercel/project.json
+vercel env add DERIV_EARNINGS_SCOPE production          # 1  (only after enabling application_read on the Deriv app)
+vercel deploy --prod
+```
+
 ### Turning on M-Pesa payments (copy-paste, then paste each value when asked)
 ```bash
 vercel env add PUBLIC_BASE_URL production        # https://mwasya.site

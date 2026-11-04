@@ -179,3 +179,22 @@ alter table operators add column if not exists language text not null default 'e
 
 -- Owner support contacts shown on everyone's Support page.
 insert into settings (key, value) values ('support', '{"whatsapp": "", "telegram": "", "email": ""}') on conflict (key) do nothing;
+
+-- ---------- Custom domains + commission snapshots ----------
+
+-- A mentor's trading site can also live on their own domain (e.g. trade.theirbrand.com).
+alter table sites add column if not exists custom_domain text unique check (custom_domain is null or custom_domain ~ '^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?(\.[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?)+$');
+alter table sites add column if not exists domain_status text not null default 'none' check (domain_status in ('none', 'pending', 'verified', 'error'));
+alter table sites add column if not exists domain_checked_at timestamptz;
+
+-- Latest markup figures per mentor (from Deriv markup-statistics with the mentor's own token).
+-- Lets the owner (and uplines) see each mentor's commission without holding their tokens.
+create table if not exists operator_earnings (
+  operator_id   uuid primary key references operators(id) on delete cascade,
+  markup_30d    numeric not null default 0,
+  volume_30d    numeric not null default 0,
+  contracts_30d integer not null default 0,
+  clients_30d   integer not null default 0,
+  breakdown     jsonb not null default '[]',
+  fetched_at    timestamptz not null default now()
+);

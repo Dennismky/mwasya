@@ -19,8 +19,10 @@ export interface SiteRow {
   deriv_app_id: string;
   markup: string;
   status: 'live' | 'paused';
+  custom_domain: string | null;
+  domain_status: 'none' | 'pending' | 'verified' | 'error';
 }
-export const SITE_COLUMNS = 'id, operator_id, name, subdomain, accent, theme, deriv_app_id, markup, status';
+export const SITE_COLUMNS = 'id, operator_id, name, subdomain, accent, theme, deriv_app_id, markup, status, custom_domain, domain_status';
 
 export function requestHost(req: VercelRequest): string {
   const raw = String(req.headers['x-forwarded-host'] ?? req.headers.host ?? '').split(',')[0].trim().toLowerCase();
@@ -29,19 +31,35 @@ export function requestHost(req: VercelRequest): string {
 
 export type Tenant = { kind: 'platform'; host: string } | { kind: 'site'; host: string; site: SiteRow } | { kind: 'unknown'; host: string };
 
+/** Hosts that serve the mentor studio itself. */
+export function isPlatformHost(host: string): boolean {
+  return host === ROOT_DOMAIN || host === `www.${ROOT_DOMAIN}` || host === 'localhost' || host === '127.0.0.1' || host.endsWith('.vercel.app');
+}
+
+// Served only while the operator is active and has access (owner, free pricing, or paid_until in the future).
+const LIVE_SITE = `
+  from sites s join operators o on o.id = s.operator_id
+ where s.status = 'live' and o.status = 'active'
+   and (o.role = 'owner' or o.paid_until > now()
+        or coalesce((select (value->>'price_kes')::numeric from settings where key = 'billing'), 0) <= 0)`;
+const S_COLS = SITE_COLUMNS.split(', ').map((c) => 's.' + c).join(', ');
+
 export async function resolveTenant(req: VercelRequest): Promise<Tenant> {
   const host = requestHost(req);
-  const sub = host.endsWith(`.${ROOT_DOMAIN}`) ? host.slice(0, -(ROOT_DOMAIN.length + 1)) : null;
-  if (!sub || sub === 'www' || sub.includes('.')) return { kind: 'platform', host };
+  if (isPlatformHost(host)) return { kind: 'platform', host };
   if (!process.env.DATABASE_URL) return { kind: 'unknown', host };
-  // Served only while the operator is active and has access (owner, free pricing, or paid_until in the future).
+
+  // <sub>.mwasya.site
+  if (host.endsWith(`.${ROOT_DOMAIN}`)) {
+    const sub = host.slice(0, -(ROOT_DOMAIN.length + 1));
+    if (sub.includes('.')) return { kind: 'unknown', host };
+    const [site] = await query<SiteRow>(`select ${S_COLS} ${LIVE_SITE} and s.subdomain = $1`, [sub]);
+    return site ? { kind: 'site', host, site } : { kind: 'unknown', host };
+  }
+
+  // A mentor's own domain (e.g. statefx.pro or trade.brand.com). www.<domain> maps to the same site.
+  const bare = host.startsWith('www.') ? host.slice(4) : host;
   const [site] = await query<SiteRow>(
-    `select ${SITE_COLUMNS.split(', ').map((c) => 's.' + c).join(', ')}
-       from sites s join operators o on o.id = s.operator_id
-      where s.subdomain = $1 and s.status = 'live' and o.status = 'active'
-        and (o.role = 'owner' or o.paid_until > now()
-             or coalesce((select (value->>'price_kes')::numeric from settings where key = 'billing'), 0) <= 0)`,
-    [sub],
-  );
+    `select ${S_COLS} ${LIVE_SITE} and s.custom_domain in ($1, $2) and s.domain_status <> 'none' limit 1`, [host, bare]);
   return site ? { kind: 'site', host, site } : { kind: 'unknown', host };
 }

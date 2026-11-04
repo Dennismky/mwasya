@@ -192,38 +192,12 @@ export default function Setup() {
 
             {step === 3 && (
               <>
-                <Heading title="Choose your address" sub="Go live on your free subdomain now. You can connect your own domain at any time." />
-                <div className="grid" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 14 }}>
-                  {(['sub', 'custom'] as const).map((m) => {
-                    const on = site.domainMode === m;
-                    return (
-                      <button key={m} type="button" aria-pressed={on} disabled={m === 'custom'} onClick={() => site.update({ domainMode: m })} className="stack"
-                        style={{ alignItems: 'flex-start', gap: 6, padding: 18, borderRadius: 10, cursor: 'pointer', font: 'inherit', color: 'var(--text)', textAlign: 'left',
-                          border: `1px solid ${on ? 'var(--primary)' : 'var(--border)'}`, background: on ? 'var(--primary-tint)' : '#fff', boxShadow: on ? '0 0 0 3px rgba(31,79,209,0.18)' : 'none' }}>
-                        <b>{m === 'sub' ? 'Free subdomain' : 'My own domain'}</b>
-                        <span className={m === 'sub' ? 'mono hint' : 'hint'}>{m === 'sub' ? `${site.subdomain}.mwasya.site` : 'Coming soon'}</span>
-                      </button>
-                    );
-                  })}
+                <Heading title="Choose your address" sub="Your site always works on your free mwasya.site address. You can also put it on your own domain, like statefx.pro." />
+                <div className="stack" style={{ gap: 6, padding: 16, borderRadius: 10, border: '1px solid var(--border)' }}>
+                  <b>Free address</b>
+                  <span className="mono hint">https://{site.subdomain || 'yourbrand'}.mwasya.site</span>
                 </div>
-                {site.domainMode === 'custom' && (
-                  <div className="stack" style={{ gap: 14 }}>
-                    <div className="field">
-                      <label className="label" htmlFor="dom">Your domain</label>
-                      <input id="dom" className="input mono" placeholder="trade.yourbrand.com" value={site.customDomain}
-                        onChange={(e) => site.update({ customDomain: e.target.value.trim().toLowerCase() })} />
-                    </div>
-                    <div style={{ border: '1px solid var(--border)', borderRadius: 10, overflowX: 'auto' }}>
-                      <table className="table">
-                        <thead><tr><th>Type</th><th>Name</th><th>Value</th></tr></thead>
-                        <tbody className="mono">
-                          <tr><td>CNAME</td><td>{site.customDomain || 'your domain'}</td><td>sites.mwasya.site</td></tr>
-                          <tr><td>TXT</td><td>_mwasya-verify</td><td>mw-verify-[CODE]</td></tr>
-                        </tbody>
-                      </table>
-                    </div>
-                  </div>
-                )}
+                {live ? <CustomDomain /> : <p className="hint">Publish your site first. Then come back here to connect your own domain.</p>}
               </>
             )}
 
@@ -276,6 +250,89 @@ function Preview({ domain }: { domain: string }) {
         <span style={{ alignSelf: 'flex-start', padding: '11px 18px', borderRadius: 8, background: site.accent, color: '#fff', fontWeight: 600 }}>Log in with Deriv</span>
         <span style={{ fontSize: 12, opacity: 0.8 }}>Markup {site.markup.toFixed(1)}% · App ID {site.derivAppId || '—'}</span>
       </div>
+    </div>
+  );
+}
+
+interface DnsRecord { type: string; name: string; value: string; why: string }
+interface DomainInfo { domain: string | null; status: 'none' | 'pending' | 'verified' | 'error'; records?: DnsRecord[]; error?: string }
+
+/** Connect the mentor's own domain (e.g. statefx.pro): we attach it on Vercel and show the DNS records to set. */
+function CustomDomain() {
+  const [info, setInfo] = useState<DomainInfo | null>(null);
+  const [input, setInput] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [msg, setMsg] = useState('');
+
+  const handle = async (r: Response) => {
+    const j = await r.json().catch(() => ({}));
+    if (r.status === 204) { setInfo({ domain: null, status: 'none' }); return; }
+    if (r.status === 402) return setMsg('Activate your account in Billing first.');
+    if (!r.ok) return setMsg(typeof j.error === 'string' && j.error !== 'server_error' ? j.error : 'Something went wrong. Try again.');
+    setInfo(j);
+  };
+  const check = async () => { setBusy(true); setMsg(''); await handle(await fetch('/api/sites/mine?action=domain', { credentials: 'same-origin' })); setBusy(false); };
+  useEffect(() => { void check(); }, []);
+
+  const connect = async () => {
+    setBusy(true); setMsg('');
+    await handle(await fetch('/api/sites/mine?action=domain', { method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'same-origin', body: JSON.stringify({ domain: input }) }));
+    setBusy(false);
+  };
+  const remove = async () => {
+    if (!confirm('Disconnect this domain? Your site stays on its mwasya.site address.')) return;
+    setBusy(true);
+    await handle(await fetch('/api/sites/mine?action=domain', { method: 'DELETE', credentials: 'same-origin' }));
+    setBusy(false);
+  };
+
+  const d = info?.domain;
+  return (
+    <div className="stack" style={{ gap: 14, padding: 16, borderRadius: 10, border: '1px solid var(--border)' }}>
+      <b>Your own domain</b>
+      {!d ? (
+        <>
+          <div className="row" style={{ gap: 8 }}>
+            <input className="input mono" style={{ flex: '1 1 240px' }} placeholder="yourbrand.com or trade.yourbrand.com" value={input}
+              onChange={(e) => setInput(e.target.value.trim().toLowerCase())} aria-label="Your domain" />
+            <button className="btn btn-primary" disabled={busy || input.length < 4} onClick={connect}>{busy ? 'Connecting…' : 'Connect'}</button>
+          </div>
+          <span className="hint">Buy the domain anywhere (Namecheap, Truehost, GoDaddy…), then connect it here.</span>
+        </>
+      ) : (
+        <>
+          <div className="row" style={{ gap: 10, alignItems: 'center' }}>
+            <span className="mono" style={{ fontWeight: 700 }}>{d}</span>
+            <span className={`badge ${info?.status === 'verified' ? 'badge-green' : 'badge-blue'}`} style={info?.status === 'error' ? { background: 'var(--danger-tint)', color: 'var(--danger)' } : undefined}>
+              {info?.status === 'verified' ? 'Live' : info?.status === 'error' ? 'Problem' : 'Waiting for DNS'}
+            </span>
+            <span style={{ flex: 1 }} />
+            <button className="btn btn-secondary" disabled={busy} onClick={check}>{busy ? 'Checking…' : 'Check again'}</button>
+            <button className="btn btn-secondary" disabled={busy} onClick={remove}>Disconnect</button>
+          </div>
+          {info?.status === 'verified' ? (
+            <p className="hint">Your trading site is live at <a href={`https://${d}`} target="_blank" rel="noreferrer">https://{d}</a>. HTTPS is automatic.</p>
+          ) : (
+            <>
+              <p className="hint">At your domain provider, open the DNS settings and add {info?.records && info.records.length > 1 ? 'these records' : 'this record'}. Changes can take from a few minutes up to a few hours.</p>
+              <div style={{ border: '1px solid var(--border)', borderRadius: 10, overflowX: 'auto' }}>
+                <table className="table">
+                  <thead><tr><th>Type</th><th>Name / Host</th><th>Value / Points to</th><th /></tr></thead>
+                  <tbody>
+                    {(info?.records ?? []).map((r) => (
+                      <tr key={r.type + r.name + r.value}><td className="mono">{r.type}</td><td className="mono">{r.name}</td><td className="mono" style={{ overflowWrap: 'anywhere' }}>{r.value}</td><td className="hint">{r.why}</td></tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </>
+          )}
+          <div className="notice" style={{ padding: '12px 14px' }}>
+            <span>In your <b>Deriv app</b>, also add the redirect URI <code className="mono">https://{d}/callback</code> so your clients can log in on this domain.</span>
+          </div>
+        </>
+      )}
+      {(msg || info?.error) && <p className="error" role="alert">{msg || info?.error}</p>}
     </div>
   );
 }

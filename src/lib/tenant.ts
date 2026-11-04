@@ -4,7 +4,7 @@ export interface SiteBranding { name: string; subdomain: string; accent: string;
 export interface PublishedBot { id: string; name: string; spec: BotSpec; risk: 'low' | 'medium' | 'high'; updated_at: string }
 
 export type Tenant =
-  | { kind: 'platform'; appId: string | null }
+  | { kind: 'platform'; appId: string | null; earningsScope?: boolean }
   | { kind: 'site'; site: SiteBranding; bots: PublishedBot[]; xmlBots?: { id: string; name: string; description: string }[] }
   | { kind: 'unknown'; host?: string };
 

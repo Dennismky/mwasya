@@ -5,6 +5,7 @@ import { audit, clientIp, getBilling, hasAccess, rateLimit, requireOperator, req
 import { mpesaConfigured, normalizePhone, stkPush, stkQuery, type StkOutcome } from './_lib/mpesa.js';
 import { getSession, noStore, sameOrigin } from './_lib/session.js';
 import { derivFetch } from './_lib/deriv.js';
+import { saveEarnings, type MarkupStats } from './_lib/earnings.js';
 
 /**
  * One function for the operator platform (keeps us under Vercel's function limit and shares one warm DB pool).
@@ -165,11 +166,13 @@ async function network(req: VercelRequest, res: VercelResponse, rest: string) {
               (select string_agg(a.account_id, ', ' order by a.account_type) from operator_accounts a where a.operator_id = o.id) as accounts,
               (select count(*) from bots b where b.operator_id = o.id and b.status = 'published')::int as bots_published,
               (select count(*) from operators c where c.parent_id = o.id)::int as direct_children,
+              e.markup_30d::float as markup_30d, e.fetched_at as earnings_at, s.custom_domain,
               count(*) over ()::int as total
          from tree t
          join operators o on o.id = t.id
          left join sites s on s.operator_id = o.id
          left join sites ps on ps.operator_id = o.parent_id
+         left join operator_earnings e on e.operator_id = o.id
         where t.depth > 0
           and ($2::boolean is false or t.depth = 1)
           and ($3 = '' or o.status = $3)
@@ -179,7 +182,7 @@ async function network(req: VercelRequest, res: VercelResponse, rest: string) {
         limit $5 offset $6`,
       [op.id, direct, status, like, PAGE_SIZE, (page - 1) * PAGE_SIZE],
     );
-    const [summary] = await query<{ people: number; sites: number; suspended: number; paying: number }>(
+    const [summary] = await query<{ people: number; sites: number; suspended: number; paying: number; markup_30d: number }>(
       `with recursive tree as (
          select id, 0 as depth from operators where id = $1
          union all
@@ -188,8 +191,10 @@ async function network(req: VercelRequest, res: VercelResponse, rest: string) {
        select count(*) filter (where t.depth > 0)::int as people,
               count(s.id) filter (where t.depth > 0)::int as sites,
               count(*) filter (where t.depth > 0 and o.status = 'suspended')::int as suspended,
-              count(*) filter (where t.depth > 0 and o.paid_until > now())::int as paying
-         from tree t join operators o on o.id = t.id left join sites s on s.operator_id = o.id`,
+              count(*) filter (where t.depth > 0 and o.paid_until > now())::int as paying,
+              coalesce(sum(e.markup_30d) filter (where t.depth > 0), 0)::float as markup_30d
+         from tree t join operators o on o.id = t.id left join sites s on s.operator_id = o.id
+         left join operator_earnings e on e.operator_id = o.id`,
       [op.id],
     );
     const total = (rows[0] as { total?: number } | undefined)?.total ?? 0;
@@ -215,6 +220,7 @@ async function network(req: VercelRequest, res: VercelResponse, rest: string) {
          from operators o left join sites s on s.operator_id = o.id left join sites ps on ps.operator_id = o.parent_id
         where o.id = $1`, [id, op.role === 'owner'],
     );
+    const [earnings] = await query(`select markup_30d::float, volume_30d::float, contracts_30d, clients_30d, breakdown, fetched_at from operator_earnings where operator_id = $1`, [id]);
     const accounts = await query(`select account_id, account_type, currency, seen_at from operator_accounts where operator_id = $1 order by account_type`, [id]);
     const bots = await query(`select id, name, risk, status, updated_at from bots where operator_id = $1 and status <> 'archived' order by updated_at desc limit 50`, [id]);
     const payments = op.role === 'owner'
@@ -223,7 +229,7 @@ async function network(req: VercelRequest, res: VercelResponse, rest: string) {
     const history = op.role === 'owner'
       ? await query(`select action, meta, created_at from audit_log where target_id = $1 order by created_at desc limit 20`, [id])
       : [];
-    return res.status(200).json({ person, accounts, bots, payments, history });
+    return res.status(200).json({ person, accounts, bots, payments, history, earnings: earnings ?? null });
   }
 
   if (req.method === 'POST') {
@@ -390,7 +396,9 @@ async function commissions(req: VercelRequest, res: VercelResponse) {
   const r = await derivFetch(`/applications/v1/markup-statistics?date_from=${from}&date_to=${to}`, s.accessToken);
   if (r.status === 401 || r.status === 403) return res.status(200).json({ needsScope: true });
   if (!r.ok) return res.status(502).json({ error: 'deriv_error', status: r.status });
-  const j = (await r.json()) as { data?: unknown };
+  const j = (await r.json()) as { data?: MarkupStats };
+  // The default 30-day view doubles as the snapshot the owner/uplines see in Network.
+  if (j.data && !req.query.from && !req.query.to) await saveEarnings(op.id, j.data).catch(() => undefined);
   return res.status(200).json({ from, to, data: j.data ?? null });
 }
 
