@@ -38,7 +38,7 @@ export default function RiskCalculator() {
   return (
     <div className="stack" style={{ gap: 18 }}>
       <h1 style={{ fontSize: 24, fontWeight: 700 }}>Risk Calculator</h1>
-      <section className="card grid" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(170px, 1fr))', gap: 14 }}>
+      <section className="card grid" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(min(170px, 100%), 1fr))', gap: 14 }}>
         {num('Balance', balance, setBalance, 'USD')}
         {num('Starting stake', stake, setStake, 'USD')}
         {num('Payout (profit per win)', payout, setPayout, '%')}
@@ -49,7 +49,7 @@ export default function RiskCalculator() {
 
       {!r ? <p className="error">Enter positive numbers (multiplier at least 1, win chance between 0 and 100).</p> : (
         <>
-          <div className="grid" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))' }}>
+          <div className="grid" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(min(220px, 100%), 1fr))' }}>
             <section className="card stack" style={{ gap: 6 }}>
               <span className="hint" style={{ fontWeight: 600 }}>LOSSES IN A ROW YOU CAN SURVIVE</span>
               <b className="mono" style={{ fontSize: 30 }}>{r.survive}</b>

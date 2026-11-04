@@ -73,7 +73,7 @@ export default function XmlBots() {
           <span>{file ? <b>{file.name} · {kb(file.size)}</b> : <>Drop a <b>.xml</b> file here or <u>browse</u></>}</span>
           <input ref={input} type="file" accept=".xml,application/xml,text/xml" hidden onChange={(e) => pick(e.target.files?.[0] ?? null)} />
         </label>
-        <div className="grid" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: 14 }}>
+        <div className="grid" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(min(240px, 100%), 1fr))', gap: 14 }}>
           <div className="field">
             <label className="label" htmlFor="xname">Name</label>
             <input id="xname" className="input" maxLength={80} value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Over 3 Recovery" />

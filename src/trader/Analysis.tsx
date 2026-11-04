@@ -58,7 +58,7 @@ export default function Analysis() {
         </div>
       </section>
 
-      <div className="grid" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))' }}>
+      <div className="grid" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(min(220px, 100%), 1fr))' }}>
         <Split title="Even / Odd" a={['Even', s.even]} b={['Odd', 100 - s.even]} />
         <Split title="Rise / Fall (tick to tick)" a={['Rise', s.rise]} b={['Fall', 100 - s.rise]} />
         <section className="card stack" style={{ gap: 10 }}>

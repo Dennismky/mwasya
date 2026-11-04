@@ -58,7 +58,7 @@ export default function Support() {
         </div>
       )}
 
-      <div className="grid" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(340px, 1fr))', alignItems: 'start' }}>
+      <div className="grid" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(min(340px, 100%), 1fr))', alignItems: 'start' }}>
         {!isOwner && (
           <section className="card stack" style={{ gap: 14 }}>
             <h2 style={{ fontSize: 18, fontWeight: 600 }}>New ticket</h2>

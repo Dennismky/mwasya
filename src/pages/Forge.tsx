@@ -189,7 +189,7 @@ export default function Forge() {
                   {fieldErr('name') && <span className="error">{fieldErr('name')}</span>}
                 </div>
 
-                <div className="grid" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 16 }}>
+                <div className="grid" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(min(200px, 100%), 1fr))', gap: 16 }}>
                   <div className="field">
                     <label className="label" htmlFor="market">Market</label>
                     <select id="market" className="input" value={spec.contract.underlying_symbol} onChange={(e) => update((s) => { s.contract.underlying_symbol = e.target.value; return s; })}>
@@ -252,7 +252,7 @@ export default function Forge() {
                   </div>
                 </div>
 
-                <div className="grid" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 16 }}>
+                <div className="grid" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(min(200px, 100%), 1fr))', gap: 16 }}>
                   {money('initial_stake', 'Starting stake')}
                   {money('take_profit', 'Take profit', 'Stop once profit reaches this')}
                   {money('stop_loss', 'Stop loss', `Stop once losses reach this (max ${LIMITS.maxStopLoss})`)}

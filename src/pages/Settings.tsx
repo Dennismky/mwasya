@@ -41,7 +41,7 @@ export default function Settings() {
 
       <section className="card stack" style={{ gap: 16 }}>
         <h2 style={{ fontSize: 18, fontWeight: 600 }}>Profile</h2>
-        <div className="grid" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: 14 }}>
+        <div className="grid" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(min(240px, 100%), 1fr))', gap: 14 }}>
           <div className="field">
             <label className="label" htmlFor="dname">Display name</label>
             <input id="dname" className="input" maxLength={60} value={name} onChange={(e) => setName(e.target.value)} placeholder="Your name or business" />
@@ -51,7 +51,7 @@ export default function Settings() {
             <input id="contact" className="input" maxLength={120} value={contact} onChange={(e) => setContact(e.target.value)} placeholder="Shown to the person who invited you" />
           </div>
         </div>
-        <div className="grid" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: 14 }}>
+        <div className="grid" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(min(240px, 100%), 1fr))', gap: 14 }}>
           <div className="field">
             <label className="label" htmlFor="lang">{t('nav.language')}</label>
             <select id="lang" className="input" value={lang} onChange={(e) => setLang(e.target.value as Lang)}>
@@ -106,7 +106,7 @@ function SupportContacts() {
     <section className="card stack" style={{ gap: 14 }}>
       <h2 style={{ fontSize: 18, fontWeight: 600 }}>Support contacts <span className="badge badge-blue">Owner</span></h2>
       <p className="hint">Shown as buttons on everyone's Support page.</p>
-      <div className="grid" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 12 }}>
+      <div className="grid" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(min(200px, 100%), 1fr))', gap: 12 }}>
         <div className="field"><label className="label" htmlFor="wa">WhatsApp number</label><input id="wa" className="input mono" placeholder="2547XXXXXXXX" value={c.whatsapp} onChange={(e) => setC({ ...c, whatsapp: e.target.value })} /></div>
         <div className="field"><label className="label" htmlFor="tg">Telegram username</label><input id="tg" className="input mono" placeholder="@mwasya" value={c.telegram} onChange={(e) => setC({ ...c, telegram: e.target.value })} /></div>
         <div className="field"><label className="label" htmlFor="em">Email</label><input id="em" className="input mono" placeholder="support@mwasya.site" value={c.email} onChange={(e) => setC({ ...c, email: e.target.value })} /></div>
@@ -152,7 +152,7 @@ function DomainSales() {
       <label className="row" style={{ gap: 10, alignItems: 'center' }}>
         <input type="checkbox" checked={cfg.enabled} onChange={(e) => setCfg({ ...cfg, enabled: e.target.checked })} /> <b>Let mentors buy domains</b>
       </label>
-      <div className="grid" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(170px, 1fr))', gap: 12 }}>
+      <div className="grid" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(min(170px, 100%), 1fr))', gap: 12 }}>
         <div className="field"><label className="label" htmlFor="ds-rate">KES per USD</label><input id="ds-rate" className="input mono" inputMode="decimal" value={cfg.kes_per_usd} onChange={(e) => setCfg({ ...cfg, kes_per_usd: Number(e.target.value.replace(/[^\d.]/g, '')) })} /></div>
         <div className="field"><label className="label" htmlFor="ds-margin">Your margin (%)</label><input id="ds-margin" className="input mono" inputMode="decimal" value={cfg.margin_pct} onChange={(e) => setCfg({ ...cfg, margin_pct: Number(e.target.value.replace(/[^\d.]/g, '')) })} /></div>
         <div className="field"><label className="label" htmlFor="ds-max">Max Vercel price (USD)</label><input id="ds-max" className="input mono" inputMode="decimal" value={cfg.max_usd} onChange={(e) => setCfg({ ...cfg, max_usd: Number(e.target.value.replace(/[^\d.]/g, '')) })} /></div>

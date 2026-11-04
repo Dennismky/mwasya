@@ -112,7 +112,7 @@ export default function BuyDomain({ siteId, onConnected }: { siteId: string; onC
           <button className="btn btn-ghost" onClick={() => setPhase({ s: 'search' })}>Change domain</button>
         </div>
         <p className="hint">Domain registries require the owner's name and address. This is you, the domain's owner.</p>
-        <div className="grid" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 12 }}>
+        <div className="grid" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(min(200px, 100%), 1fr))', gap: 12 }}>
           {field('firstName', 'First name', { autoComplete: 'given-name' })}
           {field('lastName', 'Last name', { autoComplete: 'family-name' })}
           {field('email', 'Email', { type: 'email', autoComplete: 'email' })}

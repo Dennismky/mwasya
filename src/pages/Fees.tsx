@@ -66,7 +66,7 @@ export default function Fees() {
 
       {data && (
         <>
-          <div className="grid" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))' }}>
+          <div className="grid" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(min(180px, 100%), 1fr))' }}>
             <Tile label="EXPECTED" value={kes(data.summary.expected)} />
             <Tile label="RECEIVED" value={kes(data.summary.received)} tone="ok" />
             <Tile label="OUTSTANDING" value={kes(data.summary.outstanding)} tone={data.summary.outstanding ? 'bad' : undefined} />
@@ -188,7 +188,7 @@ function SendMoneySettings({ initial, onSaved }: { initial: Data['settings']; on
     <section className="card stack" style={{ gap: 12 }}>
       <b>Where mentors send money</b>
       {!initial.send_money_phone && <p className="error" style={{ margin: 0 }}>Add your M-Pesa number so mentors know where to pay.</p>}
-      <div className="grid" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(190px, 1fr))', gap: 12 }}>
+      <div className="grid" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(min(190px, 100%), 1fr))', gap: 12 }}>
         <div className="field"><label className="label" htmlFor="sm-phone">Your M-Pesa number</label><input id="sm-phone" className="input mono" inputMode="tel" placeholder="0712 345 678" value={phone} onChange={(e) => setPhone(e.target.value)} /></div>
         <div className="field"><label className="label" htmlFor="sm-name">Name shown on M-Pesa</label><input id="sm-name" className="input" placeholder="e.g. DENNIS KYALO" value={name} onChange={(e) => setName(e.target.value)} /></div>
         <div className="field"><label className="label" htmlFor="sm-rate">KES per USD</label><input id="sm-rate" className="input mono" inputMode="decimal" value={rate} onChange={(e) => setRate(e.target.value)} /></div>

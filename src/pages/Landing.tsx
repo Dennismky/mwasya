@@ -58,7 +58,7 @@ export default function Landing() {
 
         {/* Trust strip */}
         <section aria-label="Platform guarantees" style={{ borderBottom: '1px solid var(--border)' }}>
-          <div className="container" style={{ padding: '28px 24px', display: 'grid', gap: 20, gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', fontSize: 14, fontWeight: 600 }}>
+          <div className="container" style={{ padding: '28px 24px', display: 'grid', gap: 20, gridTemplateColumns: 'repeat(auto-fit, minmax(min(220px, 100%), 1fr))', fontSize: 14, fontWeight: 600 }}>
             {[[<Icon.Lock />, 'Official Deriv OAuth sign-in'], [<Icon.Shield />, 'Trade access only'], [<Icon.Key />, 'Secrets encrypted at rest'], [<Icon.Globe />, 'Custom domains with SSL']].map(([icon, text], i) => (
               <span key={i} className="row" style={{ alignItems: 'center', gap: 10 }}><span style={{ color: 'var(--primary)', display: 'flex' }}>{icon}</span>{text}</span>
             ))}
@@ -115,7 +115,7 @@ export default function Landing() {
               <h2 className="h2">Your traders' accounts stay theirs</h2>
               <p style={{ fontSize: 17, lineHeight: 1.6, color: '#C9D3E3' }}>Many bot sites ask traders to paste an API token, and that's how accounts get drained. Mwasya never asks for one.</p>
             </div>
-            <dl style={{ flex: '1 1 520px', margin: 0, display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '28px 32px' }}>
+            <dl style={{ flex: '1 1 520px', margin: 0, display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(240px, 100%), 1fr))', gap: '28px 32px' }}>
               {[
                 ['Deriv OAuth only', 'Traders sign in on Deriv. We never see a password or permanent token.'],
                 ['Least privilege', 'Sites request trade access only. They never get payment or account management.'],

@@ -65,7 +65,7 @@ export default function Commissions() {
       ) : (
         <>
           {error && <p className="error" role="alert">{error}</p>}
-          <div className="grid" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(190px, 1fr))', opacity: loading ? 0.6 : 1 }} aria-busy={loading}>
+          <div className="grid" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(min(190px, 100%), 1fr))', opacity: loading ? 0.6 : 1 }} aria-busy={loading}>
             <Tile label="MARKUP EARNED" value={usd(stats?.total_app_markup_usd)} strong />
             <Tile label="TRADING VOLUME" value={usd(stats?.total_volume_usd)} />
             <Tile label="CONTRACTS" value={(stats?.total_contract_count ?? 0).toLocaleString()} />

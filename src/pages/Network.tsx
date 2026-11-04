@@ -79,7 +79,7 @@ export default function Network() {
         <p className="muted">{isOwner ? 'Everyone with a site on Mwasya. You are the source of the network.' : 'People who joined through your invite links, and everyone they brought in.'}</p>
       </div>
 
-      <div className="grid" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(170px, 1fr))' }}>
+      <div className="grid" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(min(170px, 100%), 1fr))' }}>
         <Stat label="PEOPLE" value={data?.summary.people} />
         <Stat label="SITES" value={data?.summary.sites} />
         <Stat label="NETWORK MARKUP · 30 DAYS" text={data ? usd(data.summary.markup_30d ?? 0) : undefined} />
@@ -87,7 +87,7 @@ export default function Network() {
         <Stat label="SUSPENDED" value={data?.summary.suspended} />
       </div>
 
-      <div className="grid" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(340px, 1fr))', alignItems: 'start' }}>
+      <div className="grid" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(min(340px, 100%), 1fr))', alignItems: 'start' }}>
         <InviteLinks canInvite={!auth.suspended && (billing?.active ?? true)} />
 
       </div>
@@ -289,7 +289,7 @@ function PersonPanel({ id, isOwner, onClose, onChanged }: { id: string; isOwner:
       {error && <p className="error" role="alert">{error}</p>}
       {!d ? <p className="muted"><span className="spinner" />Loading…</p> : (
         <>
-          <div className="grid" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 12 }}>
+          <div className="grid" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(min(200px, 100%), 1fr))', gap: 12 }}>
             <Fact k="Markup · 30 days" v={d.earnings ? `${usd(Number(d.earnings.markup_30d))} · ${d.earnings.contracts_30d} trades · ${d.earnings.clients_30d} clients` : "Not connected yet"} />
             {d.earnings && <Fact k="Earnings updated" v={ago(d.earnings.fetched_at)} />}
             <Fact k="Status" v={p!.status} />

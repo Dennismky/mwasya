@@ -59,7 +59,7 @@ export default function Dashboard() {
         </div>
       )}
 
-      <div className="grid" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))' }}>
+      <div className="grid" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(min(200px, 100%), 1fr))' }}>
         <Tile label="MARKUP · 30 DAYS" value={earned === 'connect' ? undefined : earned === null ? '—' : usd(earned)} action={earned === 'connect' ? <Link to="/commissions" className="hint">Connect earnings →</Link> : <Link to="/commissions" className="hint">View commissions →</Link>} strong />
         <Tile label="MENTORS UNDER YOU" value={network ? String(network.people) : '—'} action={<Link to="/network" className="hint">Open network →</Link>} />
         <Tile label="YOUR SITES" value={String(siteCount)} action={<Link to="/sites" className="hint">My websites →</Link>} />
