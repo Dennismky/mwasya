@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
+import { toast } from '../components/motion';
 
 interface Row {
   operator_id: string; fee_mode: 'fixed' | 'percent' | 'none'; fee_kes: number; fee_pct: number; operator_status: string; phone: string | null;
@@ -41,7 +42,7 @@ export default function Fees() {
   const issue = async (r: Row) => {
     const res = await fetch('/api/dues/issue', { method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'same-origin', body: JSON.stringify({ operatorId: r.operator_id }) });
     const j = await res.json().catch(() => ({}));
-    if (!res.ok) alert(j.error ?? 'Could not issue the fee.');
+    if (!res.ok) toast(j.error ?? 'Could not issue the fee.', 'error'); else toast('Fee issued.');
     load();
   };
   const suspend = async (r: Row) => {
@@ -181,7 +182,7 @@ function SendMoneySettings({ initial, onSaved }: { initial: Data['settings']; on
     const r = await fetch('/api/dues/settings', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, credentials: 'same-origin',
       body: JSON.stringify({ send_money_phone: phone, send_money_name: name, kes_per_usd: Number(rate) }) });
     const j = await r.json().catch(() => ({}));
-    setMsg(r.ok ? 'Saved.' : j.error ?? 'Could not save.');
+    if (r.ok) toast('Saved'); setMsg(r.ok ? '' : j.error ?? 'Could not save.');
     if (r.ok) onSaved();
   };
   return (

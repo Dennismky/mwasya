@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { toast } from '../components/motion';
 import { useAuth } from '../lib/auth';
 
 interface Person {
@@ -189,7 +190,7 @@ function InviteLinks({ canInvite }: { canInvite: boolean }) {
   };
   const url = (code: string) => `${window.location.origin}/?invite=${code}`;
   const copy = async (code: string) => {
-    try { await navigator.clipboard.writeText(url(code)); setCopied(code); setTimeout(() => setCopied(''), 1500); } catch { /* clipboard blocked */ }
+    try { await navigator.clipboard.writeText(url(code)); setCopied(code); toast('Invite link copied'); setTimeout(() => setCopied(''), 1500); } catch { /* clipboard blocked */ }
   };
   const live = list.filter((i) => !i.revoked && new Date(i.expires_at) > new Date() && i.uses < i.max_uses);
 
@@ -229,7 +230,7 @@ export function PricingSettings({ onSaved }: { onSaved: () => void }) {
       body: JSON.stringify({ price_kes: Number(price), period_days: Number(days) }),
     });
     if (!r.ok) return setMsg('Enter a whole price (KES) and 1–366 days.');
-    setMsg('Saved.');
+    toast('Saved');
     onSaved();
   };
   return (

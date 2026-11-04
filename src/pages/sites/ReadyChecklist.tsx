@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { toast } from '../../components/motion';
 import { useNavigate } from 'react-router-dom';
 
 export interface Readiness {
@@ -15,7 +16,7 @@ export function ReadyChecklist({ siteId, ready, compact }: { siteId: string; rea
   const navigate = useNavigate();
   const [copied, setCopied] = useState('');
   const copy = async (text: string) => {
-    try { await navigator.clipboard.writeText(text); setCopied(text); setTimeout(() => setCopied(''), 1500); } catch { /* clipboard blocked */ }
+    try { await navigator.clipboard.writeText(text); setCopied(text); toast('Copied'); setTimeout(() => setCopied(''), 1500); } catch { /* clipboard blocked */ }
   };
   return (
     <div className={`ready ${compact ? 'ready-compact' : ''}`}>

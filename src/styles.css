@@ -802,3 +802,56 @@ html, body { overflow-x: clip; }
 .auth-steps li { display: flex; align-items: center; gap: 12px; font-size: 14.5px; color: var(--text); }
 .auth-steps li > span { flex: none; width: 26px; height: 26px; border-radius: 50%; display: grid; place-items: center; font-size: 13px; font-weight: 800; color: #fff; background: linear-gradient(135deg, var(--primary), var(--navy)); }
 [data-theme="dark"] .auth-tabs { background: #0E1C33; }
+
+/* =================== Motion kit (scrollspy, spotlight, toasts, route bar, to-top) =================== */
+.rv > * { opacity: 0; transform: translateY(14px) scale(.985); transition: opacity .5s cubic-bezier(.2, .7, .2, 1), transform .5s cubic-bezier(.2, .7, .2, 1); transition-delay: var(--rv-delay, 0ms); }
+.rv.rv-in > * { opacity: 1; transform: none; }
+
+.spot { position: relative; isolation: isolate; }
+.spot::before { content: ''; position: absolute; inset: 0; z-index: -1; border-radius: inherit; pointer-events: none; opacity: 0; transition: opacity .25s ease;
+  background: radial-gradient(260px circle at var(--mx, 50%) var(--my, 50%), color-mix(in srgb, var(--accent, var(--primary)) 12%, transparent), transparent 70%); }
+.spot:hover::before { opacity: 1; }
+.spot::after { content: ''; position: absolute; inset: -1px; border-radius: inherit; pointer-events: none; padding: 1px; opacity: 0; transition: opacity .25s ease;
+  background: radial-gradient(180px circle at var(--mx, 50%) var(--my, 50%), color-mix(in srgb, var(--accent, var(--primary)) 70%, transparent), transparent 70%);
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0); -webkit-mask-composite: xor; mask-composite: exclude; }
+.spot:hover::after { opacity: 1; }
+.spot:hover { transform: translateY(-2px); box-shadow: 0 14px 34px rgba(11, 31, 58, .09); }
+
+.routebar { position: fixed; top: 0; left: 0; right: 0; height: 3px; z-index: 300; pointer-events: none; transform-origin: 0 50%;
+  background: linear-gradient(90deg, var(--navy), var(--accent, var(--primary)), #7FA2FF); box-shadow: 0 0 10px color-mix(in srgb, var(--accent, var(--primary)) 60%, transparent);
+  animation: routebar .7s cubic-bezier(.2, .7, .2, 1) forwards; }
+@keyframes routebar { 0% { transform: scaleX(0); opacity: 1; } 70% { transform: scaleX(1); opacity: 1; } 100% { transform: scaleX(1); opacity: 0; } }
+
+.totop { position: fixed; right: 20px; bottom: 24px; z-index: 60; width: 44px; height: 44px; border-radius: 50%; border: 0; display: grid; place-items: center; cursor: pointer; color: #fff;
+  background: linear-gradient(135deg, var(--accent, var(--primary)), var(--navy)); box-shadow: 0 10px 24px rgba(11, 31, 58, .25);
+  opacity: 0; transform: translateY(16px) scale(.9); pointer-events: none; transition: opacity .25s ease, transform .25s ease; }
+.totop.on { opacity: 1; transform: none; pointer-events: auto; }
+.totop:hover { transform: translateY(-3px); }
+@media (max-width: 900px) { .totop { bottom: 84px; right: 14px; } }
+
+.toasts { position: fixed; top: 16px; right: 16px; z-index: 400; display: flex; flex-direction: column; gap: 10px; width: min(360px, calc(100vw - 32px)); pointer-events: none; }
+.toast { position: relative; overflow: hidden; pointer-events: auto; cursor: pointer; display: flex; align-items: center; gap: 12px; padding: 13px 16px; border-radius: 12px;
+  background: var(--bg); color: var(--text); border: 1px solid var(--border); box-shadow: 0 16px 40px rgba(11, 31, 58, .16); font-weight: 600; font-size: 14.5px;
+  animation: toast-in .4s cubic-bezier(.2, .9, .3, 1.2) both; }
+.toast.out { animation: toast-out .35s ease forwards; }
+.toast-ic { flex: none; width: 26px; height: 26px; border-radius: 50%; display: grid; place-items: center; color: #fff; font-weight: 800; font-size: 13px; background: var(--primary); }
+.toast-success .toast-ic { background: #12A07A; } .toast-error .toast-ic { background: #E5484D; }
+.toast-bar { position: absolute; left: 0; bottom: 0; height: 3px; width: 100%; transform-origin: 0 50%; background: var(--primary); animation: toast-bar 3.8s linear forwards; }
+.toast-success .toast-bar { background: #12A07A; } .toast-error .toast-bar { background: #E5484D; }
+@keyframes toast-in { from { opacity: 0; transform: translateX(40px) scale(.96); } to { opacity: 1; transform: none; } }
+@keyframes toast-out { to { opacity: 0; transform: translateX(40px); } }
+@keyframes toast-bar { to { transform: scaleX(0); } }
+@media (max-width: 600px) { .toasts { top: auto; bottom: 84px; right: 16px; } }
+
+/* Auth brand panel: slow drifting light */
+.auth-brand::after { content: ''; position: absolute; width: 520px; height: 520px; border-radius: 50%; right: -160px; bottom: -200px; pointer-events: none;
+  background: radial-gradient(circle, rgba(31, 79, 209, .35), transparent 65%); animation: drift 14s ease-in-out infinite alternate; }
+.auth-brand > * { position: relative; z-index: 1; }
+@keyframes drift { to { transform: translate(-120px, -160px) scale(1.15); } }
+
+/* Primary buttons: light sweep on hover */
+.btn-primary { position: relative; overflow: hidden; }
+.btn-primary::after { content: ''; position: absolute; top: 0; bottom: 0; width: 40%; left: -60%; pointer-events: none; transform: skewX(-20deg);
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, .28), transparent); transition: left .6s ease; }
+.btn-primary:hover:not(:disabled)::after { left: 130%; }
+@media (prefers-reduced-motion: reduce) { .rv > * { opacity: 1; transform: none; } .auth-brand::after { display: none; } }

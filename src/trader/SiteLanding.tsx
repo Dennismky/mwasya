@@ -1,3 +1,4 @@
+import { Reveal } from '../components/motion';
 import { useEffect, useState, type CSSProperties, type ReactNode } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { Icon } from '../components/ui';
@@ -76,23 +77,23 @@ export default function SiteLanding({ site }: { site: SiteBranding }) {
           </ul>
         </section>
 
-        <section className="sl-grid" aria-label="What you can do">
+        <Reveal as="section" className="sl-grid">
           {FEATURE_CARDS.filter((c) => has(c.f)).map((c) => (
-            <article key={c.f} className="sl-card">
+            <article key={c.f} className="sl-card spot">
               <span className="sl-icon">{c.icon}</span>
               <b>{c.title}</b>
               <p>{c.text}</p>
             </article>
           ))}
-        </section>
+        </Reveal>
 
         <section className="sl-steps" aria-label="How it works">
           <h2>Start in three steps</h2>
-          <ol>
+          <Reveal as="ol" stagger={110}>
             <li><b>Create your Deriv account</b><span>Free, on Deriv's own secure page.</span></li>
             <li><b>Log in here</b><span>One tap. We never see your password.</span></li>
             <li><b>Practise on demo</b><span>Try bots and tools with virtual money first.</span></li>
-          </ol>
+          </Reveal>
         </section>
       </main>
 

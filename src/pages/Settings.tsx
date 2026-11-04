@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { toast } from '../components/motion';
 import { useAuth } from '../lib/auth';
 import { LANGUAGES, useLang, useT, type Lang } from '../lib/i18n';
 import { useTheme } from '../lib/theme';
@@ -29,7 +30,8 @@ export default function Settings() {
       body: JSON.stringify({ display_name: name, contact, language: lang }),
     });
     const j = await r.json().catch(() => ({}));
-    setMsg(r.ok ? t('common.saved') : (j.error && j.error !== 'server_error' ? j.error : 'Could not save.'));
+    if (r.ok) toast(t('common.saved'));
+    setMsg(r.ok ? '' : (j.error && j.error !== 'server_error' ? j.error : 'Could not save.'));
   };
 
   return (
@@ -100,7 +102,7 @@ function SupportContacts() {
     if (!r.ok) return setMsg('Could not save.');
     const j = await r.json();
     setC({ whatsapp: '', telegram: '', email: '', ...j.contacts });
-    setMsg('Saved. Invalid entries were cleared.');
+    toast('Saved. Invalid entries were cleared.');
   };
   return (
     <section className="card stack" style={{ gap: 14 }}>
@@ -134,7 +136,7 @@ function DomainSales() {
   useEffect(load, []);
   const save = async () => {
     const r = await fetch('/api/domains/settings', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, credentials: 'same-origin', body: JSON.stringify(cfg) });
-    setMsg(r.ok ? 'Saved.' : 'Could not save.');
+    if (r.ok) toast('Saved'); setMsg(r.ok ? '' : 'Could not save.');
   };
   const retry = async (id: string) => {
     if (!confirm('Buy this domain now at today\'s Vercel price? This charges your Vercel account.')) return;

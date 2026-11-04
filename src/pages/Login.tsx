@@ -1,3 +1,4 @@
+import { Reveal } from '../components/motion';
 import { useEffect, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { Icon } from '../components/ui';
@@ -54,11 +55,11 @@ export default function Login() {
         <div className="auth-pitch">
           <h1>Launch your own Deriv trading brand.</h1>
           <p>Build branded trading sites, give your clients ready-made bots, grow a network of mentors, and earn markup on every trade.</p>
-          <ul>
+          <Reveal as="ul" stagger={120}>
             <li><span><Icon.Globe /></span><div><b>Your sites, your domain</b><small>Design, deploy and connect a domain in minutes.</small></div></li>
             <li><span><Icon.Chip /></span><div><b>Bots your clients can run</b><small>Safety limits on every bot, run by Deriv.</small></div></li>
             <li><span><Icon.Coin /></span><div><b>Markup paid by Deriv</b><small>Straight to your own Deriv account.</small></div></li>
-          </ul>
+          </Reveal>
         </div>
         <div className="auth-facts">
           <div><b>Deriv API</b><small>Official login</small></div>

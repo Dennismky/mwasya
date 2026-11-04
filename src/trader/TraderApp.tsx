@@ -1,6 +1,7 @@
 import { useEffect, useState, type CSSProperties, type ReactNode } from 'react';
 import { Navigate, NavLink, Route, Routes, useLocation, useOutletContext, Outlet } from 'react-router-dom';
 import { Icon } from '../components/ui';
+import { ToTop } from '../components/motion';
 import { AuthProvider, PreviewAuthProvider, useAuth } from '../lib/auth';
 import { reloadTenant, type PublishedBot, type SiteBranding } from '../lib/tenant';
 import { useBotRunner } from '../lib/useBotRunner';
@@ -154,6 +155,7 @@ function Shell({ site, initialBots, initialXml, base, preview }: { site: SiteBra
         )}
         <Outlet context={{ site, bots, xmlBots, runner, base, preview } satisfies TraderCtx} />
       </main>
+      <ToTop target=".tp-main" />
 
       <footer className="tp-foot">
         <button className="btn tp-disclaimer" onClick={() => setDisclaimer(true)}>Risk Disclaimer</button>

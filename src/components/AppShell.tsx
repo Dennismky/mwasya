@@ -6,6 +6,7 @@ import { useTheme } from '../lib/theme';
 import { Icon } from './ui';
 import DuesBell from './DuesBell';
 import { Loader } from './Loader';
+import { ToTop } from './motion';
 
 type NavKey = Parameters<ReturnType<typeof useT>>[0];
 const NAV: { to: string; key: NavKey; icon: ReactNode; soon?: boolean; section?: string; owner?: boolean }[] = [
@@ -130,6 +131,7 @@ function Shell() {
           )}
           {auth.status === 'error' ? <p className="error" role="alert">{auth.error}</p> : <Outlet />}
         </main>
+        <ToTop target="window" />
       </div>
       <nav className="bottom-bar" aria-label="Quick navigation">
         {([['/app', 'Home', <Icon.Chart key="i" />], ['/sites', 'Sites', <Icon.Globe key="i" />], ['/forge', 'Bots', <Icon.Chip key="i" />], ['/support', 'Support', <Icon.Help key="i" />]] as const).map(([to, label, icon]) => (

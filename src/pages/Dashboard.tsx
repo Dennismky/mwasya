@@ -1,3 +1,4 @@
+import { CountUp, Reveal } from '../components/motion';
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Icon } from '../components/ui';
@@ -59,13 +60,13 @@ export default function Dashboard() {
         </div>
       )}
 
-      <div className="grid" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(min(200px, 100%), 1fr))' }}>
+      <Reveal className="grid" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(min(200px, 100%), 1fr))' }}>
         <Tile label="MARKUP · 30 DAYS" value={earned === 'connect' ? undefined : earned === null ? '—' : usd(earned)} action={earned === 'connect' ? <Link to="/commissions" className="hint">Connect earnings →</Link> : <Link to="/commissions" className="hint">View commissions →</Link>} strong />
         <Tile label="MENTORS UNDER YOU" value={network ? String(network.people) : '—'} action={<Link to="/network" className="hint">Open network →</Link>} />
         <Tile label="YOUR SITES" value={String(siteCount)} action={<Link to="/sites" className="hint">My websites →</Link>} />
         <Tile label="SITES IN YOUR NETWORK" value={network ? String(network.sites) : '—'} />
         <Tile label="BOTS ON YOUR SITE" value={bots === null || xml === null ? '—' : String(bots + xml)} action={<Link to="/xml-bots" className="hint">XML bots →</Link>} />
-      </div>
+      </Reveal>
 
       <section className="card stack" style={{ gap: 18, maxWidth: 820 }}>
         <div className="stack" style={{ gap: 4 }}>
@@ -94,9 +95,9 @@ export default function Dashboard() {
 
 function Tile({ label, value, action, strong }: { label: string; value?: string; action?: React.ReactNode; strong?: boolean }) {
   return (
-    <section className="card stack" style={{ gap: 6, padding: 20 }}>
+    <section className="card stack spot" style={{ gap: 6, padding: 20 }}>
       <span className="hint" style={{ fontWeight: 600 }}>{label}</span>
-      {value !== undefined && <b className="mono" style={{ fontSize: 28, color: strong ? 'var(--success)' : undefined }}>{value}</b>}
+      {value !== undefined && <b className="mono" style={{ fontSize: 28, color: strong ? 'var(--success)' : undefined }}><CountUp value={value} /></b>}
       {action}
     </section>
   );
