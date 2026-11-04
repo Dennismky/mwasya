@@ -1174,6 +1174,21 @@ async function duesRoute(req: VercelRequest, res: VercelResponse, rest: string) 
     return res.status(200).json({ settings: next });
   }
 
+  // ---- owner: issue this month's fee now (before the 10th, e.g. a new mentor or for testing)
+  if (id === 'issue' && req.method === 'POST') {
+    if (!owner) return res.status(403).json({ error: 'owner_only' });
+    const target = (req.body ?? {}).operatorId;
+    if (!isUuid(target)) return res.status(404).json({ error: 'not_found' });
+    const [o] = await query<{ fee_mode: string }>(`select fee_mode from operators where id = $1 and role <> 'owner'`, [target]);
+    if (!o) return res.status(404).json({ error: 'not_found' });
+    if (o.fee_mode === 'none') return res.status(409).json({ error: 'This mentor has no fee. Set an agreement first.' });
+    await ensureDues(today.period, target);
+    const [d] = await query(`select id from dues where operator_id = $1 and period = $2::date`, [target, today.period]);
+    if (!d) return res.status(409).json({ error: 'Not issued: the mentor needs at least one site, and must be active.' });
+    await audit(op.id, 'due.issue', target, { period: today.period });
+    return res.status(200).json({ ok: true });
+  }
+
   // ---- owner: one mentor's agreement
   if (id === 'agreement') {
     if (!owner) return res.status(403).json({ error: 'owner_only' });

@@ -38,6 +38,12 @@ export default function Fees() {
     await fetch(`/api/dues/${dueId}/review`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'same-origin', body: JSON.stringify({ decision, note }) });
     load();
   };
+  const issue = async (r: Row) => {
+    const res = await fetch('/api/dues/issue', { method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'same-origin', body: JSON.stringify({ operatorId: r.operator_id }) });
+    const j = await res.json().catch(() => ({}));
+    if (!res.ok) alert(j.error ?? 'Could not issue the fee.');
+    load();
+  };
   const suspend = async (r: Row) => {
     if (!confirm(`Suspend ${r.site_name ?? 'this mentor'}? Their sites go offline until you reactivate them in Network.`)) return;
     await fetch(`/api/network/${r.operator_id}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'same-origin', body: JSON.stringify({ action: r.operator_status === 'suspended' ? 'activate' : 'suspend' }) });
@@ -111,6 +117,7 @@ export default function Fees() {
                           <button className="btn btn-secondary" style={{ padding: '5px 10px' }} onClick={() => review(r.due_id!, 'waive')}>Waive</button>{' '}
                         </>}
                         {r.due_id && (r.status === 'paid' || r.status === 'waived') && <button className="btn btn-ghost" style={{ padding: '5px 10px' }} onClick={() => review(r.due_id!, 'reopen')}>Reopen</button>}
+                        {!r.due_id && r.fee_mode !== 'none' && data.window.current && <button className="btn btn-secondary" style={{ padding: '5px 10px' }} onClick={() => issue(r)} title="Create this month's fee now, before the 10th">Issue fee now</button>}
                         {r.status === 'due' && late && <button className="btn btn-secondary" style={{ padding: '5px 10px', color: 'var(--danger)' }} onClick={() => suspend(r)}>{r.operator_status === 'suspended' ? 'Reactivate' : 'Suspend'}</button>}
                       </td>
                     </tr>
