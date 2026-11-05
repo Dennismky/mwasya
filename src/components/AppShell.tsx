@@ -50,6 +50,19 @@ function Shell() {
       .then((j: { profile?: { language?: Lang } } | null) => { const l = j?.profile?.language; if (l && l !== useLang.getState().lang) setLang(l); })
       .catch(() => undefined);
   }, [auth.operator, setLang]);
+  // Sidebar identity: the person's own name (Settings → display name, else their site's name) and their site logo.
+  const [who, setWho] = useState<{ name: string; logo: string | null }>({ name: 'My studio', logo: null });
+  useEffect(() => {
+    if (!auth.operator) return;
+    const get = (u: string) => fetch(u, { credentials: 'same-origin' }).then((r) => (r.ok ? r.json() : null)).catch(() => null);
+    void Promise.all([get('/api/settings/profile'), get('/api/sites')]).then(([p, s]) => {
+      const sites = (s?.sites ?? []) as { name: string; status: string; logoUrl: string | null }[];
+      const main = sites.find((x) => x.status === 'live') ?? sites[0];
+      const name = (p?.profile?.display_name as string | null) || main?.name || 'My studio';
+      setWho({ name, logo: main?.logoUrl ?? null });
+    });
+  }, [auth.operator]);
+
   const changeLang = (l: Lang) => {
     setLang(l);
     if (auth.operator) {
@@ -70,9 +83,9 @@ function Shell() {
     <div className={`shell ${open ? 'shell-open' : ''}`}>
       <aside className="sidebar" aria-label="Main">
         <div className="sidebar-brand">
-          <span className="brand-mark"><Icon.Logo /></span>
-          <div className="stack">
-            <b>Mwasya</b>
+          <IosIcon name={who.name} logo={who.logo} />
+          <div className="stack" style={{ minWidth: 0 }}>
+            <b className="sidebar-name" title={who.name}>{who.name}</b>
             <span className="sidebar-sub">{auth.me?.operator.role === 'owner' ? t('nav.owner') : t('nav.studio')}</span>
           </div>
         </div>
@@ -109,7 +122,7 @@ function Shell() {
           <button className="side-link" style={{ border: 0, background: 'none', width: '100%' }} onClick={auth.signOut}>
             <Icon.Logout />{t('nav.signOut')}
           </button>
-          <p className="sidebar-legal">{t('legal.risk')}</p>
+          <p className="sidebar-legal">© {new Date().getFullYear()} Mwasya · @codetwo</p>
         </div>
       </aside>
 
@@ -137,5 +150,19 @@ function Shell() {
       </div>
       {open && <button className="scrim" aria-label="Close menu" onClick={() => setOpen(false)} />}
     </div>
+  );
+}
+
+/** iOS-style app icon: their site logo in a squircle, or their initials on a gradient picked from their name. */
+function IosIcon({ name, logo }: { name: string; logo: string | null }) {
+  const initials = name.replace(/[^A-Za-z0-9 ]/g, '').split(/\s+/).filter(Boolean).map((w) => w[0]).join('').slice(0, 2).toUpperCase() || 'M';
+  // A stable hue per name, kept in Mwasya's cool range (blues → violets → teals).
+  let h = 0; for (const c of name) h = (h * 31 + c.charCodeAt(0)) % 360;
+  const hue = 190 + (h % 110);
+  return (
+    <span className={`ios-icon ${logo ? 'has-logo' : ''}`} style={{ '--h': hue } as React.CSSProperties} aria-hidden="true">
+      {logo ? <img src={logo} alt="" /> : <b>{initials}</b>}
+      <i className="ios-gloss" />
+    </span>
   );
 }

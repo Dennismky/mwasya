@@ -150,7 +150,7 @@ export default function Forge() {
         <div className="notice">
           <div className="stack" style={{ gap: 4 }}>
             <b>Log in again to save bots</b>
-            <span className="hint">We need to link your Deriv login to your Mwasya workspace. You can still build and test-run bots.</span>
+            <span className="hint">We need to link your Deriv login to your workspace. You can still build and test-run bots.</span>
           </div>
           <button className="btn btn-primary" onClick={() => startLogin({ returnTo: '/forge' }).catch((e: Error) => setError(e.message))}>Log in again</button>
         </div>

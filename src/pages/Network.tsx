@@ -78,7 +78,7 @@ export default function Network() {
     <div className="stack" style={{ gap: 24 }}>
       <div className="stack" style={{ gap: 6 }}>
         <h1 style={{ fontSize: 28, fontWeight: 700 }}>Network</h1>
-        <p className="muted">{isOwner ? 'Everyone with a site on Mwasya. You are the source of the network.' : 'People who joined through your invite links, and everyone they brought in.'}</p>
+        <p className="muted">{isOwner ? 'Everyone in your network. You are at the top of it.' : 'People who joined through your invite links, and everyone they brought in.'}</p>
       </div>
 
       <div className="grid" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(min(170px, 100%), 1fr))' }}>
@@ -238,7 +238,7 @@ export function PricingSettings({ onSaved }: { onSaved: () => void }) {
   return (
     <section className="card stack" style={{ gap: 14 }}>
       <h2 style={{ fontSize: 18, fontWeight: 600 }}>Pricing <span className="badge badge-blue">Owner</span></h2>
-      <p className="hint">What operators pay with M-Pesa for access (publishing their site and inviting people). Set 0 to keep Mwasya free.</p>
+      <p className="hint">What operators pay with M-Pesa for access (publishing their site and inviting people). Set 0 to keep access free.</p>
       <div className="row" style={{ gap: 12 }}>
         <div className="field" style={{ flex: 1 }}>
           <label className="label" htmlFor="price">Price (KES)</label>
