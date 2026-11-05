@@ -109,6 +109,7 @@ export default function Charts() {
 
     const closes = (): Pt[] => (mode === 'candles' ? candles.map((c) => ({ time: c.time, value: c.close })) : ticks);
     const redraw = () => {
+      if (chartRef.current !== chart) return;
       extra.forEach((s) => chart.removeSeries(s)); extra = [];
       const pts = closes();
       const on = indRef.current;
@@ -172,8 +173,10 @@ export default function Charts() {
 
     return () => {
       alive = false; stop?.(); ws.close();
-      extra.forEach((s) => chart.removeSeries(s));
-      chart.removeSeries(main);
+      // When the page closes, the chart itself is removed first: only tidy series on a chart that still exists.
+      if (chartRef.current === chart) {
+        try { extra.forEach((s) => chart.removeSeries(s)); chart.removeSeries(main); } catch { /* chart already gone */ }
+      }
     };
   }, [symbol, mode, gran]);
 

@@ -51,7 +51,7 @@ const TABS: { to: string; label: string; short: string; icon: ReactNode; end?: b
   { to: '/free-bots', label: 'Free Bots', short: 'Free Bots', icon: <Icon.Code />, feature: 'freebots' },
   { to: '/charts', label: 'Charts', short: 'Charts', icon: <Icon.Chart />, feature: 'charts' },
   { to: '/signals', label: 'Signals', short: 'Signals', icon: <Icon.Chip />, feature: 'analysis' },
-  { to: '/analysis', label: 'Analysis Tools', short: 'Analysis', icon: <Icon.Help />, feature: 'analysis' },
+  { to: '/analysis', label: 'D-Circles', short: 'D-Circles', icon: <Icon.Help />, feature: 'analysis' },
   { to: '/risk', label: 'Daily Plan', short: 'Plan', icon: <Icon.Gear />, feature: 'risk' },
   { to: '/tutorials', label: 'Tutorials', short: 'Learn', icon: <Icon.Help />, feature: 'learn' },
 ];

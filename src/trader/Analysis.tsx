@@ -30,7 +30,7 @@ export default function Analysis() {
   return (
     <div className="stack" style={{ gap: 18 }}>
       <div className="row" style={{ gap: 12, alignItems: 'center' }}>
-        <h1 style={{ fontSize: 24, fontWeight: 700, marginRight: 'auto' }}>Analysis Tools</h1>
+        <h1 style={{ fontSize: 24, fontWeight: 700, marginRight: 'auto' }}>D-Circles</h1>
         <select className="input" style={{ width: 'auto' }} value={symbol} onChange={(e) => setSymbol(e.target.value)} aria-label="Market">
           {SYMBOLS.map((x) => <option key={x.id} value={x.id}>{x.name}</option>)}
         </select>

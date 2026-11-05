@@ -8,7 +8,7 @@ const TILES = [
   { to: '/free-bots', label: 'Free Bots', icon: <Icon.Code />, text: 'Deriv Bot XML files', f: 'freebots' },
   { to: '/manual', label: 'Manual Trader', icon: <Icon.Window />, text: 'Trade by hand', f: 'manual' },
   { to: '/charts', label: 'Charts', icon: <Icon.Chart />, text: 'Live prices', f: 'charts' },
-  { to: '/analysis', label: 'Analysis Tools', icon: <Icon.Help />, text: 'Digit statistics', f: 'analysis' },
+  { to: '/analysis', label: 'D-Circles', icon: <Icon.Help />, text: 'Live digit circles and statistics', f: 'analysis' },
   { to: '/risk', label: 'Daily Plan', icon: <Icon.Card />, text: 'Target, stop loss and stake', f: 'risk' },
 ];
 
