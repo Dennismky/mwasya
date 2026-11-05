@@ -4,7 +4,7 @@ import type { ChartLine } from './TickChart';
 import { useTrader } from './TraderApp';
 
 const THEME = {
-  light: { text: '#2B3A55', grid: 'rgba(11,31,58,.07)', bg: '#FFFFFF' },
+  light: { text: '#3A4860', grid: 'rgba(11,31,58,.05)', bg: '#F7F9FC' },
   dark: { text: '#D7E0EE', grid: 'rgba(255,255,255,.07)', bg: 'transparent' },
 };
 

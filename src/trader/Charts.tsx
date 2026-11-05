@@ -26,8 +26,8 @@ const INDICATORS: { id: Ind; label: string; color: string }[] = [
 
 /* Theme colours, chosen so prices, numbers and labels read clearly in both modes. */
 const THEME = {
-  light: { text: '#2B3A55', grid: 'rgba(11,31,58,.07)', up: '#0E9F6E', down: '#E0393E', line: '#1F4FD1' },
-  dark: { text: '#D7E0EE', grid: 'rgba(255,255,255,.07)', up: '#2BD4A0', down: '#FF6B6F', line: '#7FA2FF' },
+  light: { text: '#3A4860', grid: 'rgba(11,31,58,.05)', up: '#0E9F6E', down: '#E0393E', line: '#1F4FD1', bg: '#F7F9FC' },
+  dark: { text: '#D7E0EE', grid: 'rgba(255,255,255,.07)', up: '#2BD4A0', down: '#FF6B6F', line: '#7FA2FF', bg: '#0E1A2E' },
 };
 
 /* ---------- indicator maths (on closing prices) ---------- */
@@ -90,7 +90,7 @@ export default function Charts() {
     if (!el) return;
     const chart = createChart(el, {
       autoSize: true,
-      layout: { background: { type: ColorType.Solid, color: 'transparent' }, textColor: theme.text, fontSize: 12, fontFamily: 'Inter, system-ui, sans-serif', panes: { separatorColor: theme.grid } },
+      layout: { background: { type: ColorType.Solid, color: theme.bg }, textColor: theme.text, fontSize: 12, fontFamily: 'Inter, system-ui, sans-serif', panes: { separatorColor: theme.grid } },
       grid: { vertLines: { color: theme.grid }, horzLines: { color: theme.grid } },
       crosshair: { mode: CrosshairMode.Normal },
       rightPriceScale: { borderVisible: false, scaleMargins: { top: 0.18, bottom: 0.12 } },
