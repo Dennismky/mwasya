@@ -1,9 +1,13 @@
 import { useEffect, useMemo, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { InfoTip, TIPS } from '../components/InfoTip';
+import { Icon } from '../components/ui';
+import { toast } from '../components/motion';
+import { parseDerivXml, type LoadedBot } from './xmlBot';
 import { PREVIEW_ACCOUNT_ID, useAuth } from '../lib/auth';
 import { DEFAULT_CONFIG, useBotEngine, type BotConfig } from './botEngine';
 import { useTrader } from './TraderApp';
-import { SYMBOLS, decimalsOf, lastDigit, useTicks } from './ticks';
+import { SYMBOLS, decimalsOf, lastDigit, symbolName, useTicks } from './ticks';
 
 const CONTRACTS: { id: BotConfig['contract']; label: string; digit?: boolean }[] = [
   { id: 'DIGITOVER', label: 'Over', digit: true }, { id: 'DIGITUNDER', label: 'Under', digit: true },
@@ -15,7 +19,7 @@ type Panel = 'summary' | 'transactions' | 'journal';
 const num = (v: string, d = 0) => { const n = Number(v); return Number.isFinite(n) ? n : d; };
 
 export default function BotBuilder() {
-  const { site } = useTrader();
+  const { site, xmlBots } = useTrader();
   const auth = useAuth();
   const account = auth.account;
   const currency = account?.currency ?? 'USD';
@@ -26,6 +30,41 @@ export default function BotBuilder() {
   });
   useEffect(() => { localStorage.setItem(key, JSON.stringify(cfg)); }, [key, cfg]);
   const set = <K extends keyof BotConfig>(k: K, v: BotConfig[K]) => setCfg((c) => ({ ...c, [k]: v }));
+
+  // Load a bot: import a Deriv Bot XML file, or pick one of the site's free bots.
+  const [loaded, setLoaded] = useState<Pick<LoadedBot, 'name' | 'params' | 'notes'> | null>(() => {
+    try { return JSON.parse(localStorage.getItem(`${key}_name`) ?? 'null'); } catch { return null; }
+  });
+  const [importing, setImporting] = useState(false);
+  const [loadError, setLoadError] = useState('');
+  const [params, setParams] = useSearchParams();
+  const applyBot = (b: LoadedBot) => {
+    setCfg(b.config);
+    const meta = { name: b.name, params: b.params, notes: b.notes };
+    setLoaded(meta);
+    localStorage.setItem(`${key}_name`, JSON.stringify(meta));
+    toast(`${b.name} loaded`);
+  };
+  const importFile = async (f: File) => {
+    setLoadError('');
+    if (f.size > 2_000_000) return setLoadError('That file is too large for a bot file.');
+    setImporting(true);
+    try { applyBot(parseDerivXml(await f.text(), f.name)); } catch (e) { setLoadError((e as Error).message); } finally { setImporting(false); }
+  };
+  const loadFree = async (id: string) => {
+    setLoadError(''); setImporting(true);
+    try {
+      const r = await fetch(`/api/xmlbots/download?id=${encodeURIComponent(id)}`);
+      if (!r.ok) throw new Error('Could not load that bot.');
+      applyBot(parseDerivXml(await r.text(), xmlBots.find((x) => x.id === id)?.name ?? 'Free bot'));
+    } catch (e) { setLoadError((e as Error).message); } finally { setImporting(false); }
+  };
+  useEffect(() => {
+    const id = params.get('bot');
+    if (!id) return;
+    setParams({}, { replace: true });
+    void loadFree(id);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const bot = useBotEngine(account?.id, currency, auth.refreshBalance);
   const [panel, setPanel] = useState<Panel>('summary');
@@ -50,16 +89,58 @@ export default function BotBuilder() {
   if (cfg.contract === 'DIGITOVER' && cfg.prediction > 8) problems.push('Over needs a digit from 0 to 8');
   if (cfg.contract === 'DIGITUNDER' && cfg.prediction < 1) problems.push('Under needs a digit from 1 to 9');
   if (!(cfg.stopLoss > 0)) problems.push('Set a stop loss');
-  if (cfg.recovery && !(cfg.multiplier > 1 && cfg.multiplier <= 5)) problems.push('Multiplier must be above 1 and at most 5');
+  const addMode = cfg.recoveryMode === 'add';
+  if (cfg.recovery && !addMode && !(cfg.multiplier > 1 && cfg.multiplier <= 5)) problems.push('Martingale must be above 1 and at most 5');
+  if (cfg.recovery && addMode && !(cfg.multiplier > 0 && cfg.multiplier <= 5)) problems.push('Loss recovery must be above 0 and at most 5');
+  const markets = SYMBOLS.filter((s) => /^(1HZ|R_)/.test(s.id) || s.id === cfg.symbol);
 
   return (
     <div className="bb">
       <div className="bb-steps">
+        <section className={`bb-step bb-load card ${loaded ? 'has' : ''}`}>
+          <header><span><Icon.Code /></span><b>{loaded ? loaded.name : 'Load a bot'}</b>
+            {loaded && <button className="btn btn-ghost bb-clear" disabled={running} onClick={() => { setLoaded(null); localStorage.removeItem(`${key}_name`); }}>Clear</button>}
+          </header>
+          <div className="bb-load-row">
+            <label className={`btn btn-primary bb-import ${running || importing ? 'disabled' : ''}`}>
+              <Icon.Download /> {importing ? 'Reading…' : 'Import XML'}
+              <input type="file" accept=".xml,text/xml,application/xml" hidden disabled={running || importing} onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ''; if (f) void importFile(f); }} />
+            </label>
+            {xmlBots.length > 0 && (
+              <select className="input" aria-label="Free bots" disabled={running || importing} value="" onChange={(e) => e.target.value && void loadFree(e.target.value)}>
+                <option value="">Choose a free bot…</option>
+                {xmlBots.map((x) => <option key={x.id} value={x.id}>{x.name}</option>)}
+              </select>
+            )}
+          </div>
+          {loadError && <p className="error">{loadError}</p>}
+          {loaded && (
+            <>
+              <div className="bb-tags">
+                <span>{symbolName(cfg.symbol)}</span>
+                <span>{CONTRACTS.find((c) => c.id === cfg.contract)?.label}{isDigit ? ` ${cfg.prediction}` : ''}</span>
+                <span>{cfg.ticks} tick{cfg.ticks === 1 ? '' : 's'}</span>
+                <span>Stake {cfg.stake}</span>
+                {cfg.recovery && <span>{addMode ? `Recovery +loss ×${cfg.multiplier}` : `Martingale ×${cfg.multiplier}`}</span>}
+                <span className="ok">TP {cfg.takeProfit}</span>
+                <span className="bad">SL {cfg.stopLoss}</span>
+              </div>
+              {loaded.params.length > 0 && (
+                <div className="bb-params">
+                  {loaded.params.map((p) => <div key={p.name}><small>{p.name}</small><b className="mono">{p.value}</b></div>)}
+                </div>
+              )}
+              {loaded.notes.map((n) => <p key={n} className="hint">• {n}</p>)}
+              <p className="hint">Settings from the file are filled in below. Edit any of them before you run.</p>
+            </>
+          )}
+        </section>
+
         <Step n={1} title="Market & contract">
           <div className="field">
             <label className="label" htmlFor="bb-sym">Market</label>
             <select id="bb-sym" className="input" value={cfg.symbol} disabled={running} onChange={(e) => set('symbol', e.target.value)}>
-              {SYMBOLS.filter((s) => /^(1HZ|R_)/.test(s.id)).map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
+              {markets.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
             </select>
           </div>
           <div className="seg bb-seg" role="group" aria-label="Contract">
@@ -91,10 +172,16 @@ export default function BotBuilder() {
           <div className="bb-row">
             <Field id="bb-stake" label="Initial stake" tip={TIPS.stake} value={cfg.stake} suffix={currency} disabled={running} onChange={(v) => set('stake', num(v))} />
           </div>
-          <label className="bb-check"><input type="checkbox" disabled={running} checked={cfg.recovery} onChange={(e) => set('recovery', e.target.checked)} /> Multiply the stake after a loss</label>
+          <label className="bb-check"><input type="checkbox" disabled={running} checked={cfg.recovery} onChange={(e) => set('recovery', e.target.checked)} /> Raise the stake after a loss</label>
+          {cfg.recovery && (
+            <div className="seg" role="group" aria-label="Recovery">
+              <button disabled={running} className={!addMode ? 'on' : ''} aria-pressed={!addMode} onClick={() => setCfg((c) => ({ ...c, recoveryMode: 'multiply', multiplier: c.multiplier > 1 ? c.multiplier : 2 }))}>Martingale</button>
+              <button disabled={running} className={addMode ? 'on' : ''} aria-pressed={addMode} onClick={() => setCfg((c) => ({ ...c, recoveryMode: 'add' }))}>Add the loss</button>
+            </div>
+          )}
           {cfg.recovery && (
             <div className="bb-row">
-              <Field id="bb-mult" label="Multiply by" value={cfg.multiplier} suffix="×" disabled={running} onChange={(v) => set('multiplier', num(v, 2))} />
+              <Field id="bb-mult" label={addMode ? 'Next stake + loss ×' : 'Martingale (multiply by)'} value={cfg.multiplier} suffix="×" disabled={running} onChange={(v) => set('multiplier', num(v, addMode ? 1 : 2))} />
               <Field id="bb-max" label="Max stake" value={cfg.maxStake} suffix={currency} disabled={running} onChange={(v) => set('maxStake', num(v))} />
             </div>
           )}

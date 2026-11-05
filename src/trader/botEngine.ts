@@ -9,7 +9,8 @@ export interface BotConfig {
   prediction: number;          // digit for Over/Under/Matches/Differs
   ticks: number;               // contract duration in ticks
   stake: number;               // initial stake
-  recovery: boolean;           // multiply the stake after a loss
+  recovery: boolean;           // raise the stake after a loss
+  recoveryMode?: 'multiply' | 'add'; // multiply: stake × k · add: stake + loss × k
   multiplier: number;          // martingale factor
   maxStake: number;            // stake never goes above this (0 = no cap)
   takeProfit: number;          // stop when total profit ≥ this
@@ -19,7 +20,7 @@ export interface BotConfig {
 }
 
 export const DEFAULT_CONFIG: BotConfig = {
-  symbol: '1HZ25V', contract: 'DIGITOVER', prediction: 1, ticks: 1, stake: 0.5, recovery: true, multiplier: 2,
+  symbol: '1HZ25V', contract: 'DIGITOVER', prediction: 1, ticks: 1, stake: 0.5, recovery: true, recoveryMode: 'multiply', multiplier: 2,
   maxStake: 16, takeProfit: 10, stopLoss: 50, maxRuns: 0, entryDigit: null,
 };
 
@@ -103,7 +104,7 @@ export function useBotEngine(accountId: string | undefined, currency: string, on
         if (cfg.stopLoss > 0 && -pnl >= cfg.stopLoss) { log('loss', `Stop loss reached (${pnl.toFixed(2)}).`); break; }
         // Recovery: multiply after a loss (capped), back to the initial stake after a win.
         if (!won && cfg.recovery) {
-          const next = stake * cfg.multiplier;
+          const next = cfg.recoveryMode === 'add' ? stake + Math.abs(profit) * cfg.multiplier : stake * cfg.multiplier;
           stake = cfg.maxStake > 0 ? Math.min(next, cfg.maxStake) : next;
           // Never risk more than what is left before the stop loss.
           if (cfg.stopLoss > 0) stake = Math.min(stake, Math.max(0.35, cfg.stopLoss + pnl));
