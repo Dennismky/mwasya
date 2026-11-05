@@ -8,7 +8,8 @@ import { loadTenant } from './tenant';
  * - The browser only ever handles the short-lived, single-use `code`.
  * - The code is exchanged on our server (/api/auth/token), which keeps the
  *   access token in an encrypted HttpOnly cookie.
- * - We request ONLY the `trade` scope: never `payment` or `account_manage`.
+ * - Logins request ONLY the `trade` scope. `payment` is asked for only when the client opens the cashier,
+ * -   and that grant is kept in a separate 15-minute cookie. Never `account_manage`.
  */
 
 const AUTHORIZE_URL = 'https://auth.deriv.com/oauth2/auth';
@@ -16,6 +17,7 @@ const SCOPES = ['trade'];
 const KEY_STATE = 'mw_oauth_state';
 const KEY_VERIFIER = 'mw_oauth_verifier';
 const KEY_RETURN = 'mw_oauth_return';
+const KEY_PURPOSE = 'mw_oauth_purpose';
 /** Invite code from mwasya.site/?invite=CODE — sent once with the login, then cleared. */
 export const KEY_INVITE = 'mw_invite';
 
@@ -32,7 +34,7 @@ export function redirectUri(): string {
 }
 
 /** `withEarnings` also asks for read-only `application_read` (Deriv markup statistics for the Commissions page). */
-export async function startLogin(opts: { signup?: boolean; returnTo?: string; withEarnings?: boolean } = {}): Promise<void> {
+export async function startLogin(opts: { signup?: boolean; returnTo?: string; withEarnings?: boolean; cashier?: boolean } = {}): Promise<void> {
   const state = randomString(16);
   const verifier = randomString(32);
   const challenge = await challengeFromVerifier(verifier);
@@ -40,6 +42,7 @@ export async function startLogin(opts: { signup?: boolean; returnTo?: string; wi
   sessionStorage.setItem(KEY_STATE, state);
   sessionStorage.setItem(KEY_VERIFIER, verifier);
   sessionStorage.setItem(KEY_RETURN, opts.returnTo ?? '/app');
+  if (opts.cashier) sessionStorage.setItem(KEY_PURPOSE, 'cashier'); else sessionStorage.removeItem(KEY_PURPOSE);
 
   // Studio logins also read the mentor's markup stats once the platform has enabled it (see DERIV_EARNINGS_SCOPE).
   const tenant = await loadTenant();
@@ -48,7 +51,8 @@ export async function startLogin(opts: { signup?: boolean; returnTo?: string; wi
     response_type: 'code',
     client_id: await appId(),
     redirect_uri: redirectUri(),
-    scope: (opts.withEarnings || studioEarnings ? [...SCOPES, 'application_read'] : SCOPES).join(' '),
+    // Cashier step-up adds `payment` for that one grant only; it is stored apart from the trading session (15 minutes max).
+    scope: (opts.cashier ? [...SCOPES, 'payment'] : opts.withEarnings || studioEarnings ? [...SCOPES, 'application_read'] : SCOPES).join(' '),
     state,
     code_challenge: challenge,
     code_challenge_method: 'S256',
@@ -66,6 +70,10 @@ export async function completeLogin(search: string): Promise<CallbackResult> {
   window.history.replaceState(null, '', window.location.pathname);
 
   const error = params.get('error');
+  const purpose = sessionStorage.getItem(KEY_PURPOSE);
+  sessionStorage.removeItem(KEY_PURPOSE);
+  if (error === 'invalid_scope' && purpose === 'cashier') return { ok: false, error: 'Deposits and withdrawals are not enabled for this site yet. The site owner must allow the payment scope on their Deriv app.' };
+  if (error === 'access_denied' && purpose === 'cashier') return { ok: true, returnTo: '/app' };
   if (error === 'invalid_scope') return { ok: false, error: 'Earnings access is not enabled for this Deriv app yet. In the Deriv developer dashboard, allow the application_read scope, then try again.' };
   if (error) return { ok: false, error: params.get('error_description') ?? error };
 
@@ -85,7 +93,7 @@ export async function completeLogin(search: string): Promise<CallbackResult> {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     credentials: 'same-origin',
-    body: JSON.stringify({ code, code_verifier: verifier, invite: localStorage.getItem(KEY_INVITE) ?? undefined }),
+    body: JSON.stringify({ code, code_verifier: verifier, invite: purpose === 'cashier' ? undefined : localStorage.getItem(KEY_INVITE) ?? undefined, purpose: purpose ?? undefined }),
   });
   if (r.status === 429) return { ok: false, error: 'Too many login attempts. Please wait a few minutes and try again.' };
   if (!r.ok) return { ok: false, error: 'Could not complete login with Deriv. Please try again.' };

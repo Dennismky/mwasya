@@ -2,7 +2,8 @@ import { Suspense, lazy, useEffect, useState, type CSSProperties, type ReactNode
 import { Navigate, NavLink, Route, Routes, useLocation, useOutletContext, Outlet } from 'react-router-dom';
 import { Icon } from '../components/ui';
 import { ToTop } from '../components/motion';
-import { AccountSwitcher, DERIV_CASHIER } from './AccountSwitcher';
+import { AccountSwitcher } from './AccountSwitcher';
+import { Cashier } from './Cashier';
 import { AuthProvider, PreviewAuthProvider, useAuth } from '../lib/auth';
 import { reloadTenant, type PublishedBot, type SiteBranding } from '../lib/tenant';
 import { useBotRunner } from '../lib/useBotRunner';
@@ -80,6 +81,8 @@ function Shell({ site, initialBots, initialXml, base, preview }: { site: SiteBra
   const [menu, setMenu] = useState(false);
   const [more, setMore] = useState(false);
   const [disclaimer, setDisclaimer] = useState(false);
+  const [cashier, setCashier] = useState(() => new URLSearchParams(window.location.search).get('cashier') === '1');
+  useEffect(() => { if (cashier && window.location.search.includes('cashier=1')) window.history.replaceState(null, '', window.location.pathname); }, []); // eslint-disable-line react-hooks/exhaustive-deps
   const [notice, setNotice] = useState('');
   const location = useLocation();
   useEffect(() => { setMore(false); setMenu(false); }, [location.pathname]);
@@ -122,8 +125,7 @@ function Shell({ site, initialBots, initialXml, base, preview }: { site: SiteBra
           <span className="hint" style={{ fontSize: 10, letterSpacing: '.08em' }}>{site.subdomain.toUpperCase()}</span>
         </div>
         <span style={{ flex: 1 }} />
-        {has("deposit") && <a className="btn tp-deposit" href={DERIV_CASHIER} target="_blank" rel="noreferrer">Deposit</a>}
-        {has("deposit") && <a className="btn tp-withdraw" href={DERIV_CASHIER} target="_blank" rel="noreferrer">Withdraw</a>}
+        {has("deposit") && <button className="btn tp-deposit tp-cashier" onClick={() => setCashier(true)}>Cashier</button>}
         <AccountSwitcher preview={preview} onResetDemo={resetDemo} />
         <div style={{ position: 'relative' }}>
           <button className="btn btn-ghost tp-user" aria-label="Account menu" aria-expanded={menu} onClick={() => setMenu((m) => !m)}>
@@ -186,8 +188,8 @@ function Shell({ site, initialBots, initialXml, base, preview }: { site: SiteBra
         <div className="tp-drawer-foot">
           {has('deposit') && (
             <div className="row" style={{ gap: 8 }}>
-              <a className="btn tp-deposit" style={{ flex: 1 }} href={DERIV_CASHIER} target="_blank" rel="noreferrer" tabIndex={more ? 0 : -1}>Deposit</a>
-              <a className="btn tp-withdraw" style={{ flex: 1, display: 'inline-flex', justifyContent: 'center' }} href={DERIV_CASHIER} target="_blank" rel="noreferrer" tabIndex={more ? 0 : -1}>Withdraw</a>
+              <button className="btn tp-deposit" style={{ flex: 1 }} tabIndex={more ? 0 : -1} onClick={() => { setMore(false); setCashier(true); }}>Deposit</button>
+              <button className="btn tp-withdraw" style={{ flex: 1 }} tabIndex={more ? 0 : -1} onClick={() => { setMore(false); setCashier(true); }}>Withdraw</button>
             </div>
           )}
           <span className="tp-status" style={{ justifyContent: 'flex-start' }}>
@@ -200,6 +202,7 @@ function Shell({ site, initialBots, initialXml, base, preview }: { site: SiteBra
         </div>
       </aside>
 
+      {cashier && <Cashier preview={preview} onClose={() => setCashier(false)} />}
       {disclaimer && (
         <div className="tp-modal" role="dialog" aria-modal="true" aria-labelledby="rd-title" onClick={() => setDisclaimer(false)}>
           <div className="card stack" style={{ gap: 12, maxWidth: 560 }} onClick={(e) => e.stopPropagation()}>

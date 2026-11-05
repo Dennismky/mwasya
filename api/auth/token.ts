@@ -1,7 +1,7 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { DERIV_AUTH_TOKEN_URL, derivFetch, env } from '../_lib/deriv.js';
 import { query, upsertOperator, type DerivAccount } from '../_lib/db.js';
-import { noStore, sameOrigin, setSession } from '../_lib/session.js';
+import { getSession, noStore, sameOrigin, setPaySession, setSession } from '../_lib/session.js';
 import { resolveTenant } from '../_lib/tenant.js';
 import { clientIp, rateLimit } from '../_lib/guard.js';
 import { snapshotEarnings, snapshotMonths } from '../_lib/earnings.js';
@@ -31,7 +31,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'method_not_allowed' });
   if (!sameOrigin(req)) return res.status(403).json({ error: 'bad_origin' });
 
-  const { code, code_verifier, invite } = (req.body ?? {}) as { code?: unknown; code_verifier?: unknown; invite?: unknown };
+  const { code, code_verifier, invite, purpose } = (req.body ?? {}) as { code?: unknown; code_verifier?: unknown; invite?: unknown; purpose?: unknown };
   if (typeof code !== 'string' || typeof code_verifier !== 'string' ||
       code.length > 2048 || !/^[A-Za-z0-9\-._~]{43,128}$/.test(code_verifier)) {
     return res.status(400).json({ error: 'invalid_request' });
@@ -65,6 +65,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     if (!data.access_token || !data.expires_in) return res.status(502).json({ error: 'bad_token_response' });
 
     const expiresAt = Date.now() + data.expires_in * 1000;
+    // Cashier step-up: the payment-scoped token goes ONLY into the short cashier cookie. The trading session is untouched.
+    if (purpose === 'cashier') {
+      if (tenant.kind !== 'site' || !getSession(req)) return res.status(401).json({ error: 'not_logged_in' });
+      const until = setPaySession(res, data.access_token, expiresAt, tenant.site.id);
+      return res.status(200).json({ ok: true, cashierUntil: until });
+    }
     // Only studio logins create/attach an operator workspace. Traders never become operators.
     const operatorId = tenant.kind === 'platform' ? await resolveOperator(data.access_token, typeof invite === 'string' ? invite : undefined) : undefined;
     // A client login that reached us proves this address's redirect URI is registered on the mentor's Deriv app.

@@ -93,3 +93,29 @@ export function sameOrigin(req: VercelRequest): boolean {
 export function noStore(res: VercelResponse): void {
   res.setHeader('Cache-Control', 'no-store');
 }
+
+/*
+ * Cashier permission (Deriv `payment` scope). Kept apart from the trading session in its own cookie that
+ * lasts at most 15 minutes, so funds can only be moved while the client is actively in the cashier.
+ */
+const PAY_COOKIE = '__Host-mw_pay';
+const PAY_MAX_MS = 15 * 60 * 1000;
+
+export function getPaySession(req: VercelRequest): Session | null {
+  const raw = readCookie(req, PAY_COOKIE);
+  if (!raw) return null;
+  const s = decrypt(raw);
+  if (!s || Date.now() >= s.expiresAt) return null;
+  return s;
+}
+
+export function setPaySession(res: VercelResponse, accessToken: string, tokenExpiresAt: number, siteId?: string): number {
+  const expiresAt = Math.min(tokenExpiresAt, Date.now() + PAY_MAX_MS);
+  const maxAge = Math.max(0, Math.floor((expiresAt - Date.now()) / 1000));
+  res.setHeader('Set-Cookie', `${PAY_COOKIE}=${encrypt({ accessToken, expiresAt, siteId })}; Path=/; HttpOnly; Secure; SameSite=Strict; Max-Age=${maxAge}`);
+  return expiresAt;
+}
+
+export function clearPaySession(res: VercelResponse): void {
+  res.setHeader('Set-Cookie', `${PAY_COOKIE}=; Path=/; HttpOnly; Secure; SameSite=Strict; Max-Age=0`);
+}

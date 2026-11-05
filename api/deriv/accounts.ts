@@ -2,6 +2,7 @@ import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { derivFetch } from '../_lib/deriv.js';
 import { clientIp, rateLimit } from '../_lib/guard.js';
 import { clearSession, getSession, noStore, sameOrigin } from '../_lib/session.js';
+import { cashier } from '../_lib/cashier.js';
 
 /**
  * GET  /api/deriv/accounts                                — the user's Options trading accounts
@@ -17,6 +18,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   try {
     if (req.method === 'POST') {
+      const body = (req.body ?? {}) as { action?: unknown };
+      if (typeof body.action === 'string' && body.action.startsWith('cashier_')) return await cashier(req, res, body as Parameters<typeof cashier>[2]);
       const { action, accountId } = (req.body ?? {}) as { action?: unknown; accountId?: unknown };
       if (action !== 'reset_demo' || typeof accountId !== 'string' || !/^[A-Za-z0-9_-]{1,64}$/.test(accountId)) {
         return res.status(400).json({ error: 'invalid_request' });
