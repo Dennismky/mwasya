@@ -164,6 +164,7 @@ export default function BotBuilder() {
           <span className="bw-sep" />
           <button className="bw-tool" title="Zoom in" onClick={() => editor.current?.ws.zoomCenter(1)}>＋</button>
           <button className="bw-tool" title="Zoom out" onClick={() => editor.current?.ws.zoomCenter(-1)}>－</button>
+          <button className="bw-tool" title="Fit bot to screen" onClick={() => { const w = editor.current?.ws; if (w) { w.zoomToFit(); if (w.getScale() > 0.85) w.setScale(0.85); w.scrollCenter(); } }}>⤢</button>
           <button className="bw-tool" title="Centre" onClick={() => editor.current?.ws.scrollCenter()}>◎</button>
           <span className="bw-sep" />
           {xmlBots.length > 0 && (

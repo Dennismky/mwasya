@@ -139,6 +139,9 @@ export default function BlockEditor({ xml, onChange, locked, onReady }: {
         }),
       });
       Blockly.Xml.domToWorkspace(dom, workspace);
+      // Fit the whole bot on screen (never zoomed in past a comfortable size).
+      workspace.zoomToFit();
+      if (workspace.getScale() > 0.85) workspace.setScale(0.85);
       workspace.scrollCenter();
       const w = workspace;
       readyRef.current?.({

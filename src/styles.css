@@ -1463,3 +1463,13 @@ html, body { overflow-x: clip; }
   filter: drop-shadow(0 3px 6px color-mix(in srgb, var(--accent, var(--primary)) 50%, transparent)); transition: left .45s cubic-bezier(.2, .9, .3, 1.15); }
 @media (max-width: 600px) { .dc-row { grid-template-columns: repeat(5, 1fr); row-gap: 14px; } .dc-ring { width: 54px; } .dc-cursor { display: none; } }
 @media (prefers-reduced-motion: reduce) { .dc-cursor, .dc-ring { transition: none; } }
+
+/* Bot Builder fits the screen exactly; only our Blocks menu (Blockly's own category list is hidden). */
+.tp-main:has(> .bw) { display: flex; flex-direction: column; padding: 12px; }
+.tp-main > .bw { flex: 1 1 auto; height: auto; min-height: 480px; max-width: none; width: 100%; margin: 0; }
+.bw .blocklyToolboxDiv { display: none !important; }
+.bw .blocklyFlyout { filter: drop-shadow(8px 0 18px rgba(11, 31, 58, .12)); }
+@media (max-width: 1000px) {
+  .tp-main:has(> .bw) { display: block; }
+  .tp-main > .bw { height: auto; }
+}
