@@ -18,6 +18,7 @@ const KEY_STATE = 'mw_oauth_state';
 const KEY_VERIFIER = 'mw_oauth_verifier';
 const KEY_RETURN = 'mw_oauth_return';
 const KEY_PURPOSE = 'mw_oauth_purpose';
+const KEY_INTENT = 'mw_oauth_intent';
 /** Invite code from mwasya.site/?invite=CODE — sent once with the login, then cleared. */
 export const KEY_INVITE = 'mw_invite';
 
@@ -43,6 +44,7 @@ export async function startLogin(opts: { signup?: boolean; returnTo?: string; wi
   sessionStorage.setItem(KEY_VERIFIER, verifier);
   sessionStorage.setItem(KEY_RETURN, opts.returnTo ?? '/app');
   if (opts.cashier) sessionStorage.setItem(KEY_PURPOSE, 'cashier'); else sessionStorage.removeItem(KEY_PURPOSE);
+  sessionStorage.setItem(KEY_INTENT, opts.signup ? 'signup' : 'login');
 
   // Studio logins also read the mentor's markup stats once the platform has enabled it (see DERIV_EARNINGS_SCOPE).
   const tenant = await loadTenant();
@@ -61,7 +63,7 @@ export async function startLogin(opts: { signup?: boolean; returnTo?: string; wi
   window.location.assign(`${AUTHORIZE_URL}?${params.toString()}`);
 }
 
-export type CallbackResult = { ok: true; returnTo: string } | { ok: false; error: string };
+export type CallbackResult = { ok: true; returnTo: string; notice?: string } | { ok: false; error: string };
 
 /** Run on /callback. Verifies state, strips the code from the URL, exchanges it server-side. */
 export async function completeLogin(search: string): Promise<CallbackResult> {
@@ -98,7 +100,12 @@ export async function completeLogin(search: string): Promise<CallbackResult> {
   if (r.status === 429) return { ok: false, error: 'Too many login attempts. Please wait a few minutes and try again.' };
   if (!r.ok) return { ok: false, error: 'Could not complete login with Deriv. Please try again.' };
   localStorage.removeItem(KEY_INVITE);
-  return { ok: true, returnTo: safeReturnPath(returnTo) };
+  // Pressed "Create account" but already known here: they are simply signed in, and we say so.
+  const intent = sessionStorage.getItem(KEY_INTENT);
+  sessionStorage.removeItem(KEY_INTENT);
+  const j = (await r.json().catch(() => ({}))) as { returning?: boolean | null };
+  const notice = purpose !== 'cashier' && intent === 'signup' && j.returning === true ? 'You already have an account, so we signed you in.' : undefined;
+  return { ok: true, returnTo: safeReturnPath(returnTo), notice };
 }
 
 export async function getSession(): Promise<{ loggedIn: boolean; expiresAt?: number; operator?: boolean }> {

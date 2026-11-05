@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { completeLogin } from '../lib/derivAuth';
 import { Brand } from '../components/ui';
 import { KEY_PENDING_PROFILE } from './Login';
+import { toast } from '../components/motion';
 
 export default function Callback() {
   const navigate = useNavigate();
@@ -13,7 +14,7 @@ export default function Callback() {
     if (ran.current) return; // StrictMode double-run guard: the code is single-use.
     ran.current = true;
     completeLogin(window.location.search).then((r) => {
-      if (r.ok) { void savePendingProfile(); navigate(r.returnTo, { replace: true }); }
+      if (r.ok) { void savePendingProfile(); if (r.notice) toast(r.notice, 'info'); navigate(r.returnTo, { replace: true }); }
       else setError(r.error);
     });
   }, [navigate]);
