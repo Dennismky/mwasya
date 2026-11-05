@@ -5,7 +5,7 @@ import { useAuth } from '../lib/auth';
 interface Person {
   id: string; parent_id: string | null; depth: number; role: string; status: 'active' | 'suspended';
   paid_until: string | null; created_at: string; last_login_at: string | null;
-  site_name: string | null; subdomain: string | null; site_status: string | null;
+  site_id: string | null; site_name: string | null; subdomain: string | null; site_status: string | null;
   parent_site: string | null; parent_subdomain: string | null; accounts: string | null;
   bots_published: number; direct_children: number;
   markup_30d: number | null; earnings_at: string | null; custom_domain: string | null;
@@ -326,6 +326,7 @@ function PersonPanel({ id, isOwner, onClose, onChanged }: { id: string; isOwner:
                   : <button className="btn btn-primary" disabled={busy} onClick={() => act('activate')}>Reactivate</button>}
                 <button className="btn btn-secondary" disabled={busy} onClick={() => act('grant_days', 30)}>Grant 30 days access</button>
                 {p!.subdomain && <a className="btn btn-secondary" href={`https://${p!.subdomain}.mwasya.site`} target="_blank" rel="noreferrer">Open site ↗</a>}
+                {isOwner && p!.site_id && <a className="btn btn-primary" href={`/preview/${p!.site_id}`} target="_blank" rel="noreferrer">View as client ↗</a>}
               </div>
             </>
           )}

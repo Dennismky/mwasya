@@ -168,7 +168,7 @@ async function network(req: VercelRequest, res: VercelResponse, rest: string) {
          select o.id, t.depth + 1 from operators o join tree t on o.parent_id = t.id where t.depth < 25
        )
        select o.id, o.parent_id, t.depth, o.role, o.status, o.paid_until, o.created_at, o.last_login_at,
-              s.name as site_name, s.subdomain, s.status as site_status,
+              s.id as site_id, s.name as site_name, s.subdomain, s.status as site_status,
               ps.name as parent_site, ps.subdomain as parent_subdomain,
               (select string_agg(a.account_id, ', ' order by a.account_type) from operator_accounts a where a.operator_id = o.id) as accounts,
               (select count(*) from bots b where b.operator_id = o.id and b.status = 'published')::int as bots_published,
@@ -222,7 +222,7 @@ async function network(req: VercelRequest, res: VercelResponse, rest: string) {
   if (req.method === 'GET') {
     const [person] = await query(
       `select o.id, o.role, o.status, o.paid_until, o.created_at, o.last_login_at, case when $2 then o.phone end as phone,
-              s.name as site_name, s.subdomain, s.status as site_status, s.deriv_app_id, s.markup,
+              s.id as site_id, s.name as site_name, s.subdomain, s.status as site_status, s.deriv_app_id, s.markup,
               ps.name as parent_site
          from operators o left join operator_primary_site s on s.operator_id = o.id left join operator_primary_site ps on ps.operator_id = o.parent_id
         where o.id = $1`, [id, op.role === 'owner'],
@@ -819,11 +819,11 @@ async function domains(req: VercelRequest, res: VercelResponse, rest: string) {
 
 const FEATURES = ['bots', 'freebots', 'manual', 'charts', 'analysis', 'risk', 'learn', 'contact', 'deposit'] as const;
 const TEMPLATES = ['bothub', 'signaldesk', 'chartfloor', 'primedesk', 'nightmarket'] as const;
-const SITE_FULL = `id, name, subdomain, tagline, accent, theme, template, features, free_bots, deriv_app_id, markup::float as markup, status,
+const SITE_FULL = `id, operator_id, name, subdomain, tagline, accent, theme, template, features, free_bots, deriv_app_id, markup::float as markup, status,
   custom_domain, domain_status, (logo is not null) as has_logo, client_logins, sub_login_at, domain_login_at, created_at, updated_at`;
 
 interface SiteFull {
-  id: string; name: string; subdomain: string; tagline: string | null; accent: string; theme: string; template: string;
+  id: string; operator_id: string; name: string; subdomain: string; tagline: string | null; accent: string; theme: string; template: string;
   features: string[]; free_bots: string[]; deriv_app_id: string | null; markup: number; status: 'draft' | 'live' | 'paused';
   custom_domain: string | null; domain_status: string; has_logo: boolean; created_at: string; updated_at: string;
   client_logins: number; sub_login_at: string | null; domain_login_at: string | null;
@@ -957,8 +957,14 @@ async function sitesRoute(req: VercelRequest, res: VercelResponse, rest: string)
   }
 
   if (!isUuid(id)) return res.status(404).json({ error: 'not_found' });
-  const [site] = await query<SiteFull>(`select ${SITE_FULL} from sites where id = $1 and operator_id = $2`, [id, op.id]);
+  // The owner may READ any mentor's site (to view it as a client sees it). Every change still requires being its mentor.
+  const ownerRead = op.role === 'owner' && req.method === 'GET' && !action && isUuid(id);
+  const [site] = await query<SiteFull>(`select ${SITE_FULL} from sites where id = $1 and ($3::boolean or operator_id = $2)`, [id, op.id, ownerRead]);
   if (!site) return res.status(404).json({ error: 'not_found' });
+  if (ownerRead && site.operator_id !== op.id) {
+    await audit(op.id, 'site.view_as_client', site.operator_id, { siteId: id });
+    return res.status(200).json({ site: siteView(site) });
+  }
 
   if (action === 'domain') return await siteDomain(req, res, op, site);
 
