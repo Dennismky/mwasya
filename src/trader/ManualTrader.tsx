@@ -3,6 +3,7 @@ import { InfoTip, TIPS } from '../components/InfoTip';
 import { PREVIEW_ACCOUNT_ID, useAuth } from '../lib/auth';
 import { accountSocket, publicSocket, type DerivSocket } from '../lib/derivWs';
 import { useOffer } from './contracts';
+import { useTrader } from './TraderApp';
 import { TickChart, type ChartLine } from './TickChart';
 import { SYMBOLS, decimalsOf, symbolName, useTicks } from './ticks';
 
@@ -39,6 +40,7 @@ interface OpenC {
 
 export default function ManualTrader() {
   const auth = useAuth();
+  const { bot: journal } = useTrader();
   const account = auth.account;
   const currency = account?.currency ?? 'USD';
   const isPreview = account?.id === PREVIEW_ACCOUNT_ID;
@@ -146,7 +148,7 @@ export default function ManualTrader() {
         validToSell: c.is_valid_to_sell === 1 && !sold, entry: n(c.entry_spot) ?? x.entry, exit: n(c.exit_spot),
         high: n(c.high_barrier) ?? x.high, low: n(c.low_barrier) ?? x.low, ticks: n(c.tick_passed) ?? n(c.tick_count), longcode: String(c.longcode ?? x.longcode ?? ''),
       })));
-      if (sold) { watchers.current.get(id)?.(); watchers.current.delete(id); auth.refreshBalance(); }
+      if (sold) { watchers.current.get(id)?.(); watchers.current.delete(id); auth.refreshBalance(); journal.recordSettle({ id, profit: n(c.profit) ?? 0, source: 'Manual', entry: n(c.entry_spot), exit: n(c.exit_spot) }); }
     }).then((u) => watchers.current.set(id, u)).catch(() => undefined);
   };
 
@@ -159,6 +161,7 @@ export default function ManualTrader() {
       const r = await s.send<{ buy: { contract_id: number; buy_price: number; longcode?: string } }>({ buy: q.id, price: q.ask });
       setContracts((l) => [{ id: r.buy.contract_id, type, symbol, buy: r.buy.buy_price, status: 'open', profit: 0, sold: false, validToSell: false, longcode: r.buy.longcode }, ...l].slice(0, 20));
       watch(r.buy.contract_id);
+      journal.recordBuy({ id: r.buy.contract_id, type, stake: r.buy.buy_price, payout: q.payout, source: 'Manual' });
       auth.refreshBalance();
     } catch (e) {
       setError((e as Error).message);

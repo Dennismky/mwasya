@@ -1473,3 +1473,48 @@ html, body { overflow-x: clip; }
   .tp-main:has(> .bw) { display: block; }
   .tp-main > .bw { height: auto; }
 }
+
+/* =================== Every page fits the screen: tool on the left, results panel on the right =================== */
+.tp-main.tp-fit { display: grid; grid-template-columns: minmax(0, 1fr); gap: 12px; padding: 12px; overflow: hidden; max-width: none; margin: 0; }
+.tp-main.tp-fit.with-panel { grid-template-columns: minmax(0, 1fr) 330px; }
+.tp-main.tp-fit > * { max-width: none; margin: 0; }
+.tp-page { min-width: 0; min-height: 0; overflow-y: auto; overflow-x: hidden; overscroll-behavior: contain; padding: 4px 4px 24px; scrollbar-width: thin; }
+.tp-page > * { animation: rise .38s cubic-bezier(.2, .7, .2, 1) both; }
+.tp-main.tp-fit > *:last-child { animation: none; }
+
+.rp { position: relative; display: flex; flex-direction: column; min-height: 0; border-radius: 14px; background: var(--bg); border: 1px solid var(--tp-line, var(--border)); overflow: hidden; animation: rp-in .3s ease both; }
+@keyframes rp-in { from { opacity: 0; transform: translateX(16px); } }
+.rp-collapse { position: absolute; left: 4px; top: 50%; z-index: 3; width: 18px; height: 44px; margin-top: -22px; border: 0; border-radius: 6px; background: var(--bg-alt); color: var(--muted); cursor: pointer; font-size: 13px; }
+.rp-collapse:hover { color: var(--text); background: color-mix(in srgb, var(--accent, var(--primary)) 12%, var(--bg-alt)); }
+.rp-open { position: fixed; right: 0; top: 50%; z-index: 30; display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 12px 6px; border: 1px solid var(--tp-line, var(--border)); border-right: 0;
+  border-radius: 12px 0 0 12px; background: var(--bg); color: var(--text); cursor: pointer; font: inherit; font-weight: 700; box-shadow: -6px 0 18px rgba(11, 31, 58, .1); }
+.rp-open span { writing-mode: vertical-rl; font-size: 12px; letter-spacing: .08em; color: var(--muted); }
+.rp-sum { display: flex; flex-direction: column; gap: 12px; padding: 10px 4px; }
+.rp-pnl { display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 16px; border-radius: 12px; background: var(--bg-alt); }
+.rp-pnl small { color: var(--muted); font-weight: 700; font-size: 12px; }
+.rp-pnl b { font-size: 24px; }
+.rp-pnl.up b { color: var(--success); } .rp-pnl.down b { color: var(--danger); }
+.rp-bar { display: flex; height: 8px; border-radius: 99px; overflow: hidden; gap: 2px; }
+.rp-bar .w { background: #12A07A; } .rp-bar .l { background: #E5484D; }
+.rp-wl { display: flex; justify-content: space-between; font-size: 13px; font-weight: 700; color: var(--muted); }
+
+/* Bot Builder inside the fitted page: menu + workspace (results live in the shared panel). */
+.tp-page:has(> .bw) { overflow: hidden; padding: 0; display: flex; flex-direction: column; }
+.tp-page > .bw { flex: 1 1 auto; height: auto; min-height: 460px; grid-template-columns: 220px minmax(0, 1fr); grid-template-areas: "menu main" "run run"; }
+.tp-page > .bw.menu-closed { grid-template-columns: 0 minmax(0, 1fr); }
+/* Manual Trader fills the page height. */
+.tp-page > .mt2 { min-height: 100%; }
+
+@media (max-width: 1200px) { .tp-main.tp-fit.with-panel { grid-template-columns: minmax(0, 1fr) 290px; } }
+@media (max-width: 1000px) {
+  .tp-main.tp-fit, .tp-main.tp-fit.with-panel { grid-template-columns: 1fr; grid-template-rows: minmax(0, 1fr) auto; overflow: hidden; }
+  .rp { max-height: 46dvh; }
+  .rp-open { top: auto; bottom: 90px; }
+  .tp-page:has(> .bw) { overflow-y: auto; display: block; }
+  .tp-page > .bw { grid-template-columns: 1fr; grid-template-areas: "menu" "main" "run"; grid-template-rows: auto 520px auto; }
+}
+@media (max-width: 700px) {
+  .tp-main.tp-fit.with-panel .rp { position: fixed; left: 0; right: 0; bottom: 0; z-index: 80; max-height: 70dvh; border-radius: 18px 18px 0 0; box-shadow: 0 -16px 40px rgba(6, 13, 32, .3); }
+  .tp-main.tp-fit, .tp-main.tp-fit.with-panel { grid-template-rows: minmax(0, 1fr); padding: 8px; }
+  .rp-collapse { left: 50%; top: 6px; margin: 0 0 0 -22px; width: 44px; height: 18px; transform: rotate(90deg); }
+}

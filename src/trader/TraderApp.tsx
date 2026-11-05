@@ -4,6 +4,8 @@ import { Icon } from '../components/ui';
 import { ToTop } from '../components/motion';
 import { AccountSwitcher } from './AccountSwitcher';
 import { Cashier } from './Cashier';
+import { RunPanel } from './RunPanel';
+import { useBotEngine } from './botEngine';
 import { AuthProvider, PreviewAuthProvider, useAuth } from '../lib/auth';
 import { reloadTenant, type PublishedBot, type SiteBranding } from '../lib/tenant';
 import { useBotRunner } from '../lib/useBotRunner';
@@ -28,6 +30,8 @@ export interface TraderCtx {
   bots: PublishedBot[];
   xmlBots: XmlBotLite[];
   runner: ReturnType<typeof useBotRunner>;
+  /** The bot engine lives here so a bot keeps running on every page, and every tool logs to one Journal. */
+  bot: ReturnType<typeof useBotEngine>;
   /** Where the trading site is mounted: '/app' on a live site, '/preview/<id>' in the studio preview. */
   base: string;
   preview: boolean;
@@ -97,6 +101,9 @@ function Shell({ site, initialBots, initialXml, base, preview }: { site: SiteBra
     setTimeout(() => setNotice(''), 4000);
   };
   const runner = useBotRunner(auth.account?.id, auth.expire, auth.refreshBalance);
+  const bot = useBotEngine(auth.account?.id, auth.account?.currency ?? 'USD', auth.refreshBalance);
+  const [panelOpen, setPanelOpen] = useState(() => localStorage.getItem('mw_panel') !== '0');
+  const togglePanel = (o: boolean) => { setPanelOpen(o); localStorage.setItem('mw_panel', o ? '1' : '0'); };
   const dark = site.theme === 'dark';
   // Older sites have no feature list yet: show everything.
   const has = (f?: string) => !f || !site.features?.length || site.features.includes(f);
@@ -152,15 +159,20 @@ function Shell({ site, initialBots, initialXml, base, preview }: { site: SiteBra
       </nav>
       {has("charts") && <Ticker />}
 
-      <main className="tp-main">
+      <main className={`tp-main tp-fit ${panelOpen ? 'with-panel' : ''}`}>
+        <div className="tp-page">
         {notice && <div className="tp-preview" role="status">{notice}</div>}
         {preview && <div className="tp-preview"><b>Client preview.</b> This is exactly what your clients see. Prices and charts are live; trading is off until a client logs in on your deployed site.</div>}
         {account && !account.isVirtual && (
           <div className="tp-real">You're on a <b>real money</b> account. Switch to Demo in the top bar to practise.</div>
         )}
-        <Outlet context={{ site, bots, xmlBots, runner, base, preview } satisfies TraderCtx} />
+          <Outlet context={{ site, bots, xmlBots, runner, bot, base, preview } satisfies TraderCtx} />
+        </div>
+        {panelOpen
+          ? <RunPanel bot={bot} currency={auth.account?.currency ?? 'USD'} onCollapse={() => togglePanel(false)} />
+          : <button className="rp-open" aria-label="Show results panel" title="Results" onClick={() => togglePanel(true)}>«<span>Results</span></button>}
       </main>
-      <ToTop target=".tp-main" />
+      <ToTop target=".tp-page" />
 
       <footer className="tp-foot">
         <button className="btn tp-disclaimer" onClick={() => setDisclaimer(true)}>Risk Disclaimer</button>

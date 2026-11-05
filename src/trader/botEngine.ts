@@ -75,7 +75,6 @@ export function useBotEngine(accountId: string | undefined, currency: string, on
     if (!s || state !== 'idle') return;
     stopFlag.current = false;
     setState('running');
-    setTrades([]);
     log('info', `Bot started on ${cfg.symbol}: ${cfg.contract}${needsDigit(cfg.contract) ? ` ${cfg.prediction}` : ''}, ${cfg.ticks} tick(s), stake ${cfg.stake.toFixed(2)} ${currency}.`);
     let stake = cfg.stake, pnl = 0, runs = 0;
     try {
@@ -126,7 +125,6 @@ export function useBotEngine(accountId: string | undefined, currency: string, on
     if (!s || state !== 'idle') return;
     stopFlag.current = false;
     setState('running');
-    setTrades([]);
     try {
       const bot = new XmlBot(xml, {
         socket: s, currency, log,
@@ -162,6 +160,17 @@ export function useBotEngine(accountId: string | undefined, currency: string, on
 
   const reset = useCallback(() => { if (state === 'idle') { setTrades([]); setJournal([]); } }, [state]);
 
+  // Other tools (Manual Trader, …) log their trades here too, so every page shows one Journal.
+  const recordBuy = useCallback((t: { id: number; type: string; stake: number; payout: number; source: string }) => {
+    setTrades((x) => [{ id: t.id, type: t.type, stake: t.stake, payout: t.payout, profit: 0, status: 'open' as const, time: Date.now() }, ...x.filter((y) => y.id !== t.id)].slice(0, 500));
+    log('info', `${t.source}: bought ${t.type} #${t.id} for ${t.stake.toFixed(2)} ${currency}.`);
+  }, [log, currency]);
+  const recordSettle = useCallback((t: { id: number; profit: number; source: string; entry?: number; exit?: number }) => {
+    const won = t.profit > 0;
+    setTrades((x) => x.map((y) => (y.id === t.id ? { ...y, profit: t.profit, status: won ? 'won' as const : 'lost' as const, entry: t.entry, exit: t.exit } : y)));
+    log(won ? 'win' : 'loss', `${t.source}: ${won ? 'won' : 'lost'} ${Math.abs(t.profit).toFixed(2)} ${currency} on #${t.id}.`);
+  }, [log, currency]);
+
   const settled = trades.filter((t) => t.status !== 'open');
   const summary = {
     stake: settled.reduce((s, t) => s + t.stake, 0),
@@ -171,5 +180,5 @@ export function useBotEngine(accountId: string | undefined, currency: string, on
     lost: settled.filter((t) => t.status === 'lost').length,
     pnl: settled.reduce((s, t) => s + t.profit, 0),
   };
-  return { state, trades, journal, summary, run, runXml, stop, reset, ready: !!ws.current };
+  return { state, trades, journal, summary, run, runXml, stop, reset, recordBuy, recordSettle, log, ready: !!ws.current };
 }

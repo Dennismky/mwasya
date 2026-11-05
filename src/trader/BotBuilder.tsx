@@ -5,7 +5,7 @@ import { toast } from '../components/motion';
 import { PREVIEW_ACCOUNT_ID, useAuth } from '../lib/auth';
 import { MENU, configToXml } from './blocks';
 import type { EditorApi } from './BlockEditor';
-import { DEFAULT_CONFIG, useBotEngine, type BotConfig } from './botEngine';
+import { DEFAULT_CONFIG, type BotConfig } from './botEngine';
 import { useTrader } from './TraderApp';
 import { SYMBOLS } from './ticks';
 import { parseDerivXml, setXmlVariable, type LoadedBot } from './xmlBot';
@@ -18,14 +18,13 @@ const CONTRACTS: { id: BotConfig['contract']; label: string; digit?: boolean }[]
   { id: 'DIGITEVEN', label: 'Even' }, { id: 'DIGITODD', label: 'Odd' },
   { id: 'CALL', label: 'Rise' }, { id: 'PUT', label: 'Fall' },
 ];
-type Panel = 'summary' | 'transactions' | 'journal';
 type Meta = Pick<LoadedBot, 'name' | 'params' | 'notes'>;
 const num = (v: string, d = 0) => { const n = Number(v); return Number.isFinite(n) ? n : d; };
 const pretty = (t: string) => t.replace(/^trade_definition_/, '').replace(/_/g, ' ');
 
 /** Bot Builder: blocks menu (left) · toolbar + workspace (centre) · Summary / Transactions / Journal (right) · Run bar. */
 export default function BotBuilder() {
-  const { site, xmlBots } = useTrader();
+  const { site, xmlBots, bot } = useTrader();
   const auth = useAuth();
   const account = auth.account;
   const currency = account?.currency ?? 'USD';
@@ -115,12 +114,10 @@ export default function BotBuilder() {
     setMeta(m); setBotXml(next); remember(next, m);
   };
 
-  const bot = useBotEngine(account?.id, currency, auth.refreshBalance);
-  const [panel, setPanel] = useState<Panel>('summary');
   const running = bot.state !== 'idle';
   const run = () => {
     if (account && !account.isVirtual && !confirm(`Run ${meta.name} on your REAL account? It trades exactly as built, using its own limits.`)) return;
-    setPanel('journal');
+
     void bot.runXml(editor.current?.xml() ?? latestXml.current);
   };
 
@@ -183,45 +180,6 @@ export default function BotBuilder() {
           </Suspense>
         </div>
       </section>
-
-      <aside className="bw-panel">
-        <div className="bw-tabs" role="tablist" aria-label="Bot panel">
-          {(['summary', 'transactions', 'journal'] as const).map((p) => <button key={p} role="tab" aria-selected={panel === p} className={panel === p ? 'on' : ''} onClick={() => setPanel(p)}>{p[0].toUpperCase() + p.slice(1)}</button>)}
-        </div>
-        <div className="bw-body">
-          {panel === 'summary' && (bot.summary.runs === 0
-            ? <p className="bw-empty">When you're ready to trade, hit <b>Run</b>. You can follow your bot's results here.</p>
-            : <div className="bw-chart-note">{bot.summary.won} won · {bot.summary.lost} lost</div>)}
-          {panel === 'transactions' && (bot.trades.length === 0 ? <p className="bw-empty">No transactions yet. Trades appear here when the bot runs.</p> : (
-            <ul className="bb-list">
-              {bot.trades.map((t) => (
-                <li key={t.id} className={`bb-tx ${t.status}`}>
-                  <span className="bb-dot" />
-                  <span className="stack" style={{ minWidth: 0 }}><b>{t.type}</b><small className="mono hint">{t.entry ? `${t.entry} → ${t.exit ?? '…'}` : `#${t.id}`}</small></span>
-                  <span className="stack" style={{ alignItems: 'flex-end' }}><small className="mono">{t.stake.toFixed(2)}</small>
-                    <b className="mono">{t.status === 'open' ? '…' : `${t.profit >= 0 ? '+' : ''}${t.profit.toFixed(2)}`}</b></span>
-                </li>
-              ))}
-            </ul>
-          ))}
-          {panel === 'journal' && (bot.journal.length === 0 ? <p className="bw-empty">Every step the bot takes is logged here, including each executed trade.</p> : (
-            <ul className="bb-list bb-journal">
-              {bot.journal.map((j, i) => (
-                <li key={i} className={`bb-j ${j.level}`}><small className="mono">{new Date(j.t).toLocaleTimeString()}</small><span>{j.text}</span></li>
-              ))}
-            </ul>
-          ))}
-        </div>
-        <div className="bw-stats">
-          <Stat k="Total stake" v={`${bot.summary.stake.toFixed(2)} ${currency}`} />
-          <Stat k="Total payout" v={`${bot.summary.payout.toFixed(2)} ${currency}`} />
-          <Stat k="No. of runs" v={String(bot.summary.runs)} />
-          <Stat k="Contracts lost" v={String(bot.summary.lost)} tone={bot.summary.lost ? 'bad' : undefined} />
-          <Stat k="Contracts won" v={String(bot.summary.won)} tone={bot.summary.won ? 'ok' : undefined} />
-          <Stat k="Total profit/loss" v={`${bot.summary.pnl >= 0 ? '' : '-'}${Math.abs(bot.summary.pnl).toFixed(2)} ${currency}`} tone={bot.summary.pnl > 0 ? 'ok' : bot.summary.pnl < 0 ? 'bad' : undefined} />
-        </div>
-        <button className="bw-reset" disabled={running} onClick={bot.reset}>Reset results</button>
-      </aside>
 
       <div className="bw-runbar">
         <span className={`bb-status ${running ? 'on' : ''}`}><span className="bb-pulse" />{bot.state === 'running' ? 'Bot running' : bot.state === 'stopping' ? 'Stopping…' : 'Bot is not running'}</span>
@@ -321,6 +279,3 @@ function Field({ id, label, value, onChange, suffix, tip }: { id: string; label:
   );
 }
 
-function Stat({ k, v, tone }: { k: string; v: string; tone?: 'ok' | 'bad' }) {
-  return <div className="bw-stat"><small>{k}</small><b className="mono" style={{ color: tone === 'ok' ? 'var(--success)' : tone === 'bad' ? 'var(--danger)' : undefined }}>{v}</b></div>;
-}
