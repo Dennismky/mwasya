@@ -878,7 +878,7 @@ html, body { overflow-x: clip; }
 .dp-tiles { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px; }
 .dp-tile { display: flex; flex-direction: column; gap: 6px; padding: 18px; }
 .dp-tile small { font-size: 12px; font-weight: 700; letter-spacing: .06em; color: var(--muted); }
-.dp-tile b { font-size: 28px; color: var(--navy); }
+.dp-tile b { font-size: 28px; color: var(--text); line-height: 1.15; overflow-wrap: anywhere; }
 .dp-tile span { font-size: 13px; color: var(--muted); }
 .dp-win b { color: var(--success); } .dp-loss b { color: var(--danger); }
 .tp-dark .dp-tile b { color: #fff; } .tp-dark .dp-win b { color: #2BD4A0; } .tp-dark .dp-loss b { color: #FF6B6F; }
@@ -1516,6 +1516,10 @@ html, body { overflow-x: clip; }
 @media (max-width: 700px) {
   .tp-main.tp-fit.with-panel .rp { position: fixed; left: 0; right: 0; bottom: 0; z-index: 80; max-height: 70dvh; border-radius: 18px 18px 0 0; box-shadow: 0 -16px 40px rgba(6, 13, 32, .3); }
   .tp-main.tp-fit, .tp-main.tp-fit.with-panel { grid-template-rows: minmax(0, 1fr); padding: 8px; }
+  /* EDIT HERE: the bell and Risk Disclaimer float bottom-left on phones; this room lets the last content scroll clear of them. */
+  .tp-page { padding-bottom: 170px; }
+  /* The results sheet also floats over the page on phones. */
+  .tp-main.tp-fit.with-panel .tp-page { padding-bottom: 72dvh; }
   .rp-collapse { left: 50%; top: 6px; margin: 0 0 0 -22px; width: 44px; height: 18px; transform: rotate(90deg); }
 }
 
