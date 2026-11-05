@@ -28,6 +28,8 @@ interface AuthState {
   refreshBalance: () => void;
   /** Call when any API returns 401 / SESSION_EXPIRED. */
   expire: () => void;
+  /** Re-read every account (ID, type, balance) from Deriv. */
+  reloadAccounts: () => Promise<void>;
   signOut: () => Promise<void>;
 }
 
@@ -132,10 +134,16 @@ export function AuthProvider({ children, live = true }: { children: ReactNode; l
     setStatus('signed-out');
   }, []);
 
+  const reloadAccounts = useCallback(async () => {
+    const list = await fetchAccounts().catch(() => null);
+    if (list === 'expired') return expire();
+    if (list) setAccounts(list);
+  }, [expire]);
+
   const value = useMemo<AuthState>(() => ({
-    status, error, operator, me, suspended, reloadMe, accounts, balance, refreshBalance, expire, signOut, setAccountId,
+    status, error, operator, me, suspended, reloadMe, accounts, balance, refreshBalance, expire, signOut, setAccountId, reloadAccounts,
     account: accounts.find((a) => a.id === accountId),
-  }), [status, error, operator, me, suspended, reloadMe, accounts, accountId, balance, refreshBalance, expire, signOut, setAccountId]);
+  }), [status, error, operator, me, suspended, reloadMe, accounts, accountId, balance, refreshBalance, expire, signOut, setAccountId, reloadAccounts]);
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }
@@ -149,11 +157,11 @@ export function useAuth(): AuthState {
 /** Owner/mentor "Preview as client": a pretend demo account, no Deriv connection, nothing can be traded. */
 export const PREVIEW_ACCOUNT_ID = 'PREVIEW';
 export function PreviewAuthProvider({ children }: { children: ReactNode }) {
-  const account: Account = { id: PREVIEW_ACCOUNT_ID, label: 'Demo · USD · preview', currency: 'USD', isVirtual: true };
+  const account: Account = { id: PREVIEW_ACCOUNT_ID, label: 'Demo · USD · preview', currency: 'USD', isVirtual: true, balance: 10000, active: true };
   const value = useMemo<AuthState>(() => ({
     status: 'ready', error: '', operator: false, me: null, suspended: false, reloadMe: async () => undefined,
     accounts: [account], account, setAccountId: () => undefined, balance: '10000.00 USD',
-    refreshBalance: () => undefined, expire: () => undefined, signOut: async () => { window.close(); },
+    refreshBalance: () => undefined, expire: () => undefined, signOut: async () => { window.close(); }, reloadAccounts: async () => undefined,
   }), []); // eslint-disable-line react-hooks/exhaustive-deps
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }

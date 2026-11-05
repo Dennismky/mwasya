@@ -2,6 +2,7 @@ import { useEffect, useState, type CSSProperties, type ReactNode } from 'react';
 import { Navigate, NavLink, Route, Routes, useLocation, useOutletContext, Outlet } from 'react-router-dom';
 import { Icon } from '../components/ui';
 import { ToTop } from '../components/motion';
+import { AccountSwitcher } from './AccountSwitcher';
 import { AuthProvider, PreviewAuthProvider, useAuth } from '../lib/auth';
 import { reloadTenant, type PublishedBot, type SiteBranding } from '../lib/tenant';
 import { useBotRunner } from '../lib/useBotRunner';
@@ -115,13 +116,7 @@ function Shell({ site, initialBots, initialXml, base, preview }: { site: SiteBra
         </div>
         <span style={{ flex: 1 }} />
         {has("deposit") && <a className="btn tp-deposit" href="https://app.deriv.com/cashier/deposit" target="_blank" rel="noreferrer">Deposit</a>}
-        <label className="tp-acct">
-          <span className={`dot ${account?.isVirtual ? 'dot-demo' : 'dot-real'}`} />
-          <b className="mono">{auth.balance}</b>
-          <select value={account?.id ?? ''} onChange={(e) => auth.setAccountId(e.target.value)} aria-label="Trading account">
-            {auth.accounts.map((a) => <option key={a.id} value={a.id}>{a.label}</option>)}
-          </select>
-        </label>
+        <AccountSwitcher preview={preview} onResetDemo={resetDemo} />
         <div style={{ position: 'relative' }}>
           <button className="btn btn-ghost tp-user" aria-label="Account menu" aria-expanded={menu} onClick={() => setMenu((m) => !m)}>
             <Icon.Users />
