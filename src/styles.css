@@ -1877,3 +1877,81 @@ html, body { overflow-x: clip; }
 .sidebar-brand { gap: 12px; }
 .sidebar-name { font-size: 16px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .sidebar-legal { font-size: 11.5px; letter-spacing: .02em; opacity: .7; text-align: center; }
+
+/* =================== Chart windows: indicators, templates, drawing tools =================== */
+.cm-wrap { position: absolute; inset: 0; z-index: 20; display: grid; place-items: center; padding: 16px; background: rgba(6, 13, 32, .35); backdrop-filter: blur(2px); animation: tp-fade .18s ease both; }
+.cm { display: flex; flex-direction: column; width: min(620px, 100%); max-height: min(470px, 100%); border-radius: 16px; overflow: hidden; background: var(--bg); color: var(--text);
+  box-shadow: 0 30px 70px rgba(6, 13, 32, .35); animation: cx-in .25s cubic-bezier(.2, .9, .3, 1.1) both; }
+.cm-split { flex-direction: row; }
+.cm-small { width: min(400px, 100%); }
+.cm-side { flex: none; width: 210px; display: flex; flex-direction: column; gap: 2px; padding: 16px 0; background: var(--bg-alt); border-right: 1px solid var(--border); }
+.cm-side h3 { padding: 0 16px 10px; font-size: 16px; font-weight: 800; }
+.cm-side button { position: relative; display: flex; align-items: center; gap: 10px; padding: 11px 16px; border: 0; background: none; font: inherit; font-size: 14px; font-weight: 600; color: var(--text); text-align: left; cursor: pointer; }
+.cm-side button span { width: 18px; text-align: center; color: var(--muted); }
+.cm-side button em { margin-left: auto; min-width: 20px; padding: 1px 6px; border-radius: 99px; font-style: normal; font-size: 11px; font-weight: 800; text-align: center; color: #fff; background: var(--accent, var(--primary)); }
+.cm-side button:hover:not(:disabled) { background: color-mix(in srgb, var(--accent, var(--primary)) 6%, transparent); }
+.cm-side button.on { background: var(--bg); font-weight: 800; }
+.cm-side button.on::before { content: ""; position: absolute; left: 0; top: 6px; bottom: 6px; width: 3px; border-radius: 0 3px 3px 0; background: var(--accent, var(--primary)); }
+.cm-main { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.cm-top { display: flex; align-items: center; gap: 10px; padding: 12px 14px; border-bottom: 1px solid var(--border); }
+.cm-top h3 { flex: 1; font-size: 16px; font-weight: 800; }
+.cm-top > b { flex: 1; font-size: 14px; }
+.cm-search { flex: 1; display: flex; align-items: center; gap: 8px; height: 38px; padding: 0 10px; border-radius: 10px; border: 1px solid var(--border); color: var(--muted); }
+.cm-search:focus-within { border-color: var(--accent, var(--primary)); box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent, var(--primary)) 14%, transparent); }
+.cm-search input { flex: 1; min-width: 0; border: 0; outline: 0; background: none; font: inherit; color: var(--text); }
+.cm-x { width: 34px; height: 34px; border-radius: 9px; border: 0; background: var(--bg-alt); color: var(--muted); cursor: pointer; font-size: 14px; }
+.cm-x:hover { color: var(--text); }
+.cm-list { flex: 1; overflow-y: auto; padding: 6px; display: flex; flex-direction: column; gap: 2px; }
+.cm-item { display: flex; align-items: center; gap: 12px; padding: 10px; border: 0; border-radius: 10px; background: none; font: inherit; color: var(--text); text-align: left; cursor: pointer; animation: rise .25s ease both; }
+.cm-item:hover { background: var(--bg-alt); }
+.cm-ic { flex: none; width: 32px; height: 32px; border-radius: 9px; display: grid; place-items: center; font-size: 15px; font-weight: 800;
+  color: var(--accent, var(--primary)); background: color-mix(in srgb, var(--accent, var(--primary)) 10%, transparent); }
+.cm-name { flex: 1; min-width: 0; display: flex; flex-direction: column; font-size: 14px; font-weight: 600; }
+.cm-name small { font-size: 11.5px; font-weight: 500; color: var(--muted); }
+.cm-act { flex: none; font-size: 12.5px; font-weight: 800; color: var(--accent, var(--primary)); }
+.cm-item.on .cm-act { color: var(--success); }
+.cm-item.on { background: color-mix(in srgb, var(--accent, var(--primary)) 6%, transparent); }
+.cm-empty { margin: auto; display: flex; flex-direction: column; align-items: center; gap: 10px; padding: 40px 20px; color: var(--muted); font-size: 13.5px; text-align: center; }
+.cm-empty span { font-size: 46px; opacity: .35; }
+.cm-tpl { display: flex; align-items: center; gap: 8px; padding: 4px; border-radius: 10px; }
+.cm-tpl:hover { background: var(--bg-alt); }
+.cm-tpl-main { flex: 1; min-width: 0; display: flex; flex-direction: column; align-items: flex-start; padding: 6px 8px; border: 0; background: none; font: inherit; color: var(--text); text-align: left; cursor: pointer; }
+.cm-tpl-main small { font-size: 12px; color: var(--muted); }
+.cm-del { flex: none; width: 30px; height: 30px; border-radius: 8px; border: 0; background: none; color: var(--muted); cursor: pointer; }
+.cm-del:hover { color: var(--danger); background: color-mix(in srgb, var(--danger) 10%, transparent); }
+.cm-save { display: flex; flex-direction: column; gap: 8px; padding: 12px 14px; border-top: 1px solid var(--border); }
+.cm-save input { height: 38px; padding: 0 10px; border-radius: 10px; border: 1px solid var(--border); background: var(--bg); color: var(--text); font: inherit; }
+.cm-save button, .cm-clear { border: 0; background: none; font: inherit; font-weight: 800; color: var(--accent, var(--primary)); cursor: pointer; padding: 8px; }
+.cm-active { display: flex; flex-direction: column; gap: 2px; margin-top: 8px; padding-top: 10px; border-top: 1px solid var(--border); }
+.cm-active > b { padding: 0 8px 4px; font-size: 12px; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
+.cm-clear { color: var(--danger); align-self: flex-start; }
+.dt-hline::after, .dt-vline::after, .dt-trend::after { content: ""; display: block; background: currentColor; border-radius: 2px; }
+.dt-hline::after { width: 18px; height: 2px; }
+.dt-vline::after { width: 2px; height: 18px; }
+.dt-trend::after { width: 20px; height: 2px; transform: rotate(-40deg); }
+.tp-dark .cm { background: #12223B; }
+.tp-dark .cm-side { background: #0E1C33; }
+.tp-dark .cm-side button.on { background: #12223B; }
+@media (max-width: 640px) {
+  .cm-split { flex-direction: column; max-height: 90%; }
+  .cm-side { width: auto; flex-direction: row; overflow-x: auto; padding: 8px; border-right: 0; border-bottom: 1px solid var(--border); }
+  .cm-side h3 { display: none; }
+  .cm-side button { flex: none; padding: 8px 10px; border-radius: 9px; }
+  .cm-side button.on::before { display: none; }
+}
+
+/* Drawings layer, click-catcher while placing, OHLC readout */
+.dc2-draw { position: absolute; inset: 0; width: 100%; height: 100%; z-index: 2; pointer-events: none; overflow: visible; }
+.dc2-draw line { stroke: currentColor; stroke-width: 1.6; }
+.dc2-draw circle { fill: currentColor; }
+.dc2-catch { position: absolute; inset: 0; z-index: 4; cursor: crosshair; }
+.dc2-placing { position: absolute; top: 12px; left: 50%; transform: translateX(-50%); z-index: 8; display: flex; align-items: center; gap: 10px; padding: 8px 12px; border-radius: 99px;
+  background: var(--accent, var(--primary)); color: #fff; font-size: 13px; font-weight: 700; box-shadow: 0 8px 20px rgba(11, 31, 58, .25); animation: as-in .2s ease both; }
+.dc2-placing button { border: 0; border-radius: 99px; padding: 4px 10px; background: rgba(255, 255, 255, .2); color: #fff; font: inherit; font-size: 12px; cursor: pointer; }
+.dc2-ohlc { position: absolute; top: 74px; z-index: 3; display: grid; grid-template-columns: auto auto; gap: 3px 14px; padding: 8px 10px; border-radius: 10px; pointer-events: none;
+  background: var(--bg); border: 1px solid var(--tp-line, var(--border)); box-shadow: 0 8px 22px rgba(11, 31, 58, .12); font-size: 12px; }
+.dc2-ohlc > b { grid-column: 1 / -1; text-align: center; color: #fff; border-radius: 6px; padding: 2px 0; font-size: 11.5px; }
+.dc2-ohlc > b.up { background: var(--up); } .dc2-ohlc > b.down { background: var(--down); }
+.dc2-ohlc span { color: var(--muted); }
+.dc2-ohlc i { font-style: normal; font-weight: 700; text-align: right; }
+.dc2-ohlc small { grid-column: 1 / -1; color: var(--muted); font-size: 11px; }
