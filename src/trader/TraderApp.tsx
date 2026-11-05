@@ -180,8 +180,9 @@ function Shell({ site, initialBots, initialXml, base, preview }: { site: SiteBra
         </div>
         <span style={{ flex: 1 }} />
         {has("deposit") && <button className="btn tp-deposit tp-cashier" onClick={() => setCashier(true)}>Cashier</button>}
-        <button className="tp-mode" onClick={toggleMode} aria-label={dark ? 'Switch to light mode' : 'Switch to dark mode'} title={dark ? 'Light mode' : 'Dark mode'}>
-          <span className={`tp-mode-ic ${dark ? 'moon' : 'sun'}`} aria-hidden="true" />
+        <button className={`tp-switch ${dark ? 'on' : ''}`} role="switch" aria-checked={dark} onClick={toggleMode} aria-label="Dark mode" title={dark ? 'Switch to light mode' : 'Switch to dark mode'}>
+          <span className="tp-switch-sky" aria-hidden="true"><i /><i /><i /></span>
+          <span className="tp-switch-knob" aria-hidden="true"><i /><i /></span>
         </button>
         <AccountSwitcher preview={preview} onResetDemo={resetDemo} />
         <div style={{ position: 'relative' }}>

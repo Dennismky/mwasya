@@ -128,7 +128,7 @@ export function runTotals(run: AutoRun) {
 
 export async function listRuns(ws: DerivSocket): Promise<AutoRun[]> {
   const r = await ws.send<{ auto_list: { runs: AutoRun[] } }>({ auto_list: 1 });
-  return r.auto_list.runs;
+  return r.auto_list?.runs ?? [];
 }
 
 const control = (verb: 'auto_pause' | 'auto_resume' | 'auto_stop') =>
