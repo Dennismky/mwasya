@@ -1,0 +1,25 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "rewrites": [
+    { "source": "/api/site", "destination": "/site.json" },
+    { "source": "/api/xmlbots/download", "has": [{ "type": "query", "key": "id", "value": "(?<id>[A-Za-z0-9_-]+)" }], "destination": "/bots/:id.xml" },
+    { "source": "/((?!api/).*)", "destination": "/index.html" }
+  ],
+  "headers": [
+    {
+      "source": "/(.*)",
+      "headers": [
+        { "key": "Content-Security-Policy", "value": "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data: https:; connect-src 'self' https://api.derivws.com wss://api.derivws.com; object-src 'none'; frame-ancestors 'none'; base-uri 'self'; form-action 'self' https://auth.deriv.com; upgrade-insecure-requests" },
+        { "key": "Referrer-Policy", "value": "no-referrer" },
+        { "key": "X-Content-Type-Options", "value": "nosniff" },
+        { "key": "X-Frame-Options", "value": "DENY" },
+        { "key": "Strict-Transport-Security", "value": "max-age=63072000; includeSubDomains; preload" },
+        { "key": "Permissions-Policy", "value": "camera=(), microphone=(), geolocation=(), payment=()" },
+        { "key": "Cross-Origin-Opener-Policy", "value": "same-origin" }
+      ]
+    },
+    { "source": "/api/(.*)", "headers": [{ "key": "Cache-Control", "value": "no-store" }, { "key": "X-Robots-Tag", "value": "noindex" }] },
+    { "source": "/site.json", "headers": [{ "key": "Cache-Control", "value": "public, max-age=60" }] },
+    { "source": "/bots/(.*)", "headers": [{ "key": "Content-Type", "value": "application/xml" }, { "key": "Content-Disposition", "value": "attachment" }] }
+  ]
+}

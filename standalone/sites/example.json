@@ -1,0 +1,13 @@
+{
+  "name": "Example Trader",
+  "slug": "example",
+  "tagline": "Bots, live charts and signals for Deriv traders.",
+  "accent": "#1F4FD1",
+  "theme": "light",
+  "layout": "classic",
+  "template": "bothub",
+  "logo": "",
+  "features": ["bots", "freebots", "manual", "charts", "analysis", "risk", "learn", "deposit"],
+  "freeBots": [],
+  "announcements": []
+}

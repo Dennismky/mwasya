@@ -1,0 +1,5 @@
+{
+  "extends": "../tsconfig.api.json",
+  "compilerOptions": { "composite": false, "noEmit": true },
+  "include": ["api", "../api/_lib", "../api/auth", "../api/deriv"]
+}

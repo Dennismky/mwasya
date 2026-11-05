@@ -128,3 +128,9 @@ One build serves both sites. `src/App.tsx` decides which one to show from the we
 | Check types before pushing | `npx tsc -b` (no output = OK), then `npm run build`. |
 
 Every push to `master` on GitHub deploys to mwasya.site automatically.
+
+---
+
+## 7. Standalone client sites (`standalone/`)
+Personal client sites that run on their own (own domain, own Deriv app, no Mwasya studio or database).
+They reuse the client-site screens in `src/trader/` without changing them. Full steps: [standalone/README.md](../standalone/README.md).

@@ -1,0 +1,9 @@
+{
+  "name": "mwasya-standalone-site",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "node ../node_modules/vite/bin/vite.js build --config vite.config.ts",
+    "dev": "node ../node_modules/vite/bin/vite.js --config vite.config.ts"
+  }
+}
