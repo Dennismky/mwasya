@@ -31,7 +31,7 @@ const SELLABLE = new Set(['ACCU', 'MULTUP', 'MULTDOWN']);
 const usesTicks = (k: Kind) => !['accu', 'multipliers'].includes(k);
 const usesBarrier = (k: Kind) => k === 'higherlower' || k === 'touch';
 
-interface Quote { id: string; ask: number; payout: number; error?: string; high?: number; low?: number; maxTicks?: number; maxPayout?: number; stopOut?: number; barrier?: number }
+interface Quote { id: string; ask: number; payout: number; error?: string; high?: number; low?: number; maxTicks?: number; maxPayout?: number; stopOut?: number; barrier?: number; stayed?: number[] }
 interface OpenC {
   id: number; type: string; symbol: string; buy: number; status: string; profit: number; bid?: number; sold: boolean;
   validToSell: boolean; entry?: number; exit?: number; high?: number; low?: number; ticks?: number; longcode?: string;
@@ -52,6 +52,8 @@ export default function ManualTrader() {
   const [mult, setMult] = useState(100);
   const [tp, setTp] = useState('');
   const [sl, setSl] = useState('');
+  const [useTp, setUseTp] = useState(false);
+  const [picker, setPicker] = useState(false);
   const [quotes, setQuotes] = useState<Record<string, Quote>>({});
   const [buying, setBuying] = useState<string | null>(null);
   const [error, setError] = useState('');
@@ -97,11 +99,11 @@ export default function ManualTrader() {
         const req: Record<string, unknown> = { proposal: 1, amount, basis: 'stake', contract_type: side.type, currency, underlying_symbol: symbol };
         if (kind === 'accu') {
           req.growth_rate = growth;
-          if (Number(tp) > 0) req.limit_order = { take_profit: Number(tp) };
+          if (useTp && Number(tp) > 0) req.limit_order = { take_profit: Number(tp) };
         } else if (kind === 'multipliers') {
           req.multiplier = mult;
           const lo: Record<string, number> = {};
-          if (Number(tp) > 0) lo.take_profit = Number(tp);
+          if (useTp && Number(tp) > 0) lo.take_profit = Number(tp);
           if (Number(sl) > 0) lo.stop_loss = Number(sl);
           if (Object.keys(lo).length) req.limit_order = lo;
         } else { req.duration = ticks; req.duration_unit = 't'; }
@@ -113,7 +115,7 @@ export default function ManualTrader() {
           if (err) return setQuotes((q) => ({ ...q, [side.type]: { id: '', ask: 0, payout: 0, error: err.message } }));
           const p = m.proposal as {
             id: string; ask_price: number; payout: number;
-            contract_details?: { high_barrier?: string; low_barrier?: string; maximum_ticks?: number; maximum_payout?: number; barrier?: string };
+            contract_details?: { high_barrier?: string; low_barrier?: string; maximum_ticks?: number; maximum_payout?: number; barrier?: string; ticks_stayed_in?: number[] };
             limit_order?: { stop_out?: { value?: string } };
           } | undefined;
           if (p) setQuotes((q) => ({ ...q, [side.type]: {
@@ -123,12 +125,13 @@ export default function ManualTrader() {
             maxTicks: p.contract_details?.maximum_ticks, maxPayout: p.contract_details?.maximum_payout,
             barrier: p.contract_details?.barrier ? Number(p.contract_details.barrier) : undefined,
             stopOut: p.limit_order?.stop_out?.value ? Number(p.limit_order.stop_out.value) : undefined,
+            stayed: p.contract_details?.ticks_stayed_in,
           } }));
         }).then((u) => (alive ? offs.push(u) : u())).catch((e: Error) => { if (e.message === 'SESSION_EXPIRED') auth.expire(); });
       }
     }, 350);
     return () => { alive = false; clearTimeout(t); offs.forEach((u) => u()); };
-  }, [symbol, kind, stake, ticks, digit, barrier, growth, mult, tp, sl, currency, account?.id, nonce]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [symbol, kind, stake, ticks, digit, barrier, growth, mult, tp, sl, useTp, currency, account?.id, nonce]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const watch = (id: number) => {
     const s = ws.current;
@@ -180,116 +183,147 @@ export default function ManualTrader() {
   if (kind === 'multipliers' && firstQuote?.stopOut) lines.push({ value: firstQuote.stopOut, label: 'Stop out (Up)', color: 'var(--danger)', dashed: true });
   const oneSideBusy = (kind === 'accu' && open?.type === 'ACCU');
 
+  const kindInfo = KINDS.find((k) => k.id === kind);
+  const lastPrice = prices.length ? prices[prices.length - 1] : undefined;
+  const firstPrice = prices[0];
+  const change = lastPrice !== undefined && firstPrice ? lastPrice - firstPrice : 0;
+  const stayed = (kind === 'accu' ? accuQuote?.stayed : undefined) ?? [];
+  const bump = (d: number) => setStake((s) => String(Math.max(0.35, Number(s || 0) + d).toFixed(2)));
+
   return (
-    <div className="mt-layout">
-      <section className="mt-chart card">
-        <div className="row" style={{ alignItems: 'center', gap: 12 }}>
-          <select className="input mt-symbol" value={symbol} onChange={(e) => setSymbol(e.target.value)} aria-label="Market">
+    <div className="mt2">
+      <section className="mt2-chart card">
+        <div className="mt2-market">
+          <select className="mt2-sym" value={symbol} onChange={(e) => setSymbol(e.target.value)} aria-label="Market">
             {[...new Set(SYMBOLS.map((s) => s.group))].map((g) => (
               <optgroup key={g} label={g}>{SYMBOLS.filter((s) => s.group === g).map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}</optgroup>
             ))}
           </select>
-          <b className="mono" style={{ fontSize: 20 }}>{prices.length ? prices[prices.length - 1].toFixed(decimals) : '—'}</b>
+          <span className={`mt2-px mono ${change >= 0 ? 'up' : 'down'}`}>
+            {lastPrice !== undefined ? lastPrice.toFixed(decimals) : '—'} <small>{change >= 0 ? '▲' : '▼'} {Math.abs(change).toFixed(decimals)}</small>
+          </span>
         </div>
-        <TickChart prices={prices} times={times} height={420} lines={lines} decimals={decimals} />
+        <TickChart prices={prices} times={times} height={600} lines={lines} decimals={decimals} />
+        {stayed.length > 0 && (
+          <div className="mt2-stats" title="How many ticks each recent run stayed inside the range">
+            <b>Stats</b>
+            {stayed.slice(-10).reverse().map((n, i) => <span key={i} className={i === 0 ? 'now' : ''}>{n}</span>)}
+          </div>
+        )}
       </section>
 
-      <aside className="mt-panel stack">
-        <section className="card stack" style={{ gap: 12, padding: 16 }}>
-          <div className="seg" role="tablist" aria-label="Trade type">
-            {kinds.map((k) => <button key={k.id} role="tab" aria-selected={kind === k.id} className={kind === k.id ? 'on' : ''} onClick={() => setKind(k.id)}>{k.label}</button>)}
+      <aside className="mt2-panel">
+        <div className="mt2-type">
+          <button className="mt2-type-btn" aria-expanded={picker} onClick={() => setPicker((p) => !p)}>
+            <span className="mt2-type-ic" aria-hidden="true">↗</span>
+            <b>{kindInfo?.label}</b>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" aria-hidden="true"><path d="M6 9l6 6 6-6" /></svg>
+          </button>
+          {picker && (
+            <div className="mt2-type-list" role="listbox">
+              {kinds.map((k) => (
+                <button key={k.id} role="option" aria-selected={kind === k.id} className={kind === k.id ? 'on' : ''} onClick={() => { setKind(k.id); setPicker(false); }}>{k.label}</button>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {kind === 'accu' && (
+          <div className="mt2-box">
+            <span className="mt2-lbl">Growth rate <InfoTip>{TIPS.growth}</InfoTip></span>
+            <div className="mt2-chips">{[0.01, 0.02, 0.03, 0.04, 0.05].map((g) => <button key={g} aria-pressed={growth === g} className={growth === g ? 'on' : ''} onClick={() => setGrowth(g)}>{g * 100}%</button>)}</div>
           </div>
-
-          {kind === 'accu' && (
-            <div className="field">
-              <span className="label">Growth rate <InfoTip>{TIPS.growth}</InfoTip></span>
-              <div className="seg">{[0.01, 0.02, 0.03, 0.04, 0.05].map((g) => <button key={g} aria-pressed={growth === g} className={growth === g ? 'on' : ''} onClick={() => setGrowth(g)}>{g * 100}%</button>)}</div>
-            </div>
-          )}
-          {kind === 'multipliers' && (
-            <div className="field">
-              <span className="label">Multiplier <InfoTip>{TIPS.multiplier}</InfoTip></span>
-              <div className="seg">{mults.map((m) => <button key={m} aria-pressed={mult === m} className={mult === m ? 'on' : ''} onClick={() => setMult(m)}>×{m}</button>)}</div>
-            </div>
-          )}
-          {usesTicks(kind) && (
-            <div className="field">
-              <label className="label" htmlFor="mt-ticks">Duration: {ticks} tick{ticks === 1 ? '' : 's'} <InfoTip>{TIPS.duration}</InfoTip></label>
-              <input id="mt-ticks" type="range" min={range.min} max={range.max} value={ticks} onChange={(e) => setTicks(Number(e.target.value))} />
-            </div>
-          )}
-          {usesBarrier(kind) && (
-            <div className="field">
-              <label className="label" htmlFor="mt-barrier">Barrier <InfoTip>{TIPS.barrier}</InfoTip></label>
-              <input id="mt-barrier" className="input mono" value={barrier} onChange={(e) => setBarrier(e.target.value.replace(/[^\d.+-]/g, ''))} placeholder="+0.30" />
-            </div>
-          )}
-          {(kind === 'overunder' || kind === 'matchdiff') && (
-            <div className="field">
-              <span className="label">Last digit prediction <InfoTip>{TIPS.digit}</InfoTip></span>
-              <div className="digits">{Array.from({ length: 10 }, (_, d) => <button key={d} className={digit === d ? 'on' : ''} aria-pressed={digit === d} onClick={() => setDigit(d)}>{d}</button>)}</div>
-            </div>
-          )}
-
-          <div className="field">
-            <label className="label" htmlFor="mt-stake">Stake <InfoTip>{TIPS.stake}</InfoTip></label>
-            <div className="input-group">
-              <button className="btn btn-ghost" aria-label="Decrease stake" onClick={() => setStake((s) => String(Math.max(0.35, Number(s) - 1).toFixed(2)))}>−</button>
-              <input id="mt-stake" className="input mono" style={{ textAlign: 'center' }} inputMode="decimal" value={stake} onChange={(e) => setStake(e.target.value.replace(/[^\d.]/g, ''))} />
-              <span className="addon">{currency}</span>
-              <button className="btn btn-ghost" aria-label="Increase stake" onClick={() => setStake((s) => String((Number(s) + 1).toFixed(2)))}>+</button>
-            </div>
+        )}
+        {kind === 'multipliers' && (
+          <div className="mt2-box">
+            <span className="mt2-lbl">Multiplier <InfoTip>{TIPS.multiplier}</InfoTip></span>
+            <div className="mt2-chips">{mults.map((m) => <button key={m} aria-pressed={mult === m} className={mult === m ? 'on' : ''} onClick={() => setMult(m)}>×{m}</button>)}</div>
           </div>
+        )}
+        {usesTicks(kind) && (
+          <div className="mt2-box">
+            <span className="mt2-lbl">Duration · {ticks} tick{ticks === 1 ? '' : 's'} <InfoTip>{TIPS.duration}</InfoTip></span>
+            <input type="range" min={range.min} max={range.max} value={ticks} onChange={(e) => setTicks(Number(e.target.value))} aria-label="Ticks" />
+          </div>
+        )}
+        {usesBarrier(kind) && (
+          <div className="mt2-box">
+            <span className="mt2-lbl">Barrier <InfoTip>{TIPS.barrier}</InfoTip></span>
+            <input className="input mono" value={barrier} onChange={(e) => setBarrier(e.target.value.replace(/[^\d.+-]/g, ''))} placeholder="+0.30" aria-label="Barrier" />
+          </div>
+        )}
+        {(kind === 'overunder' || kind === 'matchdiff') && (
+          <div className="mt2-box">
+            <span className="mt2-lbl">Last digit prediction <InfoTip>{TIPS.digit}</InfoTip></span>
+            <div className="digits">{Array.from({ length: 10 }, (_, d) => <button key={d} className={digit === d ? 'on' : ''} aria-pressed={digit === d} onClick={() => setDigit(d)}>{d}</button>)}</div>
+          </div>
+        )}
 
-          {(kind === 'accu' || kind === 'multipliers') && (
-            <div className="row" style={{ gap: 10 }}>
-              <div className="field" style={{ flex: 1, minWidth: 120 }}>
-                <label className="label" htmlFor="mt-tp">Take profit <InfoTip>{TIPS.takeProfit}</InfoTip></label>
-                <input id="mt-tp" className="input mono" inputMode="decimal" placeholder="optional" value={tp} onChange={(e) => setTp(e.target.value.replace(/[^\d.]/g, ''))} />
-              </div>
-              {kind === 'multipliers' && (
-                <div className="field" style={{ flex: 1, minWidth: 120 }}>
-                  <label className="label" htmlFor="mt-sl">Stop loss <InfoTip>{TIPS.stopLoss}</InfoTip></label>
-                  <input id="mt-sl" className="input mono" inputMode="decimal" placeholder="optional" value={sl} onChange={(e) => setSl(e.target.value.replace(/[^\d.]/g, ''))} />
+        <div className="mt2-box">
+          <span className="mt2-lbl">Stake <InfoTip>{TIPS.stake}</InfoTip></span>
+          <div className="mt2-stake">
+            <button aria-label="Decrease stake" onClick={() => bump(-1)}>−</button>
+            <input className="mono" inputMode="decimal" value={stake} onChange={(e) => setStake(e.target.value.replace(/[^\d.]/g, ''))} aria-label="Stake" />
+            <span>{currency}</span>
+            <button aria-label="Increase stake" onClick={() => bump(1)}>+</button>
+          </div>
+        </div>
+
+        {(kind === 'accu' || kind === 'multipliers') && (
+          <div className="mt2-box">
+            <label className="mt2-check"><input type="checkbox" checked={useTp} onChange={(e) => setUseTp(e.target.checked)} /> Take profit <InfoTip>{TIPS.takeProfit}</InfoTip></label>
+            {useTp && <input className="input mono" inputMode="decimal" placeholder="e.g. 5.00" value={tp} onChange={(e) => setTp(e.target.value.replace(/[^\d.]/g, ''))} aria-label="Take profit" />}
+            {kind === 'multipliers' && (
+              <>
+                <span className="mt2-lbl" style={{ marginTop: 6 }}>Stop loss (optional)</span>
+                <input className="input mono" inputMode="decimal" placeholder="e.g. 5.00" value={sl} onChange={(e) => setSl(e.target.value.replace(/[^\d.]/g, ''))} aria-label="Stop loss" />
+              </>
+            )}
+          </div>
+        )}
+
+        {kind === 'accu' && accuQuote?.maxPayout !== undefined && (
+          <div className="mt2-box mt2-facts">
+            <span>Max. payout</span><b className="mono">{accuQuote.maxPayout.toLocaleString(undefined, { minimumFractionDigits: 2 })} {currency}</b>
+            <span>Max. ticks</span><b className="mono">{accuQuote.maxTicks} ticks</b>
+          </div>
+        )}
+
+        <div className="mt2-buys">
+          {SIDES[kind].map((side) => {
+            const q = quotes[side.type];
+            const showPayout = !['accu', 'multipliers'].includes(kind);
+            const pred = (kind === 'overunder' || kind === 'matchdiff') ? ` ${side.type === 'DIGITUNDER' ? Math.max(1, digit) : side.type === 'DIGITOVER' ? Math.min(8, digit) : digit}` : '';
+            return (
+              <button key={side.type} className={`mt2-buy ${side.tone}`} disabled={isPreview || !q?.id || buying !== null || oneSideBusy} onClick={() => buy(side.type)}>
+                <span className="mt2-buy-main">{buying === side.type ? 'Buying…' : `${side.label}${pred}`}</span>
+                <span className="mt2-buy-sub mono">{q?.error ? '—' : q ? (showPayout ? `Payout ${q.payout.toFixed(2)} ${currency}` : `${q.ask.toFixed(2)} ${currency}`) : '…'}</span>
+              </button>
+            );
+          })}
+          {[...new Set(SIDES[kind].map((s) => quotes[s.type]?.error).filter(Boolean))].map((m) => <p key={m} className="error">{m}</p>)}
+          {error && <p className="error" role="alert">{error}</p>}
+          {isPreview && <p className="hint">Prices are live. Buying works once a client logs in.</p>}
+          {!account?.isVirtual && account && <p className="hint" style={{ color: 'var(--danger)' }}>Real money account</p>}
+        </div>
+
+        {contracts.length > 0 && (
+          <div className="mt2-box mt2-pos">
+            <span className="mt2-lbl">Positions</span>
+            {contracts.map((c) => (
+              <div key={c.id} className="pos-row">
+                <div className="stack" style={{ gap: 2, minWidth: 0 }}>
+                  <span style={{ fontWeight: 600 }}>{c.type} · {symbolName(c.symbol).replace(' Index', '')}</span>
+                  <span className="hint">{c.sold ? (c.status === 'won' || c.profit > 0 ? 'Won' : c.status === 'lost' || c.profit < 0 ? 'Lost' : 'Closed') : `Open${c.ticks ? ` · ${c.ticks} ticks` : ''}`} · stake {c.buy.toFixed(2)}</span>
                 </div>
-              )}
-            </div>
-          )}
-          {kind === 'accu' && accuQuote?.maxTicks && <span className="hint">Max payout {accuQuote.maxPayout?.toLocaleString()} {currency} · max {accuQuote.maxTicks} ticks</span>}
-
-          <div className="stack" style={{ gap: 8 }}>
-            {SIDES[kind].map((side) => {
-              const q = quotes[side.type];
-              const showPayout = !['accu', 'multipliers'].includes(kind);
-              return (
-                <button key={side.type} className={`buy-btn ${side.tone}`} disabled={isPreview || !q?.id || buying !== null || oneSideBusy} onClick={() => buy(side.type)}>
-                  <span>{buying === side.type ? 'Buying…' : side.label}{(kind === 'overunder' || kind === 'matchdiff') ? ` ${side.type === 'DIGITUNDER' ? Math.max(1, digit) : side.type === 'DIGITOVER' ? Math.min(8, digit) : digit}` : ''}</span>
-                  <span className="mono">{q?.error ? '—' : q ? (showPayout ? `Payout ${q.payout.toFixed(2)}` : `${q.ask.toFixed(2)} ${currency}`) : '…'}</span>
-                </button>
-              );
-            })}
-            {[...new Set(SIDES[kind].map((s) => quotes[s.type]?.error).filter(Boolean))].map((m) => <p key={m} className="error">{m}</p>)}
-            {error && <p className="error" role="alert">{error}</p>}
-            {isPreview && <p className="hint">Prices are live. Buying works once a client logs in.</p>}
-            {!account?.isVirtual && account && <p className="hint" style={{ color: 'var(--danger)' }}>Real money account</p>}
+                <div className="row" style={{ gap: 8, alignItems: 'center' }}>
+                  <b className="mono" style={{ color: c.profit > 0 ? 'var(--success)' : c.profit < 0 ? 'var(--danger)' : undefined }}>{c.profit >= 0 ? '+' : ''}{c.profit.toFixed(2)}</b>
+                  {c.validToSell && SELLABLE.has(c.type) && <button className="btn btn-secondary" style={{ padding: '4px 10px' }} onClick={() => sell(c.id)}>Sell</button>}
+                </div>
+              </div>
+            ))}
           </div>
-        </section>
-
-        <section className="card stack" style={{ gap: 8, padding: 16 }}>
-          <b>Positions</b>
-          {contracts.length === 0 ? <span className="hint">Your trades will show here. Full history is in Reports.</span> : contracts.map((c) => (
-            <div key={c.id} className="pos-row">
-              <div className="stack" style={{ gap: 2, minWidth: 0 }}>
-                <span style={{ fontWeight: 600 }}>{c.type} · {symbolName(c.symbol).replace(' Index', '')}</span>
-                <span className="hint">{c.sold ? (c.status === 'won' || c.profit > 0 ? 'Won' : c.status === 'lost' || c.profit < 0 ? 'Lost' : 'Closed') : `Open${c.ticks ? ` · ${c.ticks} ticks` : ''}`} · stake {c.buy.toFixed(2)}</span>
-              </div>
-              <div className="row" style={{ gap: 8, alignItems: 'center' }}>
-                <b className="mono" style={{ color: c.profit > 0 ? 'var(--success)' : c.profit < 0 ? 'var(--danger)' : undefined }}>{c.profit >= 0 ? '+' : ''}{c.profit.toFixed(2)}</b>
-                {c.validToSell && SELLABLE.has(c.type) && <button className="btn btn-secondary" style={{ padding: '4px 10px' }} onClick={() => sell(c.id)}>Sell</button>}
-              </div>
-            </div>
-          ))}
-        </section>
+        )}
       </aside>
     </div>
   );
