@@ -1411,7 +1411,7 @@ html, body { overflow-x: clip; }
 .bw-tabs button.on { color: var(--text); }
 .bw-tabs button.on::after { content: ""; position: absolute; left: 16%; right: 16%; bottom: -1px; height: 3px; border-radius: 3px 3px 0 0; background: var(--accent, var(--primary)); }
 .bw-body { flex: 1; min-height: 0; overflow-y: auto; padding: 10px 14px; }
-.bw-empty { height: 100%; display: grid; place-items: center; text-align: center; color: var(--muted); line-height: 1.6; padding: 20px; }
+.bw-empty { display: block; padding-top: 28% !important; text-align: center; color: var(--muted); line-height: 1.6; padding: 20px; }
 .bw-chart-note { padding: 20px; text-align: center; font-weight: 700; }
 .bw-stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px 6px; padding: 12px; border-top: 1px solid var(--tp-line, var(--border)); background: var(--bg-alt); text-align: center; }
 .bw-stat { display: flex; flex-direction: column; gap: 2px; }
@@ -1626,3 +1626,78 @@ html, body { overflow-x: clip; }
 @keyframes rp-row { from { opacity: 0; transform: translateX(10px); } }
 .rp-pnl b { transition: color .3s; }
 @media (prefers-reduced-motion: reduce) { .fl, .fl-bell.has::before, .tp-head > *, .tp-nav .tp-tab { animation: none !important; } }
+
+/* =================== Charts: full-bleed chart, floating market card, tool column, zoom, live price tag =================== */
+.dc2 { position: relative; height: 100%; min-height: 460px; border-radius: 14px; overflow: hidden; border: 1px solid var(--tp-line, var(--border)); background: var(--bg); }
+.tp-page:has(> .dc2) { overflow: hidden; padding: 0; }
+.dc2-plot { position: absolute; inset: 0; padding-left: 58px; }
+.dc2-plot .ch-loading { left: 58px; }
+.dc2-market { position: absolute; top: 12px; left: 66px; z-index: 4; display: flex; align-items: center; gap: 10px; padding: 8px 12px 8px 8px; border-radius: 12px;
+  background: var(--bg); border: 1px solid var(--tp-line, var(--border)); box-shadow: 0 8px 24px rgba(11, 31, 58, .1); }
+.dc2-mk-ic { width: 34px; height: 34px; border-radius: 9px; display: grid; place-items: center; color: #fff; font-size: 16px;
+  background: linear-gradient(135deg, var(--accent, var(--primary)), color-mix(in srgb, var(--accent, var(--primary)) 50%, #0B1F3A)); }
+.dc2-mk-main { display: flex; flex-direction: column; line-height: 1.2; }
+.dc2-mk-main select { border: 0; background: none; padding: 0; font: inherit; font-size: 15px; font-weight: 800; color: var(--text); cursor: pointer; max-width: 230px; }
+.dc2-mk-main select option, .dc2-mk-main select optgroup { color: #0B1F3A; background: #fff; }
+.dc2-px { font-size: 12.5px; font-weight: 700; }
+.dc2-px.up { color: var(--up); } .dc2-px.down { color: var(--down); }
+.dc2.light { --up: #0E9F6E; --down: #E0393E; }
+.dc2.dark { --up: #2BD4A0; --down: #FF6B6F; }
+
+.dc2-tools { position: absolute; top: 0; bottom: 0; left: 0; z-index: 5; width: 52px; display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 12px 0;
+  border-right: 1px solid var(--tp-line, var(--border)); background: var(--bg); }
+.dc2-tools > button { position: relative; width: 40px; height: 40px; border-radius: 10px; border: 0; background: none; color: var(--muted); cursor: pointer; display: grid; place-items: center; font: inherit; font-weight: 800; font-size: 12px; transition: background .15s, color .15s, transform .1s; }
+.dc2-tools > button:hover:not(:disabled), .dc2-tools > button.on { background: color-mix(in srgb, var(--accent, var(--primary)) 12%, transparent); color: var(--text); }
+.dc2-tools > button:active:not(:disabled) { transform: scale(.92); }
+.dc2-tools > button:disabled { opacity: .45; cursor: default; }
+.dc2-tools > button i { position: absolute; top: 4px; right: 4px; min-width: 15px; height: 15px; border-radius: 99px; display: grid; place-items: center; font-size: 9.5px; font-style: normal; color: #fff; background: var(--accent, var(--primary)); }
+.dc2-frame { font-family: var(--mono); }
+.dc2-pop { position: absolute; left: 58px; top: 12px; z-index: 10; min-width: 220px; display: flex; flex-direction: column; gap: 2px; padding: 8px; border-radius: 12px;
+  background: var(--bg); border: 1px solid var(--border); box-shadow: 0 18px 40px rgba(11, 31, 58, .2); animation: as-in .18s ease both; }
+.dc2-pop b { padding: 6px 8px; font-size: 12px; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
+.dc2-pop > button { padding: 9px 10px; border: 0; border-radius: 8px; background: none; font: inherit; font-weight: 600; text-align: left; color: var(--text); cursor: pointer; }
+.dc2-pop > button:hover { background: var(--bg-alt); }
+.dc2-pop > button.on { background: color-mix(in srgb, var(--accent, var(--primary)) 14%, transparent); color: var(--accent, var(--primary)); }
+.dc2-check { display: flex; align-items: center; gap: 10px; padding: 9px 10px; border-radius: 8px; cursor: pointer; font-weight: 600; color: var(--text); }
+.dc2-check:hover { background: var(--bg-alt); }
+.dc2-check input { width: 16px; height: 16px; accent-color: var(--accent, var(--primary)); }
+.dc2-check i { width: 12px; height: 3px; border-radius: 2px; background: var(--ic); }
+
+.dc2-zoom { position: absolute; left: 64px; bottom: 34px; z-index: 4; display: flex; flex-direction: column; gap: 4px; }
+.dc2-zoom button { width: 34px; height: 34px; border-radius: 10px; border: 1px solid var(--tp-line, var(--border)); background: var(--bg); color: var(--text); font-size: 18px; font-weight: 700; cursor: pointer; box-shadow: 0 4px 12px rgba(11, 31, 58, .08); transition: transform .1s, background .15s; }
+.dc2-zoom button:hover { background: var(--bg-alt); }
+.dc2-zoom button:active { transform: scale(.92); }
+
+.dc2-tag { position: absolute; z-index: 3; transform: translateY(-11px); display: flex; flex-direction: column; align-items: stretch; min-width: 64px; pointer-events: none; transition: top .25s ease; }
+.dc2-tag b, .dc2-tag small { padding: 2px 6px; font-size: 11.5px; text-align: center; color: #fff; }
+.dc2-tag b { border-radius: 4px 4px 0 0; }
+.dc2-tag small { border-radius: 0 0 4px 4px; background: #0B1F3A; font-weight: 700; }
+.dc2-tag.up b { background: var(--up); } .dc2-tag.down b { background: var(--down); }
+.dc2-tag b:only-child { border-radius: 4px; }
+.dc2.dark .dc2-tag small { background: #E6ECF5; color: #0B1F3A; }
+@media (max-width: 700px) {
+  .dc2 { min-height: 420px; height: 70dvh; }
+  .dc2-market { left: 60px; right: 8px; }
+  .dc2-mk-main select { max-width: 100%; }
+}
+
+/* =================== Light / dark switch (client site) =================== */
+.tp-mode { width: 38px; height: 38px; flex: none; border-radius: 10px; border: 1px solid var(--tp-line, var(--border)); background: none; cursor: pointer; display: grid; place-items: center; transition: transform .2s, background .2s; }
+.tp-mode:hover { background: rgba(127, 127, 127, .1); }
+.tp-mode:active { transform: rotate(-20deg) scale(.92); }
+.tp-mode-ic { position: relative; width: 16px; height: 16px; border-radius: 50%; transition: all .35s cubic-bezier(.2, .9, .3, 1.2); }
+.tp-mode-ic.sun { background: #F5A524; box-shadow: 0 0 0 3px rgba(245, 165, 36, .25), 0 0 12px rgba(245, 165, 36, .6); }
+.tp-mode-ic.moon { background: transparent; box-shadow: inset -5px -3px 0 0 #E6ECF5; transform: rotate(-20deg); }
+
+/* Readable numbers in dark mode: brighter green/red and stronger muted text. */
+.tp-dark { --success: #2BD4A0; --danger: #FF6B6F; --muted: #A9B6CA; --text: #EEF2F8; }
+.tp-dark .mono { font-variant-numeric: tabular-nums; }
+.tp:not(.tp-dark) { --success: #0E9F6E; --danger: #E0393E; }
+.tp .mono { font-variant-numeric: tabular-nums; }
+
+/* Client site text always follows its own theme (fixes dark text on dark backgrounds). */
+.tp { color: var(--text); }
+.tp-dark .bw-stats { background: #0E1C33; }
+.tp-dark .bw-stat small { color: #A9B6CA; }
+/* Chart zoom sits bottom-right, clear of the floating bell and risk button. */
+.dc2-zoom { left: auto; right: 84px; bottom: 34px; flex-direction: row; }

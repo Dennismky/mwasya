@@ -35,6 +35,8 @@ export interface TraderCtx {
   runner: ReturnType<typeof useBotRunner>;
   /** The bot engine lives here so a bot keeps running on every page, and every tool logs to one Journal. */
   bot: ReturnType<typeof useBotEngine>;
+  /** Light or dark, as the client chose (starts from the mentor's theme). */
+  dark: boolean;
   /** Stop the bot (after its open trade) when the client leaves Bot Builder or the browser tab. */
   autoStop: boolean;
   setAutoStop: (on: boolean) => void;
@@ -137,7 +139,10 @@ function Shell({ site, initialBots, initialXml, base, preview }: { site: SiteBra
       botRef.current.stop();
     }
   }, [location.pathname, autoStop]);
-  const dark = site.theme === 'dark';
+  const modeKey = `mw_mode_${site.subdomain}`;
+  const [mode, setMode] = useState<'dark' | 'light'>(() => (localStorage.getItem(modeKey) === 'dark' || localStorage.getItem(modeKey) === 'light' ? localStorage.getItem(modeKey) as 'dark' | 'light' : site.theme === 'dark' ? 'dark' : 'light'));
+  const toggleMode = () => setMode((m) => { const n = m === 'dark' ? 'light' : 'dark'; localStorage.setItem(modeKey, n); return n; });
+  const dark = mode === 'dark';
   // Older sites have no feature list yet: show everything.
   const has = (f?: string) => !f || !site.features?.length || site.features.includes(f);
   const tabs = TABS.filter((t) => has(t.feature));
@@ -175,6 +180,9 @@ function Shell({ site, initialBots, initialXml, base, preview }: { site: SiteBra
         </div>
         <span style={{ flex: 1 }} />
         {has("deposit") && <button className="btn tp-deposit tp-cashier" onClick={() => setCashier(true)}>Cashier</button>}
+        <button className="tp-mode" onClick={toggleMode} aria-label={dark ? 'Switch to light mode' : 'Switch to dark mode'} title={dark ? 'Light mode' : 'Dark mode'}>
+          <span className={`tp-mode-ic ${dark ? 'moon' : 'sun'}`} aria-hidden="true" />
+        </button>
         <AccountSwitcher preview={preview} onResetDemo={resetDemo} />
         <div style={{ position: 'relative' }}>
           <button className="btn btn-ghost tp-user" aria-label="Account menu" aria-expanded={menu} onClick={() => setMenu((m) => !m)}>
@@ -208,7 +216,7 @@ function Shell({ site, initialBots, initialXml, base, preview }: { site: SiteBra
         {account && !account.isVirtual && (
           <div className="tp-real">You're on a <b>real money</b> account. Switch to Demo in the top bar to practise.</div>
         )}
-          <PageBoundary resetKey={location.pathname}><Outlet context={{ site, bots, xmlBots, runner, bot, autoStop, setAutoStop, base, preview } satisfies TraderCtx} /></PageBoundary>
+          <PageBoundary resetKey={location.pathname}><Outlet context={{ site, bots, xmlBots, runner, bot, dark, autoStop, setAutoStop, base, preview } satisfies TraderCtx} /></PageBoundary>
         </div>
         {noPanel ? null : panelOpen
           ? <RunPanel bot={bot} currency={auth.account?.currency ?? 'USD'} onCollapse={() => togglePanel(false)} />
