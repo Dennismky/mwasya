@@ -5,6 +5,7 @@ import { ToTop } from '../components/motion';
 import { AccountSwitcher } from './AccountSwitcher';
 import { Cashier } from './Cashier';
 import { RunPanel } from './RunPanel';
+import { PageBoundary } from '../components/PageBoundary';
 import { useBotEngine } from './botEngine';
 import { AuthProvider, PreviewAuthProvider, useAuth } from '../lib/auth';
 import { reloadTenant, type PublishedBot, type SiteBranding } from '../lib/tenant';
@@ -192,7 +193,7 @@ function Shell({ site, initialBots, initialXml, base, preview }: { site: SiteBra
         {account && !account.isVirtual && (
           <div className="tp-real">You're on a <b>real money</b> account. Switch to Demo in the top bar to practise.</div>
         )}
-          <Outlet context={{ site, bots, xmlBots, runner, bot, autoStop, setAutoStop, base, preview } satisfies TraderCtx} />
+          <PageBoundary resetKey={location.pathname}><Outlet context={{ site, bots, xmlBots, runner, bot, autoStop, setAutoStop, base, preview } satisfies TraderCtx} /></PageBoundary>
         </div>
         {panelOpen
           ? <RunPanel bot={bot} currency={auth.account?.currency ?? 'USD'} onCollapse={() => togglePanel(false)} />

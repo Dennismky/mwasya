@@ -3,7 +3,7 @@ import { useSearchParams } from 'react-router-dom';
 import { InfoTip, TIPS } from '../components/InfoTip';
 import { toast } from '../components/motion';
 import { PREVIEW_ACCOUNT_ID, useAuth } from '../lib/auth';
-import { MENU, configToXml } from './blocks';
+import { configToXml } from './blocks';
 import type { EditorApi } from './BlockEditor';
 import { DEFAULT_CONFIG, type BotConfig } from './botEngine';
 import { useTrader } from './TraderApp';
@@ -20,7 +20,6 @@ const CONTRACTS: { id: BotConfig['contract']; label: string; digit?: boolean }[]
 ];
 type Meta = Pick<LoadedBot, 'name' | 'params' | 'notes'>;
 const num = (v: string, d = 0) => { const n = Number(v); return Number.isFinite(n) ? n : d; };
-const pretty = (t: string) => t.replace(/^trade_definition_/, '').replace(/_/g, ' ');
 
 /** Bot Builder: blocks menu (left) · toolbar + workspace (centre) · Summary / Transactions / Journal (right) · Run bar. */
 export default function BotBuilder() {
@@ -44,8 +43,6 @@ export default function BotBuilder() {
   const [loadError, setLoadError] = useState('');
   const [quick, setQuick] = useState(false);
   const [settings, setSettings] = useState(false);
-  const [menuOpen, setMenuOpen] = useState(true);
-  const [search, setSearch] = useState('');
   const [params, setParams] = useSearchParams();
 
   const remember = (xml: string, m: Meta) => {
@@ -121,35 +118,13 @@ export default function BotBuilder() {
     void bot.runXml(editor.current?.xml() ?? latestXml.current);
   };
 
-  const q = search.trim().toLowerCase();
-  const found = q ? MENU.flatMap((m) => m.blocks.filter((b) => pretty(b).includes(q) || m.name.toLowerCase().includes(q))) : [];
-  useEffect(() => { if (q) editor.current?.showBlocks(found); }, [q]); // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
-    <div className={`bw ${menuOpen ? '' : 'menu-closed'}`}>
-      <aside className="bw-menu">
-        <button className="bw-quick" onClick={() => setQuick(true)} disabled={running}>⚡ Quick strategy</button>
-        <div className="bw-menu-head">
-          <b>Blocks menu</b>
-          <button className="bw-icon" aria-label="Hide blocks menu" onClick={() => setMenuOpen(false)}>‹</button>
-        </div>
-        <label className="bw-search">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7" /><path d="M20 20l-3.5-3.5" /></svg>
-          <input type="search" placeholder="Search blocks" value={search} onChange={(e) => setSearch(e.target.value)} aria-label="Search blocks" />
-        </label>
-        <nav className="bw-cats">
-          {MENU.map((m) => (
-            <button key={m.id} onClick={() => { setSearch(''); editor.current?.showBlocks(m.blocks); }} style={{ '--c': m.colour } as React.CSSProperties}>
-              <i />{m.name}
-            </button>
-          ))}
-        </nav>
-        {q && found.length === 0 && <p className="hint" style={{ padding: '0 14px' }}>No blocks match “{search}”.</p>}
-      </aside>
-
+    <div className="bw bw-full">
       <section className="bw-main">
         <div className="bw-toolbar" role="toolbar" aria-label="Bot tools">
-          {!menuOpen && <button className="bw-tool" title="Show blocks menu" onClick={() => setMenuOpen(true)}>☰</button>}
+          <button className="bw-quick" onClick={() => setQuick(true)} disabled={running}>⚡ Quick strategy</button>
+          <span className="bw-sep" />
           <button className="bw-tool" title="New bot" disabled={running} onClick={resetBot}>⟲</button>
           <button className="bw-tool" title="Import XML" disabled={running || busy} onClick={() => fileInput.current?.click()}>📂</button>
           <input ref={fileInput} type="file" accept=".xml,text/xml,application/xml" hidden onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ''; if (f) void importFile(f); }} />

@@ -7,7 +7,7 @@ import { SYMBOLS } from './ticks';
  * but the definitions, wording, colours and layout here are our own.
  */
 
-export const C = { trade: '#1F4FD1', purchase: '#0E7C66', sell: '#C2410C', restart: '#7A5AF8', data: '#0F6E9E', notify: '#475569' };
+export const C = { trade: '#3F4A5A', purchase: '#2F3A48', sell: '#5A6575', restart: '#252E3A', data: '#4E5968', notify: '#6B7482' };
 
 const contractOptions: [string, string][] = [
   ['Over', 'DIGITOVER'], ['Under', 'DIGITUNDER'], ['Matches', 'DIGITMATCH'], ['Differs', 'DIGITDIFF'],

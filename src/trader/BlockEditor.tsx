@@ -9,10 +9,10 @@ import { MENU, defineMwasyaBlocks } from './blocks';
  */
 
 const COLOURS: [RegExp, string][] = [
-  [/^trade_definition/, '#1F4FD1'], [/purchase|^trade_again|^contract/, '#0E7C66'], [/^(before|after|during)_purchase/, '#0B1F3A'],
-  [/notify|text_print|text_statement/, '#7A5AF8'], [/tick|candle|ohlc|digit|stat/, '#C2410C'], [/read_details|total_profit|balance|profit/, '#0F6E9E'],
+  [/^trade_definition/, '#3F4A5A'], [/purchase|^trade_again|^contract/, '#2F3A48'], [/^(before|after|during)_purchase/, '#252E3A'],
+  [/notify|text_print|text_statement/, '#6B7482'], [/tick|candle|ohlc|digit|stat/, '#4E5968'], [/read_details|total_profit|balance|profit/, '#5A6575'],
 ];
-const colourOf = (type: string) => COLOURS.find(([re]) => re.test(type))?.[1] ?? '#475569';
+const colourOf = (type: string) => COLOURS.find(([re]) => re.test(type))?.[1] ?? '#4E5968';
 const pretty = (s: string) => s.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
 
 interface Shape { fields: Map<string, Set<string>>; values: Set<string>; statements: Set<string>; output: boolean; previous: boolean; next: boolean; order: string[] }
@@ -122,7 +122,7 @@ export default function BlockEditor({ xml, onChange, locked, onReady }: {
       workspace = Blockly.inject(el, {
         trashcan: true, sounds: false, renderer: 'zelos', move: { scrollbars: true, drag: true, wheel: true },
         zoom: { controls: false, wheel: true, startScale: 0.72, maxScale: 2, minScale: 0.3 },
-        grid: { spacing: 24, length: 2, colour: dark ? '#1B2B48' : '#E2E8F0', snap: true },
+        grid: { spacing: 24, length: 2, colour: dark ? '#2E333B' : '#DCDFE4', snap: true },
         toolbox: {
           kind: 'categoryToolbox',
           contents: MENU.map((m) => (m.id === 'vars'
@@ -131,8 +131,19 @@ export default function BlockEditor({ xml, onChange, locked, onReady }: {
         },
         theme: Blockly.Theme.defineTheme(dark ? 'mw-dark' : 'mw-light', {
           name: dark ? 'mw-dark' : 'mw-light', base: Blockly.Themes.Classic,
+          // Grey and white: every block family in slate shades.
+          blockStyles: {
+            logic_blocks: { colourPrimary: '#56606E', colourSecondary: '#6B7482', colourTertiary: '#3E4752' },
+            loop_blocks: { colourPrimary: '#4A5462', colourSecondary: '#5F6977', colourTertiary: '#363E49' },
+            math_blocks: { colourPrimary: '#606A78', colourSecondary: '#747E8C', colourTertiary: '#46505C' },
+            text_blocks: { colourPrimary: '#6B7482', colourSecondary: '#808896', colourTertiary: '#4F5864' },
+            list_blocks: { colourPrimary: '#525C6A', colourSecondary: '#67717F', colourTertiary: '#3A434E' },
+            variable_blocks: { colourPrimary: '#3F4A5A', colourSecondary: '#55606F', colourTertiary: '#2C3542' },
+            procedure_blocks: { colourPrimary: '#363F4C', colourSecondary: '#4B5562', colourTertiary: '#252D38' },
+          },
+          categoryStyles: {},
           componentStyles: {
-            workspaceBackgroundColour: dark ? '#0B1530' : '#F7F9FC', scrollbarColour: '#94A3B8',
+            workspaceBackgroundColour: dark ? '#1F2329' : '#F1F2F4', scrollbarColour: '#94A3B8',
             toolboxBackgroundColour: dark ? '#0E1C33' : '#FFFFFF', toolboxForegroundColour: dark ? '#E6ECF5' : '#0B1F3A',
             flyoutBackgroundColour: dark ? '#12223B' : '#F1F4F9', flyoutOpacity: 0.97,
           },
