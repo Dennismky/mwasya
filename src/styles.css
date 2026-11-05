@@ -1542,14 +1542,14 @@ html, body { overflow-x: clip; }
 .bw-full .bw-pill:hover:not(:disabled) { background: #F1F2F4; }
 .bw-full .bw-free { border-color: #D1D5DB; background: #FFFFFF; color: #374151; }
 .bw-full .bw-name { color: #1F2937; }
-.bw-full .bw-canvas { background: #F1F2F4; border-color: #E3E5E8; }
+.bw-full .bw-canvas { background: #FFFFFF; border-color: #E3E5E8; }
 .bw-full .bw-runbar { background: #FFFFFF; border-color: #E3E5E8; }
 .bw-full .blocklyText { fill: #FFFFFF; }
 .bw-full .blocklyFlyoutBackground { fill: #FFFFFF; }
 .bw-full .blocklyMainBackground { cursor: grab; }
 .bw-full .blocklyMainBackground:active { cursor: grabbing; }
 .tp-dark .bw-full .bw-toolbar, .tp-dark .bw-full .bw-runbar { background: #23272E; border-color: #343A42; }
-.tp-dark .bw-full .bw-canvas { background: #1F2329; border-color: #343A42; }
+.tp-dark .bw-full .bw-canvas { background: #121821; border-color: #2A3442; }
 .tp-dark .bw-full .bw-name { color: #E5E7EB; }
 @media (max-width: 1000px) {
   .tp-page > .bw.bw-full { grid-template-columns: 1fr; grid-template-areas: "main" "run"; grid-template-rows: 560px auto; }
@@ -1975,3 +1975,7 @@ html, body { overflow-x: clip; }
 .dc2-digits-show { position: absolute; top: 18px; left: 360px; z-index: 4; padding: 6px 10px; border-radius: 99px; background: var(--bg); border: 1px solid var(--tp-line, var(--border)); font-weight: 700; }
 .dc2.dark .dc2-digits > span.hot { background: #17B886; } .dc2.dark .dc2-digits > span.cold { background: #E5484D; }
 @media (max-width: 1100px) { .dc2-digits { left: 66px; top: 74px; max-width: calc(100% - 160px); } .dc2-digits-show { left: 66px; top: 78px; } }
+
+/* Bot Builder: larger, bolder block text for readability */
+.bw-full .blocklyText { font-weight: 600 !important; }
+.bw-full .blocklyEditableText > rect, .bw-full .blocklyEditableField > rect { fill-opacity: 1; }

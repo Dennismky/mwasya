@@ -8,7 +8,7 @@ import { SYMBOLS } from './ticks';
  */
 
 // EDIT HERE: Bot Builder block colours (one per block family).
-export const C = { trade: '#3F4A5A', purchase: '#2F3A48', sell: '#5A6575', restart: '#252E3A', data: '#4E5968', notify: '#6B7482' };
+export const C = { section: '#2B3442', trade: '#2F6BDB', purchase: '#0E9F6E', sell: '#E0731A', restart: '#7C4DDB', data: '#0F8FA8', notify: '#64748B' };
 
 const contractOptions: [string, string][] = [
   ['Over', 'DIGITOVER'], ['Under', 'DIGITUNDER'], ['Matches', 'DIGITMATCH'], ['Differs', 'DIGITDIFF'],
@@ -26,7 +26,7 @@ export function defineMwasyaBlocks() {
       this.appendStatementInput('TRADE_OPTIONS').appendField('Market & type');
       this.appendStatementInput('INITIALIZATION').appendField('Run once at start');
       this.appendStatementInput('SUBMARKET').appendField('Trade options');
-      this.setColour(C.trade); this.setDeletable(false);
+      this.setColour(C.section); this.setDeletable(false);
     },
     trade_definition_market(this: Blockly.Block) {
       this.appendDummyInput().appendField('Market')
@@ -67,17 +67,17 @@ export function defineMwasyaBlocks() {
     before_purchase(this: Blockly.Block) {
       this.appendDummyInput().appendField('2. Purchase conditions');
       this.appendStatementInput('BEFOREPURCHASE_STACK');
-      this.setColour(C.purchase); this.setDeletable(false);
+      this.setColour(C.section); this.setDeletable(false);
     },
     during_purchase(this: Blockly.Block) {
       this.appendDummyInput().appendField('3. Sell conditions');
       this.appendStatementInput('DURING_PURCHASE_STACK');
-      this.setColour(C.sell);
+      this.setColour(C.section);
     },
     after_purchase(this: Blockly.Block) {
       this.appendDummyInput().appendField('4. Restart trading conditions');
       this.appendStatementInput('AFTERPURCHASE_STACK');
-      this.setColour(C.restart); this.setDeletable(false);
+      this.setColour(C.section); this.setDeletable(false);
     },
     purchase(this: Blockly.Block) {
       this.appendDummyInput().appendField('Purchase').appendField(new Blockly.FieldDropdown(contractOptions), 'PURCHASE_LIST');

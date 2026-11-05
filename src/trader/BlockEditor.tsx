@@ -9,8 +9,8 @@ import { MENU, defineMwasyaBlocks } from './blocks';
  */
 
 const COLOURS: [RegExp, string][] = [
-  [/^trade_definition/, '#3F4A5A'], [/purchase|^trade_again|^contract/, '#2F3A48'], [/^(before|after|during)_purchase/, '#252E3A'],
-  [/notify|text_print|text_statement/, '#6B7482'], [/tick|candle|ohlc|digit|stat/, '#4E5968'], [/read_details|total_profit|balance|profit/, '#5A6575'],
+  [/^controls_|^logic_/, '#4F5BD5'], [/^math_/, '#3E7CB1'], [/^variables_/, '#C2418A'], [/^trade_definition$/, '#2B3442'], [/^(before|after|during)_purchase$/, '#2B3442'], [/^trade_definition_/, '#2F6BDB'], [/purchase|^trade_again|^contract/, '#0E9F6E'],
+  [/notify|text_print|text_statement/, '#64748B'], [/tick|candle|ohlc|digit|stat/, '#0F8FA8'], [/read_details|total_profit|balance|profit/, '#7C4DDB'], [/sell/, '#E0731A'],
 ];
 const colourOf = (type: string) => COLOURS.find(([re]) => re.test(type))?.[1] ?? '#4E5968';
 const pretty = (s: string) => s.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
@@ -121,8 +121,8 @@ export default function BlockEditor({ xml, onChange, locked, onReady }: {
       const dark = !!el.closest('.tp-dark');
       workspace = Blockly.inject(el, {
         trashcan: true, sounds: false, renderer: 'zelos', move: { scrollbars: true, drag: true, wheel: true },
-        zoom: { controls: false, wheel: true, startScale: 0.72, maxScale: 2, minScale: 0.3 },
-        grid: { spacing: 24, length: 2, colour: dark ? '#2E333B' : '#DCDFE4', snap: true },
+        zoom: { controls: false, wheel: true, startScale: 0.85, maxScale: 2, minScale: 0.3 },
+        grid: { spacing: 24, length: 2, colour: dark ? '#263041' : '#E3E7EE', snap: true },
         toolbox: {
           kind: 'categoryToolbox',
           contents: MENU.map((m) => (m.id === 'vars'
@@ -133,17 +133,17 @@ export default function BlockEditor({ xml, onChange, locked, onReady }: {
           name: dark ? 'mw-dark' : 'mw-light', base: Blockly.Themes.Classic,
           // Grey and white: every block family in slate shades.
           blockStyles: {
-            logic_blocks: { colourPrimary: '#56606E', colourSecondary: '#6B7482', colourTertiary: '#3E4752' },
-            loop_blocks: { colourPrimary: '#4A5462', colourSecondary: '#5F6977', colourTertiary: '#363E49' },
-            math_blocks: { colourPrimary: '#606A78', colourSecondary: '#747E8C', colourTertiary: '#46505C' },
-            text_blocks: { colourPrimary: '#6B7482', colourSecondary: '#808896', colourTertiary: '#4F5864' },
-            list_blocks: { colourPrimary: '#525C6A', colourSecondary: '#67717F', colourTertiary: '#3A434E' },
-            variable_blocks: { colourPrimary: '#3F4A5A', colourSecondary: '#55606F', colourTertiary: '#2C3542' },
-            procedure_blocks: { colourPrimary: '#363F4C', colourSecondary: '#4B5562', colourTertiary: '#252D38' },
+            logic_blocks: { colourPrimary: '#4F5BD5', colourSecondary: '#6E78E0', colourTertiary: '#3A45B0' },
+            loop_blocks: { colourPrimary: '#2E8B57', colourSecondary: '#45A36E', colourTertiary: '#216B42' },
+            math_blocks: { colourPrimary: '#3E7CB1', colourSecondary: '#5A93C4', colourTertiary: '#2D5F8A' },
+            text_blocks: { colourPrimary: '#64748B', colourSecondary: '#7C8BA1', colourTertiary: '#4B5870' },
+            list_blocks: { colourPrimary: '#0F8FA8', colourSecondary: '#2FA8BF', colourTertiary: '#0B6E82' },
+            variable_blocks: { colourPrimary: '#C2418A', colourSecondary: '#D461A0', colourTertiary: '#99326C' },
+            procedure_blocks: { colourPrimary: '#8B5E34', colourSecondary: '#A6774A', colourTertiary: '#6B4826' },
           },
           categoryStyles: {},
           componentStyles: {
-            workspaceBackgroundColour: dark ? '#1F2329' : '#F1F2F4', scrollbarColour: '#94A3B8',
+            workspaceBackgroundColour: dark ? '#121821' : '#FFFFFF', scrollbarColour: '#94A3B8',
             toolboxBackgroundColour: dark ? '#0E1C33' : '#FFFFFF', toolboxForegroundColour: dark ? '#E6ECF5' : '#0B1F3A',
             flyoutBackgroundColour: dark ? '#12223B' : '#F1F4F9', flyoutOpacity: 0.97,
           },
@@ -152,7 +152,7 @@ export default function BlockEditor({ xml, onChange, locked, onReady }: {
       Blockly.Xml.domToWorkspace(dom, workspace);
       // Fit the whole bot on screen (never zoomed in past a comfortable size).
       workspace.zoomToFit();
-      if (workspace.getScale() > 0.85) workspace.setScale(0.85);
+      if (workspace.getScale() > 0.95) workspace.setScale(0.95);
       workspace.scrollCenter();
       const w = workspace;
       readyRef.current?.({
