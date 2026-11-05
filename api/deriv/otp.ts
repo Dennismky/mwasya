@@ -2,6 +2,7 @@ import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { derivFetch } from '../_lib/deriv.js';
 import { clearSession, getSession, noStore, sameOrigin } from '../_lib/session.js';
 import { clientIp, rateLimit } from '../_lib/guard.js';
+import { burst } from '../_lib/burst.js';
 
 /**
  * POST /api/deriv/otp  { accountId }
@@ -9,6 +10,7 @@ import { clientIp, rateLimit } from '../_lib/guard.js';
  * The browser connects to that URL directly; no token is ever sent to the browser.
  */
 export default async function handler(req: VercelRequest, res: VercelResponse) {
+  if (!burst(req, res, 'otp', 90)) return;
   noStore(res);
   if (req.method !== 'POST') return res.status(405).json({ error: 'method_not_allowed' });
   if (!sameOrigin(req)) return res.status(403).json({ error: 'bad_origin' });

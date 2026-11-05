@@ -6,6 +6,7 @@ import { getSession, noStore, sameOrigin, setPaySession, setSession } from '../_
 import { resolveTenant } from '../_lib/tenant.js';
 import { clientIp, rateLimit } from '../_lib/guard.js';
 import { snapshotEarnings, snapshotMonths } from '../_lib/earnings.js';
+import { burst } from '../_lib/burst.js';
 
 /** Map the Deriv login to a Mwasya operator. Login still succeeds if this fails (Bot Forge will ask to re-login). */
 async function resolveOperator(token: string, invite?: string): Promise<{ id: string; existing: boolean } | undefined> {
@@ -31,6 +32,7 @@ async function resolveOperator(token: string, invite?: string): Promise<{ id: st
  * then stores it in an encrypted HttpOnly cookie. The token is never returned to the browser.
  */
 export default async function handler(req: VercelRequest, res: VercelResponse) {
+  if (!burst(req, res, 'token', 30)) return;
   noStore(res);
   if (req.method !== 'POST') return res.status(405).json({ error: 'method_not_allowed' });
   if (!sameOrigin(req)) return res.status(403).json({ error: 'bad_origin' });

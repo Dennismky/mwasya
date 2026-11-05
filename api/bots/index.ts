@@ -2,12 +2,14 @@ import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { BOT_COLUMNS, checkSpec, requireOperator, type BotRow } from '../_lib/bots.js';
 import { query } from '../_lib/db.js';
 import { noStore, sameOrigin } from '../_lib/session.js';
+import { burst } from '../_lib/burst.js';
 
 /**
  * GET  /api/bots          → the operator's bots (not archived)
  * POST /api/bots { spec } → create a draft bot (422 with checks if unsafe)
  */
 export default async function handler(req: VercelRequest, res: VercelResponse) {
+  if (!burst(req, res, 'bots', 120)) return;
   noStore(res);
   if (req.method !== 'GET' && req.method !== 'POST') return res.status(405).json({ error: 'method_not_allowed' });
   if (req.method === 'POST' && !sameOrigin(req)) return res.status(403).json({ error: 'bad_origin' });

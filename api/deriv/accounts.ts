@@ -3,6 +3,7 @@ import { derivFetch } from '../_lib/deriv.js';
 import { clientIp, rateLimit } from '../_lib/guard.js';
 import { clearSession, getSession, noStore, sameOrigin } from '../_lib/session.js';
 import { cashier } from '../_lib/cashier.js';
+import { burst } from '../_lib/burst.js';
 
 /**
  * GET  /api/deriv/accounts                                — the user's Options trading accounts
@@ -10,6 +11,7 @@ import { cashier } from '../_lib/cashier.js';
  *      (https://developers.deriv.com/llms/reset-demo-balance.md; real accounts are refused by Deriv)
  */
 export default async function handler(req: VercelRequest, res: VercelResponse) {
+  if (!burst(req, res, 'accounts', 120)) return;
   noStore(res);
   if (req.method !== 'GET' && req.method !== 'POST') return res.status(405).json({ error: 'method_not_allowed' });
   if (req.method === 'POST' && !sameOrigin(req)) return res.status(403).json({ error: 'bad_origin' });

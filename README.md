@@ -244,10 +244,27 @@ Bots run on **Deriv's servers** through the `auto_*` API ([docs](https://develop
 ---
 
 ## Security rules
-- Never ask traders for API tokens or passwords.
-- Never request `payment` or `account_manage` scopes.
+- Never ask traders for API tokens or passwords. Passwords are only typed on Deriv's own page (OAuth 2.0 + PKCE).
+- Logins request `trade` only. `payment` is requested only when a client opens the Cashier, is stored in a separate
+  cookie that expires after 15 minutes, and every withdrawal still needs the code Deriv emails the client.
+  Never request `account_manage`.
 - Personal access tokens (`pat_…`) are server-only. Never ship them to the browser.
 - Secrets live in Vercel environment variables and `.env.local`, never in git.
+
+### How the site protects itself
+| Threat | Protection | Where |
+|---|---|---|
+| Floods (thousands of requests to crash it) | Vercel's platform DDoS protection; then a per-IP **flood guard** on every API endpoint that answers `429` before any database work; then Postgres-backed limits on logins, payments, domains, posting | `api/_lib/burst.ts`, `api/_lib/guard.ts` (`rateLimit`) |
+| Stolen logins | Deriv token kept server-side in an AES-256-GCM encrypted, `HttpOnly`, `Secure`, `__Host-` cookie; the browser never sees it | `api/_lib/session.ts` |
+| Forged requests from other websites (CSRF) | Every state-changing request must come from the same site (`Origin` check); cookies are `SameSite` | `sameOrigin` in `api/_lib/session.ts` |
+| Injected scripts (XSS) | React escapes all text (no raw HTML anywhere); strict Content-Security-Policy; `X-Frame-Options: DENY` | `vercel.json` headers |
+| Database injection | Every query uses placeholders (`$1, $2…`), never pasted-in user text | `api/` |
+| Malicious uploads | Bot files must be Blockly XML and are rejected if they contain scripts, `<!DOCTYPE>`/entities, frames or event handlers; served only as downloads. Logos must be PNG/JPEG/WebP data, max 200 KB, served sandboxed | `checkXml` in `api/platform.ts`, `db/schema.sql` |
+| Someone acting as owner | Owner/mentor role is re-checked in the database on every request; suspended mentors are locked out immediately | `requireOperator` / `requireOwner` in `api/_lib/guard.ts` |
+| Vulnerable packages | `npm audit --omit=dev` (0 known vulnerabilities as of 2026-11-05) | |
+
+**If you are under attack:** Vercel dashboard → project → **Firewall** → turn on **Attack Challenge Mode**
+(visitors must pass a browser check). Turn it off when traffic is normal again.
 
 ## Project structure
 ```

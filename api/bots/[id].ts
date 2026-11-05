@@ -2,6 +2,7 @@ import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { BOT_COLUMNS, STATUSES, checkSpec, isUuid, requireOperator, type BotRow } from '../_lib/bots.js';
 import { query } from '../_lib/db.js';
 import { getSession, noStore, sameOrigin } from '../_lib/session.js';
+import { burst } from '../_lib/burst.js';
 
 /**
  * GET    /api/bots/:id                 → owner sees any status; anyone sees a published bot
@@ -9,6 +10,7 @@ import { getSession, noStore, sameOrigin } from '../_lib/session.js';
  * DELETE /api/bots/:id                 → archives (keeps run history intact)
  */
 export default async function handler(req: VercelRequest, res: VercelResponse) {
+  if (!burst(req, res, 'bots', 120)) return;
   noStore(res);
   const id = req.query.id;
   if (!isUuid(id)) return res.status(404).json({ error: 'not_found' });

@@ -1,6 +1,7 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { DERIV_AUTH_TOKEN_URL } from '../../../api/_lib/deriv.js';
 import { getSession, noStore, sameOrigin, setPaySession, setSession } from '../../../api/_lib/session.js';
+import { burst } from '../../../api/_lib/burst.js';
 
 /**
  * POST /api/auth/token  { code, code_verifier, purpose? }  — standalone client site.
@@ -11,6 +12,7 @@ import { getSession, noStore, sameOrigin, setPaySession, setSession } from '../.
 const SITE_ID = 'standalone';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
+  if (!burst(req, res, 'token', 30)) return;
   noStore(res);
   if (req.method !== 'POST') return res.status(405).json({ error: 'method_not_allowed' });
   if (!sameOrigin(req)) return res.status(403).json({ error: 'bad_origin' });

@@ -9,6 +9,7 @@ import { saveEarnings, snapshotMonths, type MarkupStats } from './_lib/earnings.
 import { addDomain, buyDomain, checkDomain, domainPrice, domainsConfigured, registrarOrder, removeDomain, searchDomains, type RegistrantContact } from './_lib/vercelDomains.js';
 import { RESERVED_SUBDOMAINS, ROOT_DOMAIN } from './_lib/tenant.js';
 import { verifyRegistered } from './_lib/domainCheck.js';
+import { burst } from './_lib/burst.js';
 
 /**
  * One function for the operator platform (keeps us under Vercel's function limit and shares one warm DB pool).
@@ -33,6 +34,7 @@ import { verifyRegistered } from './_lib/domainCheck.js';
  *   GET|PUT /api/settings/profile
  */
 export default async function handler(req: VercelRequest, res: VercelResponse) {
+  if (!burst(req, res, 'platform', 300)) return;
   noStore(res);
   const group = String(req.query.group ?? '');
   const rest = String(req.query.rest ?? '').replace(/^\/+|\/+$/g, '');

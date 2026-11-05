@@ -1,6 +1,7 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { query } from './_lib/db.js';
 import { resolveTenant } from './_lib/tenant.js';
+import { burst } from './_lib/burst.js';
 
 /**
  * GET /api/site — public. Tells the browser which app it is:
@@ -9,6 +10,7 @@ import { resolveTenant } from './_lib/tenant.js';
  * - { kind: 'unknown' }                                → no live site at this address
  */
 export default async function handler(req: VercelRequest, res: VercelResponse) {
+  if (!burst(req, res, 'site', 120)) return;
   if (req.method !== 'GET') return res.status(405).json({ error: 'method_not_allowed' });
   try {
     const t = await resolveTenant(req);
