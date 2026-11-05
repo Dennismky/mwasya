@@ -13,6 +13,7 @@ const ago = (iso: string) => {
 };
 
 /** `/announcements` — a mentor posts messages that appear under the bell on their trading site. */
+// EDIT HERE: mentor's page for posting announcements (studio side).
 export default function Announcements() {
   const [sites, setSites] = useState<Site[] | null>(null);
   const [siteId, setSiteId] = useState('');

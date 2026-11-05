@@ -25,6 +25,7 @@ const INDICATORS: { id: Ind; label: string; color: string }[] = [
 ];
 
 /* Theme colours, chosen so prices, numbers and labels read clearly in both modes. */
+// EDIT HERE: chart colours for light and dark mode (background, grid, up/down candles, line).
 const THEME = {
   light: { text: '#3A4860', grid: 'rgba(11,31,58,.05)', up: '#0E9F6E', down: '#E0393E', line: '#1F4FD1', bg: '#F7F9FC' },
   dark: { text: '#D7E0EE', grid: 'rgba(255,255,255,.07)', up: '#2BD4A0', down: '#FF6B6F', line: '#7FA2FF', bg: '#0E1A2E' },

@@ -988,6 +988,7 @@ async function sitesRoute(req: VercelRequest, res: VercelResponse, rest: string)
     return res.status(200).json({ site: siteView(s) });
   }
   // Announcements: the mentor writes, clients see them under the bell on the trading site.
+  // EDIT HERE: announcements API for mentors: list (GET), post (POST), delete (DELETE). Limits: title 80, message 1000 chars.
   if (action === 'announcements') {
     if (req.method === 'GET') {
       const list = await query(`select id, title, body, created_at from site_announcements where site_id = $1 order by created_at desc limit 50`, [site.id]);

@@ -7,6 +7,7 @@ import { SYMBOLS } from './ticks';
  * but the definitions, wording, colours and layout here are our own.
  */
 
+// EDIT HERE: Bot Builder block colours (one per block family).
 export const C = { trade: '#3F4A5A', purchase: '#2F3A48', sell: '#5A6575', restart: '#252E3A', data: '#4E5968', notify: '#6B7482' };
 
 const contractOptions: [string, string][] = [

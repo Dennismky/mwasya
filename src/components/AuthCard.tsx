@@ -5,6 +5,7 @@ const KEY_EMAIL = 'mw_login_email';
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
 
 /** Animated forex symbols floating behind the card. */
+// EDIT HERE: floating forex symbols behind the login card (text, position, size).
 const FLOAT: { t: string; x: number; y: number; s: number; d: number; k?: 'pip' | 'pair' | 'up' | 'down' | 'candle' }[] = [
   { t: '$', x: 6, y: 14, s: 64, d: 0 }, { t: '€', x: 88, y: 10, s: 54, d: 2.5 }, { t: '£', x: 80, y: 78, s: 58, d: 1.2 },
   { t: '¥', x: 12, y: 80, s: 48, d: 3.4 }, { t: '$', x: 46, y: 90, s: 40, d: 4.1 }, { t: '₿', x: 94, y: 46, s: 42, d: 5 },

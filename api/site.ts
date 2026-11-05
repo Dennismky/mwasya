@@ -36,6 +36,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         : `select id, name, description from xml_bots where operator_id = $1 and status = 'published' order by updated_at desc limit 50`,
       picked.length ? [t.site.operator_id, picked] : [t.site.operator_id],
     );
+    // EDIT HERE: how many announcements clients receive (limit 20, newest first).
     const announcements = await query<{ id: string; title: string; body: string; created_at: string }>(
       `select id, title, body, created_at from site_announcements where site_id = $1 order by created_at desc limit 20`, [t.site.id],
     ).catch(() => []);

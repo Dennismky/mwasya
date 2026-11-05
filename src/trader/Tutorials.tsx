@@ -4,6 +4,7 @@ import { useTrader } from './TraderApp';
 
 interface Guide { id: string; title: string; time: string; to?: string; cta?: string; steps: string[] }
 
+// EDIT HERE: Tutorials tab: add or edit a guide (title, steps, button).
 const GUIDES: Guide[] = [
   { id: 'start', title: 'Get started', time: '2 min', to: '', cta: 'Open Dashboard', steps: [
     'Sign in with your Deriv account. You type your password on Deriv\'s own page.',

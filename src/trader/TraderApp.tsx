@@ -47,6 +47,7 @@ export interface TraderCtx {
 export const useTrader = () => useOutletContext<TraderCtx>();
 
 /** `short` = label in the phone bottom bar; `primary` tabs sit in that bar, the rest go under "More". */
+// EDIT HERE: client site tabs (order, names, icons). 'feature' must match an id in src/shared/templates.ts SITE_FEATURES.
 const TABS: { to: string; label: string; short: string; icon: ReactNode; end?: boolean; feature?: string; primary?: boolean }[] = [
   { to: '', label: 'Dashboard', short: 'Home', icon: <Icon.Chart />, end: true, primary: true },
   { to: '/bot-builder', label: 'Bot Builder', short: 'Builder', icon: <Icon.Gear />, feature: 'bots' },
@@ -271,6 +272,7 @@ function Shell({ site, initialBots, initialXml, base, preview }: { site: SiteBra
         <div className="tp-modal" role="dialog" aria-modal="true" aria-labelledby="rd-title" onClick={() => setDisclaimer(false)}>
           <div className="card stack" style={{ gap: 12, maxWidth: 560 }} onClick={(e) => e.stopPropagation()}>
             <h2 id="rd-title" style={{ fontSize: 20, fontWeight: 700 }}>Risk Disclaimer</h2>
+            {/* EDIT HERE: risk disclaimer wording shown on every client site (popup). */}
             <p>Trading derivatives involves risk. Options, multipliers and other Deriv products are complex instruments and may not suit every trader.</p>
             <p>Bots and signals follow the rules you set; they do not guarantee outcomes, and past performance does not indicate future results. We recommend practising on a demo account and setting clear limits before trading live.</p>
             <p className="hint">{site.name} is built on the Deriv API. Your funds stay in your Deriv account; this site can trade but can never withdraw.</p>

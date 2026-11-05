@@ -10,6 +10,7 @@ export type TemplateId = (typeof SITE_TEMPLATES)[number]['id'];
 export const templateOf = (id: string | undefined) => SITE_TEMPLATES.find((t) => t.id === id) ?? SITE_TEMPLATES[0];
 
 /** Tabs a site can show (Dashboard is always on). */
+// EDIT HERE: tools a mentor can switch on/off for their site (ids used by TABS in TraderApp.tsx).
 export const SITE_FEATURES = [
   { id: 'bots', label: 'Run bots', text: 'Quick Bot: one-tap ready-made bots' },
   { id: 'freebots', label: 'Free bot files', text: 'Deriv Bot XML downloads' },

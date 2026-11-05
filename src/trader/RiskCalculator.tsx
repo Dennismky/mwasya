@@ -5,6 +5,7 @@ import { toast } from '../components/motion';
 import { DEFAULT_CONFIG } from './botEngine';
 import { useTrader } from './TraderApp';
 
+// EDIT HERE: Daily Plan presets (target %, stop loss %, losing trades allowed).
 const PLANS = {
   safe: { label: 'Safe', target: 2, stop: 4, trades: 10 },
   balanced: { label: 'Balanced', target: 5, stop: 10, trades: 10 },

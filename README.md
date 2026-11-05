@@ -9,6 +9,8 @@ The operator platform for Deriv trading brands. Operators build bots with **Bot 
 
 ---
 
+> **Changing something?** See [docs/CODE-MAP.md](docs/CODE-MAP.md) for which file to edit for each feature, step-by-step recipes (e.g. notifications), and debugging tips. Search the code for `EDIT HERE` to jump to common settings.
+
 ## Quick start: copy, paste, run
 
 Before you start:

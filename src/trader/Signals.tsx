@@ -11,6 +11,7 @@ const KINDS: { id: Kind; label: string }[] = [
   { id: 'over', label: 'Over' }, { id: 'under', label: 'Under' }, { id: 'rise', label: 'Rise' }, { id: 'fall', label: 'Fall' },
 ];
 /** Named setups on the strategy desk. Each one is a contract (+ digit) applied to the market that currently leans its way most. */
+// EDIT HERE: strategy desk cards (name, contract, digit). 'kind' is one of the Kind values above.
 const STRATEGIES: { id: string; name: string; kind: Kind; barrier?: number; note: string }[] = [
   { id: 'even', name: 'Even Pressure', kind: 'even', note: 'Even digits leading' },
   { id: 'odd', name: 'Odd Pressure', kind: 'odd', note: 'Odd digits leading' },

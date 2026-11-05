@@ -9,6 +9,7 @@ import { Loader } from './Loader';
 import { ToTop } from './motion';
 
 type NavKey = Parameters<ReturnType<typeof useT>>[0];
+// EDIT HERE: studio (mwasya.site) sidebar menu. owner: true = only you see it.
 const NAV: { to: string; key: NavKey; icon: ReactNode; soon?: boolean; section?: string; owner?: boolean }[] = [
   { to: '/app', key: 'nav.overview', icon: <Icon.Chart />, section: 'BUILD & MANAGE' },
   { to: '/sites', key: 'nav.sites', icon: <Icon.Globe /> },

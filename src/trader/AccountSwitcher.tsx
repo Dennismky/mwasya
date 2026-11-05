@@ -3,6 +3,7 @@ import { useAuth } from '../lib/auth';
 import type { Account } from '../lib/accounts';
 
 /** Deriv's own cashier (deposit and withdrawal happen there, never on this site). */
+// EDIT HERE: link used when a client opens Deriv's own cashier.
 export const DERIV_CASHIER = 'https://home.deriv.com/dashboard/cashier';
 
 const fmt = (n: number | undefined, cur = 'USD') =>
