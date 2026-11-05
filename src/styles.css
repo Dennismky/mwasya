@@ -1774,3 +1774,8 @@ html, body { overflow-x: clip; }
 .tp:not(.tp-dark) .mt2-chart { background: #FFFFFF; }
 .mt2-chart .live-chart { margin: 70px 6px 46px 0; }
 @media (max-width: 1000px) { .mt2-chart .live-chart { min-height: 360px; } }
+
+/* Login buttons: a clean spinner while loading (no text) */
+.lg-btn.loading { display: grid; place-items: center; cursor: progress; }
+.lg-spin { width: 22px; height: 22px; border-radius: 50%; border: 3px solid rgba(255, 255, 255, .3); border-top-color: #FFFFFF; animation: lg-spin .7s linear infinite; }
+@keyframes lg-spin { to { transform: rotate(360deg); } }

@@ -120,7 +120,9 @@ export function AuthCard({ brand, checking, askName, initialView = 'login', noti
                 <li><span>3</span>Open the link Deriv emails you and set a new password.</li>
                 <li><span>4</span>Sign in here with the new password.</li>
               </ol>
-              <button className="lg-btn" disabled={busy} onClick={() => start(false)}>{busy ? 'Opening Deriv…' : 'Continue to Deriv'}</button>
+              <button className={`lg-btn ${busy ? 'loading' : ''}`} disabled={busy} aria-busy={busy} aria-label={busy ? 'Loading' : undefined} onClick={() => start(false)}>
+                {busy ? <span className="lg-spin" aria-hidden="true" /> : 'Reset password'}
+              </button>
               {shownError && <p className="error" role="alert">{shownError}</p>}
               <p className="lg-foot"><button type="button" className="auth-link" onClick={() => switchTo('login')}>← Back to sign in</button></p>
             </div>
@@ -136,12 +138,6 @@ export function AuthCard({ brand, checking, askName, initialView = 'login', noti
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2" /><path d="M3 7l9 6 9-6" /></svg>
                 <input type="email" autoComplete="email" inputMode="email" placeholder={view === 'signup' ? 'e.g. emily.carter@gmail.com' : 'e.g. james.walker@gmail.com'} value={email} onChange={(e) => setEmail(e.target.value)} aria-label="Email" maxLength={120} />
               </label>
-              <div className="lg-in lg-secure" title="Your Deriv password is typed only on Deriv's secure page.">
-                <Icon.Lock />
-                <span>Password is entered on Deriv's secure page</span>
-                <em>SECURE</em>
-              </div>
-
               {view === 'login' && (
                 <div className="lg-row">
                   <label className="lg-check"><input type="checkbox" checked={remember} onChange={(e) => setRemember(e.target.checked)} /> Remember me</label>
@@ -149,7 +145,9 @@ export function AuthCard({ brand, checking, askName, initialView = 'login', noti
                 </div>
               )}
 
-              <button className="lg-btn" type="submit" disabled={busy}>{busy ? 'Opening Deriv…' : view === 'login' ? 'Sign in' : 'Create account'}</button>
+              <button className={`lg-btn ${busy ? 'loading' : ''}`} type="submit" disabled={busy} aria-busy={busy} aria-label={busy ? 'Loading' : undefined}>
+                {busy ? <span className="lg-spin" aria-hidden="true" /> : view === 'login' ? 'Sign in' : 'Create account'}
+              </button>
               {shownError && <p className="error" role="alert">{shownError}</p>}
               <div className="auth-or"><span>or</span></div>
               <button type="button" className="lg-btn lg-ghost" disabled={busy} onClick={() => switchTo(view === 'login' ? 'signup' : 'login')}>
