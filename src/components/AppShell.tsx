@@ -15,6 +15,7 @@ const NAV: { to: string; key: NavKey; icon: ReactNode; soon?: boolean; section?:
   { to: '/forge', key: 'nav.forge', icon: <Icon.Chip /> },
   { to: '/xml-bots', key: 'nav.xml', icon: <Icon.Code /> },
   { to: '/commissions', key: 'nav.commissions', icon: <Icon.Coin /> },
+  { to: '/announcements', key: 'nav.announce', icon: <Icon.Send /> },
   { to: '/network', key: 'nav.network', icon: <Icon.Users />, section: 'ACCOUNT' },
   { to: '/fees', key: 'nav.fees', icon: <Icon.Coin />, owner: true },
   { to: '/billing', key: 'nav.billing', icon: <Icon.Card /> },

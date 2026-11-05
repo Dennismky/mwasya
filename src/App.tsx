@@ -19,6 +19,7 @@ import Billing from './pages/Billing';
 import Commissions from './pages/Commissions';
 import XmlBots from './pages/XmlBots';
 import Support from './pages/Support';
+import Announcements from './pages/Announcements';
 import Settings from './pages/Settings';
 
 /**
@@ -76,6 +77,7 @@ export default function App() {
         <Route path="/commissions" element={<Commissions />} />
         <Route path="/xml-bots" element={<XmlBots />} />
         <Route path="/support" element={<Support />} />
+        <Route path="/announcements" element={<Announcements />} />
         <Route path="/settings" element={<Settings />} />
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />

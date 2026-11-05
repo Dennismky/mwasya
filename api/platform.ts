@@ -979,6 +979,30 @@ async function sitesRoute(req: VercelRequest, res: VercelResponse, rest: string)
     const [s] = await query<SiteFull>(`update sites set status = 'paused', updated_at = now() where id = $1 returning ${SITE_FULL}`, [id]);
     return res.status(200).json({ site: siteView(s) });
   }
+  // Announcements: the mentor writes, clients see them under the bell on the trading site.
+  if (action === 'announcements') {
+    if (req.method === 'GET') {
+      const list = await query(`select id, title, body, created_at from site_announcements where site_id = $1 order by created_at desc limit 50`, [site.id]);
+      return res.status(200).json({ announcements: list });
+    }
+    if (req.method === 'POST') {
+      if (!(await rateLimit(`announce:${op.id}`, 30, 3600))) return res.status(429).json({ error: 'Too many announcements. Try again later.' });
+      const b = (req.body ?? {}) as { title?: unknown; body?: unknown };
+      const title = typeof b.title === 'string' ? b.title.trim().slice(0, 80) : '';
+      const body = typeof b.body === 'string' ? b.body.trim().slice(0, 1000) : '';
+      if (!title || !body) return res.status(422).json({ error: 'Write a title and a message.' });
+      const [a] = await query(`insert into site_announcements (site_id, operator_id, title, body) values ($1, $2, $3, $4) returning id, title, body, created_at`, [site.id, op.id, title, body]);
+      await audit(op.id, 'site.announce', op.id, { siteId: site.id });
+      return res.status(201).json({ announcement: a });
+    }
+    if (req.method === 'DELETE') {
+      const aid = String(req.query.aid ?? '');
+      if (!isUuid(aid)) return res.status(404).json({ error: 'not_found' });
+      await query(`delete from site_announcements where id = $1 and site_id = $2`, [aid, site.id]);
+      return res.status(204).end();
+    }
+    return res.status(405).json({ error: 'method_not_allowed' });
+  }
   if (action) return res.status(404).json({ error: 'not_found' });
 
   if (req.method === 'GET') return res.status(200).json({ site: siteView(site) });

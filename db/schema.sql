@@ -307,3 +307,14 @@ alter table payments add constraint payments_purpose_check check (purpose in ('a
 
 -- Owner settings for fees: where Send Money goes, rate for USD↔KES.
 insert into settings (key, value) values ('fees', '{"enabled": true, "send_money_phone": "", "send_money_name": "", "kes_per_usd": 130}') on conflict (key) do nothing;
+
+-- Mentor announcements shown to clients on a trading site (bell).
+create table if not exists site_announcements (
+  id          uuid primary key default gen_random_uuid(),
+  site_id     uuid not null references sites(id) on delete cascade,
+  operator_id uuid not null references operators(id) on delete cascade,
+  title       text not null check (length(title) between 1 and 80),
+  body        text not null check (length(body) between 1 and 1000),
+  created_at  timestamptz not null default now()
+);
+create index if not exists site_announcements_site_idx on site_announcements(site_id, created_at desc);

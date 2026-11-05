@@ -4,11 +4,13 @@ import { Icon } from '../components/ui';
 import { ToTop } from '../components/motion';
 import { AccountSwitcher } from './AccountSwitcher';
 import { Cashier } from './Cashier';
+import { Bell } from './Bell';
+import { Floating } from '../components/Floating';
 import { RunPanel } from './RunPanel';
 import { PageBoundary } from '../components/PageBoundary';
 import { useBotEngine } from './botEngine';
 import { AuthProvider, PreviewAuthProvider, useAuth } from '../lib/auth';
-import { reloadTenant, type PublishedBot, type SiteBranding } from '../lib/tenant';
+import { reloadTenant, type Announcement, type PublishedBot, type SiteBranding } from '../lib/tenant';
 import { useBotRunner } from '../lib/useBotRunner';
 import { runPnL } from '../lib/autoTrade';
 import Analysis from './Analysis';
@@ -86,6 +88,7 @@ function Shell({ site, initialBots, initialXml, base, preview }: { site: SiteBra
   const auth = useAuth();
   const [bots, setBots] = useState(initialBots);
   const [xmlBots, setXmlBots] = useState(initialXml);
+  const [announcements, setAnnouncements] = useState<Announcement[]>([]);
   const [menu, setMenu] = useState(false);
   const [more, setMore] = useState(false);
   const [disclaimer, setDisclaimer] = useState(false);
@@ -109,7 +112,7 @@ function Shell({ site, initialBots, initialXml, base, preview }: { site: SiteBra
   const [panelOpen, setPanelOpen] = useState(() => localStorage.getItem('mw_panel') !== '0');
   const togglePanel = (o: boolean) => { setPanelOpen(o); localStorage.setItem('mw_panel', o ? '1' : '0'); };
   // Manual Trader has its own trade panel on the right (like a trading terminal), so the results panel stays out of the way there.
-  const noPanel = location.pathname.endsWith('/manual');
+  const noPanel = /\/(manual|reports)$/.test(location.pathname);
   const showPanel = panelOpen && !noPanel;
   const [autoStop, setAutoStopState] = useState(() => localStorage.getItem('mw_autostop') !== '0');
   const setAutoStop = (on: boolean) => { setAutoStopState(on); localStorage.setItem('mw_autostop', on ? '1' : '0'); };
@@ -139,9 +142,18 @@ function Shell({ site, initialBots, initialXml, base, preview }: { site: SiteBra
   const has = (f?: string) => !f || !site.features?.length || site.features.includes(f);
   const tabs = TABS.filter((t) => has(t.feature));
 
+  // Preview: the mentor sees their own announcements under the bell.
+  useEffect(() => {
+    if (!preview) return;
+    const id = base.split('/').pop();
+    fetch(`/api/sites/${id}/announcements`, { credentials: 'same-origin' }).then((r) => (r.ok ? r.json() : { announcements: [] })).then((j) => setAnnouncements(j.announcements ?? [])).catch(() => undefined);
+  }, [preview, base]);
   useEffect(() => {
     if (preview) return; // the studio already passed this site's bots
-    reloadTenant().then((t) => { if (t.kind === 'site') { setBots(t.bots); setXmlBots(t.xmlBots ?? []); } }).catch(() => undefined);
+    const load = () => reloadTenant().then((t) => { if (t.kind === 'site') { setBots(t.bots); setXmlBots(t.xmlBots ?? []); setAnnouncements(t.announcements ?? []); } }).catch(() => undefined);
+    void load();
+    const timer = setInterval(() => void load(), 60_000);
+    return () => clearInterval(timer);
   }, [preview]);
 
   if (auth.status === 'signed-out') return <Navigate to="/" replace state={{ from: '/app', error: auth.error }} />;
@@ -205,7 +217,6 @@ function Shell({ site, initialBots, initialXml, base, preview }: { site: SiteBra
       <ToTop target=".tp-page" />
 
       <footer className="tp-foot">
-        <button className="btn tp-disclaimer" onClick={() => setDisclaimer(true)}>Risk Disclaimer</button>
         <span className="tp-status">
           {live.length > 0
             ? <><span className="dot dot-real pulse" /> {live.length} bot{live.length > 1 ? 's' : ''} running · <b className="mono" style={{ color: livePnl >= 0 ? 'var(--success)' : 'var(--danger)' }}>{livePnl >= 0 ? '+' : ''}{livePnl.toFixed(2)}</b></>
@@ -244,6 +255,8 @@ function Shell({ site, initialBots, initialXml, base, preview }: { site: SiteBra
         </div>
       </aside>
 
+      <Bell items={announcements} siteKey={site.subdomain} siteName={site.name} />
+      <Floating id="risk" start={{ left: 14, bottom: 58 }} onTap={() => setDisclaimer(true)} label="Risk disclaimer" className="fl-risk"><span aria-hidden="true">⚠</span> Risk Disclaimer</Floating>
       {cashier && <Cashier preview={preview} onClose={() => setCashier(false)} />}
       {disclaimer && (
         <div className="tp-modal" role="dialog" aria-modal="true" aria-labelledby="rd-title" onClick={() => setDisclaimer(false)}>
