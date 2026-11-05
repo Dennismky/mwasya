@@ -6,12 +6,18 @@ import DomainStep from './DomainStep';
 import { ReadyChecklist, type Readiness } from './ReadyChecklist';
 
 interface Site {
-  id: string; name: string; subdomain: string; tagline: string | null; accent: string; theme: 'light' | 'dark'; template: string;
+  id: string; name: string; subdomain: string; tagline: string | null; accent: string; theme: 'light' | 'dark'; template: string; layout?: 'classic' | 'rail' | 'dock';
   features: string[]; free_bots: string[]; deriv_app_id: string | null; markup: number; status: string;
   custom_domain: string | null; domain_status: string; logoUrl: string | null; url: string; subdomainUrl: string;
   ready?: Readiness;
 }
 interface CatalogBot { id: string; name: string; description: string; catalog: boolean; mine: boolean }
+
+const LAYOUTS = [
+  { id: 'classic', name: 'Classic', text: 'Tabs across the top' },
+  { id: 'rail', name: 'Side rail', text: 'Icons down the left, more room for charts' },
+  { id: 'dock', name: 'Dock', text: 'Tools in a bottom bar on every screen' },
+] as const;
 
 const STEPS = ['name', 'address', 'features', 'logo', 'design', 'colours', 'bots', 'deriv', 'domain', 'review'] as const;
 type Step = (typeof STEPS)[number];
@@ -77,7 +83,7 @@ export default function SiteWizard() {
     if (step === 'address' && !(await save({ subdomain: draft.subdomain ?? site?.subdomain }))) return;
     if (step === 'features' && !(await save({ features: draft.features ?? site?.features }))) return;
     if (step === 'logo' && !(await save({ ...(draft.logo !== undefined ? { logo: draft.logo } : {}), tagline: draft.tagline ?? site?.tagline ?? '' }))) return;
-    if (step === 'design' && draft.template && !(await save({ template: draft.template, accent: draft.accent, theme: draft.theme }))) return;
+    if (step === 'design' && (draft.template || draft.layout) && !(await save({ ...(draft.template ? { template: draft.template, accent: draft.accent, theme: draft.theme } : {}), ...(draft.layout ? { layout: draft.layout } : {}) }))) return;
     if (step === 'colours' && !(await save({ accent: draft.accent ?? site?.accent, theme: draft.theme ?? site?.theme }))) return;
     if (step === 'bots' && draft.free_bots && !(await save({ free_bots: draft.free_bots }))) return;
     if (step === 'deriv' && !(await save({ derivAppId: draft.derivAppId ?? site?.deriv_app_id ?? '', markup: draft.markup ?? site?.markup ?? 0 }))) return;
@@ -177,6 +183,18 @@ export default function SiteWizard() {
                         {i === 0 && <span className="wiz-badge">Best match</span>}
                         <span className="wiz-design-mock"><b>{view.name}</b><i /><i /></span>
                         <span className="stack" style={{ textAlign: 'left' }}><b>{t.name}</b><span style={{ opacity: .7, fontSize: 13 }}>{t.blurb}</span></span>
+                      </button>
+                    );
+                  })}
+                </div>
+                <h2 className="wiz-sub">Layout</h2>
+                <div className="wiz-layouts">
+                  {LAYOUTS.map((l) => {
+                    const on = (draft.layout ?? view.layout ?? 'classic') === l.id;
+                    return (
+                      <button key={l.id} className={`wiz-layout ${on ? 'on' : ''}`} aria-pressed={on} onClick={() => setDraft({ ...draft, layout: l.id })}>
+                        <span className={`wl-mock wl-${l.id}`}><i className="wl-nav" /><i className="wl-body" /></span>
+                        <b>{l.name}</b><small>{l.text}</small>
                       </button>
                     );
                   })}

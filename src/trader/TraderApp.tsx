@@ -2,7 +2,7 @@ import { useEffect, useState, type CSSProperties, type ReactNode } from 'react';
 import { Navigate, NavLink, Route, Routes, useLocation, useOutletContext, Outlet } from 'react-router-dom';
 import { Icon } from '../components/ui';
 import { ToTop } from '../components/motion';
-import { AccountSwitcher } from './AccountSwitcher';
+import { AccountSwitcher, DERIV_CASHIER } from './AccountSwitcher';
 import { AuthProvider, PreviewAuthProvider, useAuth } from '../lib/auth';
 import { reloadTenant, type PublishedBot, type SiteBranding } from '../lib/tenant';
 import { useBotRunner } from '../lib/useBotRunner';
@@ -113,7 +113,7 @@ function Shell({ site, initialBots, initialXml, base, preview }: { site: SiteBra
   const style = { '--primary': site.accent, '--primary-hover': site.accent, '--accent': site.accent } as CSSProperties;
 
   return (
-    <div className={`tp tpl-${site.template ?? 'bothub'} ${dark ? 'tp-dark' : ''}`} style={style} data-theme={dark ? 'dark' : undefined}>
+    <div className={`tp tpl-${site.template ?? 'bothub'} tp-l-${site.layout ?? 'classic'} ${dark ? 'tp-dark' : ''}`} style={style} data-theme={dark ? 'dark' : undefined}>
       <header className="tp-head">
         {site.logoUrl ? <img className="brand-mark" src={site.logoUrl} alt="" style={{ objectFit: "cover" }} /> : <span className="brand-mark" style={{ background: site.accent }}>{site.name.charAt(0).toUpperCase()}</span>}
         <div className="stack" style={{ lineHeight: 1.1 }}>
@@ -121,7 +121,8 @@ function Shell({ site, initialBots, initialXml, base, preview }: { site: SiteBra
           <span className="hint" style={{ fontSize: 10, letterSpacing: '.08em' }}>{site.subdomain.toUpperCase()}</span>
         </div>
         <span style={{ flex: 1 }} />
-        {has("deposit") && <a className="btn tp-deposit" href="https://app.deriv.com/cashier/deposit" target="_blank" rel="noreferrer">Deposit</a>}
+        {has("deposit") && <a className="btn tp-deposit" href={DERIV_CASHIER} target="_blank" rel="noreferrer">Deposit</a>}
+        {has("deposit") && <a className="btn tp-withdraw" href={DERIV_CASHIER} target="_blank" rel="noreferrer">Withdraw</a>}
         <AccountSwitcher preview={preview} onResetDemo={resetDemo} />
         <div style={{ position: 'relative' }}>
           <button className="btn btn-ghost tp-user" aria-label="Account menu" aria-expanded={menu} onClick={() => setMenu((m) => !m)}>

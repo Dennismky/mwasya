@@ -261,6 +261,7 @@ select distinct on (s.operator_id) s.*, count(*) over (partition by s.operator_i
 alter table sites add column if not exists client_logins integer not null default 0;
 alter table sites add column if not exists sub_login_at timestamptz;     -- last successful client login on <sub>.mwasya.site
 alter table sites add column if not exists domain_login_at timestamptz;  -- last successful client login on the custom domain
+alter table sites add column if not exists layout text not null default 'classic' check (layout in ('classic', 'rail', 'dock'));
 
 -- ---------- Monthly mentor fees (due 10th–13th, shown in USD, paid via M-Pesa) ----------
 

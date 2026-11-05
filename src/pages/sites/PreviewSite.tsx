@@ -23,7 +23,7 @@ export default function PreviewSite() {
       setData({
         site: {
           name: s.name, subdomain: s.subdomain, accent: s.accent, theme: s.theme, appId: s.deriv_app_id ?? '',
-          template: s.template, features: s.features, tagline: s.tagline, logoUrl: s.logoUrl,
+          template: s.template, layout: s.layout, features: s.features, tagline: s.tagline, logoUrl: s.logoUrl,
         },
         bots: (bots as (PublishedBot & { status: string })[]).filter((b) => b.status === 'published'),
         xml,

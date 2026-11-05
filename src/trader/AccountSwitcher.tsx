@@ -2,6 +2,9 @@ import { useEffect, useRef, useState } from 'react';
 import { useAuth } from '../lib/auth';
 import type { Account } from '../lib/accounts';
 
+/** Deriv's own cashier (deposit and withdrawal happen there, never on this site). */
+export const DERIV_CASHIER = 'https://home.deriv.com/dashboard/cashier';
+
 const fmt = (n: number | undefined, cur = 'USD') =>
   n === undefined ? '—' : `${n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ${cur}`;
 
@@ -71,7 +74,7 @@ export function AccountSwitcher({ preview, onResetDemo }: { preview: boolean; on
           </ul>
           <div className="as-foot">
             {tab === 'demo' && account?.isVirtual && !preview && <button className="btn btn-secondary" onClick={() => { setOpen(false); onResetDemo(); }}>Reset demo balance</button>}
-            {tab === 'real' && <a className="btn btn-secondary" href="https://app.deriv.com/cashier/deposit" target="_blank" rel="noreferrer">Deposit ↗</a>}
+            {tab === 'real' && <span className="row" style={{ gap: 6 }}><a className="btn btn-primary" href={DERIV_CASHIER} target="_blank" rel="noreferrer">Deposit ↗</a><a className="btn btn-secondary" href={DERIV_CASHIER} target="_blank" rel="noreferrer">Withdraw ↗</a></span>}
             <span className="hint">{loading ? 'Updating from Deriv…' : 'Balances from Deriv'}</span>
           </div>
         </div>

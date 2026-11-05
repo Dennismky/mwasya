@@ -26,8 +26,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       [t.site.operator_id],
     );
     // Builder config: design, which tabs show, tagline, logo, and which free bots (catalog + own) appear.
-    const [cfg] = await query<{ template: string; features: string[]; free_bots: string[]; tagline: string | null; has_logo: boolean; updated_at: string }>(
-      `select template, features, free_bots, tagline, (logo is not null) as has_logo, updated_at from sites where id = $1`, [t.site.id]);
+    const [cfg] = await query<{ template: string; layout: string; features: string[]; free_bots: string[]; tagline: string | null; has_logo: boolean; updated_at: string }>(
+      `select template, layout, features, free_bots, tagline, (logo is not null) as has_logo, updated_at from sites where id = $1`, [t.site.id]);
     const picked = Array.isArray(cfg?.free_bots) ? cfg.free_bots : [];
     const xmlBots = await query<{ id: string; name: string; description: string }>(
       picked.length
@@ -41,7 +41,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       kind: 'site',
       site: {
         name: t.site.name, subdomain: t.site.subdomain, accent: t.site.accent, theme: t.site.theme, appId: t.site.deriv_app_id,
-        template: cfg?.template ?? 'bothub', features: cfg?.features ?? [], tagline: cfg?.tagline ?? null,
+        template: cfg?.template ?? 'bothub', layout: cfg?.layout ?? 'classic', features: cfg?.features ?? [], tagline: cfg?.tagline ?? null,
         logoUrl: cfg?.has_logo ? `/api/sites/logo?id=${t.site.id}&v=${Date.parse(cfg.updated_at)}` : null,
       },
       bots,

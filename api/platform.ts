@@ -819,11 +819,11 @@ async function domains(req: VercelRequest, res: VercelResponse, rest: string) {
 
 const FEATURES = ['bots', 'freebots', 'manual', 'charts', 'analysis', 'risk', 'learn', 'contact', 'deposit'] as const;
 const TEMPLATES = ['bothub', 'signaldesk', 'chartfloor', 'primedesk', 'nightmarket'] as const;
-const SITE_FULL = `id, operator_id, name, subdomain, tagline, accent, theme, template, features, free_bots, deriv_app_id, markup::float as markup, status,
+const SITE_FULL = `id, operator_id, name, subdomain, tagline, accent, theme, template, layout, features, free_bots, deriv_app_id, markup::float as markup, status,
   custom_domain, domain_status, (logo is not null) as has_logo, client_logins, sub_login_at, domain_login_at, created_at, updated_at`;
 
 interface SiteFull {
-  id: string; operator_id: string; name: string; subdomain: string; tagline: string | null; accent: string; theme: string; template: string;
+  id: string; operator_id: string; name: string; subdomain: string; tagline: string | null; accent: string; theme: string; template: string; layout: string;
   features: string[]; free_bots: string[]; deriv_app_id: string | null; markup: number; status: 'draft' | 'live' | 'paused';
   custom_domain: string | null; domain_status: string; has_logo: boolean; created_at: string; updated_at: string;
   client_logins: number; sub_login_at: string | null; domain_login_at: string | null;
@@ -1021,6 +1021,7 @@ async function sitesRoute(req: VercelRequest, res: VercelResponse, rest: string)
     if (b.accent !== undefined) { if (/^#[0-9A-Fa-f]{6}$/.test(String(b.accent))) set('accent', b.accent); else errors.accent = 'Pick a colour'; }
     if (b.theme !== undefined) set('theme', b.theme === 'dark' ? 'dark' : 'light');
     if (b.template !== undefined) { if ((TEMPLATES as readonly string[]).includes(String(b.template))) set('template', b.template); else errors.template = 'Pick a design'; }
+    if (b.layout !== undefined) { if (['classic', 'rail', 'dock'].includes(String(b.layout))) set('layout', b.layout); else errors.layout = 'Pick a layout'; }
     if (b.features !== undefined) {
       const f = Array.isArray(b.features) ? [...new Set(b.features.map(String))].filter((x) => (FEATURES as readonly string[]).includes(x)) : null;
       if (!f) errors.features = 'Invalid'; else set('features', JSON.stringify(f));
