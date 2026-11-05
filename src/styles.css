@@ -1754,3 +1754,16 @@ html, body { overflow-x: clip; }
 .tp-dark .sg-cell.best { background: color-mix(in srgb, var(--accent, #1F4FD1) 28%, #0E1A2E); }
 .tp-dark .meter span.up { background: #2BD4A0; } .tp-dark .meter span.down { background: #FF6B6F; }
 .tp-dark .tick-chart text { fill: #C3CCDA; }
+
+/* Network: sites & clients per mentor */
+.sc-list { display: flex; flex-direction: column; gap: 8px; }
+.sc-row { display: grid; grid-template-columns: minmax(0, 1.2fr) auto; grid-template-areas: "site nums" "last nums"; gap: 4px 14px; align-items: center; padding: 12px; border-radius: 12px; border: 1px solid var(--border); animation: rise .3s ease both; }
+.sc-row > .stack { grid-area: site; }
+.sc-name { display: flex; align-items: center; gap: 8px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sc-url { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sc-nums { grid-area: nums; display: grid; grid-template-columns: repeat(4, minmax(56px, auto)); gap: 6px; }
+.sc-nums span { display: flex; flex-direction: column; align-items: center; padding: 6px 8px; border-radius: 10px; background: var(--bg-alt); }
+.sc-nums b { font-size: 16px; }
+.sc-nums small { font-size: 11px; color: var(--muted); white-space: nowrap; }
+.sc-last { grid-area: last; font-size: 12px; }
+@media (max-width: 700px) { .sc-row { grid-template-columns: 1fr; grid-template-areas: "site" "nums" "last"; } .sc-nums { grid-template-columns: repeat(2, 1fr); } }

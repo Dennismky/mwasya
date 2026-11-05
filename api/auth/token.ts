@@ -1,4 +1,5 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
+import { createHmac } from 'node:crypto';
 import { DERIV_AUTH_TOKEN_URL, derivFetch, env } from '../_lib/deriv.js';
 import { query, upsertOperator, type DerivAccount } from '../_lib/db.js';
 import { getSession, noStore, sameOrigin, setPaySession, setSession } from '../_lib/session.js';
@@ -80,6 +81,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         `update sites set client_logins = client_logins + 1, ${onSub ? 'sub_login_at' : 'domain_login_at'} = now() where id = $1`,
         [tenant.site.id],
       ).catch(() => undefined);
+      // Count unique clients per site (an HMAC of their Deriv account, never the id itself). Never blocks login.
+      await Promise.race([recordClient(tenant.site.id, data.access_token).catch(() => null), new Promise((r) => setTimeout(r, 2500))]);
     }
     // Refresh this mentor's commission snapshot (works when the login included read-only application_read). Never blocks login.
     if (operatorId) await Promise.race([
@@ -91,4 +94,21 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   } catch {
     return res.status(500).json({ error: 'server_error' });
   }
+}
+
+/** One row per client per site: a keyed hash of their first Deriv account, plus first/last seen and login count. */
+async function recordClient(siteId: string, token: string) {
+  const secret = process.env.SESSION_SECRET;
+  if (!secret || !process.env.DATABASE_URL) return;
+  const r = await derivFetch('/trading/v1/options/accounts', token);
+  if (!r.ok) return;
+  const { data } = (await r.json()) as { data?: { account_id?: string }[] };
+  const ids = (data ?? []).map((a) => a.account_id).filter((x): x is string => typeof x === 'string').sort();
+  if (!ids.length) return;
+  const key = createHmac('sha256', secret).update(`client:${ids[0]}`).digest('hex');
+  await query(
+    `insert into site_clients (site_id, client_key) values ($1, $2)
+     on conflict (site_id, client_key) do update set last_seen = now(), logins = site_clients.logins + 1`,
+    [siteId, key],
+  );
 }

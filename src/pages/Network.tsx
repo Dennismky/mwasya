@@ -7,7 +7,7 @@ interface Person {
   paid_until: string | null; created_at: string; last_login_at: string | null;
   site_id: string | null; site_name: string | null; subdomain: string | null; site_status: string | null;
   parent_site: string | null; parent_subdomain: string | null; accounts: string | null;
-  bots_published: number; direct_children: number;
+  bots_published: number; direct_children: number; clients: number;
   markup_30d: number | null; earnings_at: string | null; custom_domain: string | null;
 }
 interface Summary { people: number; sites: number; suspended: number; paying: number; markup_30d: number }
@@ -18,6 +18,7 @@ interface Detail {
   person: Person & { phone: string | null; deriv_app_id: string | null; markup: string | null };
   accounts: { account_id: string; account_type: string; currency: string | null }[];
   bots: { id: string; name: string; risk: string; status: string; updated_at: string }[];
+  sites: { id: string; name: string; subdomain: string; custom_domain: string | null; status: string; client_logins: number; last_login: string | null; clients: number; active_7d: number; new_30d: number }[];
   payments: { id: string; amount: number; status: string; mpesa_receipt: string | null; phone: string; created_at: string }[];
   history: { action: string; meta: Record<string, unknown>; created_at: string }[];
   earnings: { markup_30d: number; volume_30d: number; contracts_30d: number; clients_30d: number; fetched_at: string } | null;
@@ -113,7 +114,7 @@ export default function Network() {
         <div style={{ overflowX: 'auto', opacity: loading ? 0.6 : 1, transition: 'opacity .15s' }} aria-busy={loading}>
           <table className="table">
             <thead>
-              <tr><th>Site</th><th>Deriv accounts</th><th>Invited by</th><th>Markup · 30d</th><th>Under them</th><th>Bots</th>{(billing?.priceKes ?? 0) > 0 && <th>Access until</th>}<th>Joined</th><th>Status</th></tr>
+              <tr><th>Site</th><th>Deriv accounts</th><th>Invited by</th><th>Markup · 30d</th><th>Clients</th><th>Under them</th><th>Bots</th>{(billing?.priceKes ?? 0) > 0 && <th>Access until</th>}<th>Joined</th><th>Status</th></tr>
             </thead>
             <tbody>
               {data?.people.map((p) => (
@@ -125,6 +126,7 @@ export default function Network() {
                   <td className="mono hint">{p.accounts ?? '—'}</td>
                   <td className="hint">{p.depth === 1 ? (isOwner ? 'You' : 'You') : (p.parent_site ?? '—')}</td>
                   <td className="mono" title={p.earnings_at ? `Updated ${ago(p.earnings_at)}` : "Not connected yet"}>{p.markup_30d === null ? <span className="hint">—</span> : <b style={{ color: "var(--success)" }}>{usd(p.markup_30d)}</b>}{p.earnings_at && <div className="hint" style={{ fontSize: 11 }}>{ago(p.earnings_at)}</div>}</td>
+                  <td className="mono"><b>{p.clients}</b></td>
                   <td className="mono">{p.direct_children}</td>
                   <td className="mono">{p.bots_published}</td>
                   {(billing?.priceKes ?? 0) > 0 && <td className="hint">{p.paid_until && new Date(p.paid_until) > new Date() ? fmtDate(p.paid_until) : <span className="error">Expired</span>}</td>}
@@ -295,6 +297,7 @@ function PersonPanel({ id, isOwner, onClose, onChanged }: { id: string; isOwner:
             {d.earnings && <Fact k="Earnings updated" v={ago(d.earnings.fetched_at)} />}
             <Fact k="Status" v={p!.status} />
             <Fact k="Invited by" v={p!.parent_site ?? 'You'} />
+            <Fact k="Clients (all sites)" v={String(d.sites.reduce((s, x) => s + x.clients, 0))} />
             <Fact k="Joined" v={fmtDate(p!.created_at)} />
             <Fact k="Last login" v={fmtDate(p!.last_login_at)} />
             <Fact k="Access until" v={p!.paid_until ? fmtDate(p!.paid_until) : '—'} />
@@ -302,6 +305,7 @@ function PersonPanel({ id, isOwner, onClose, onChanged }: { id: string; isOwner:
             {p!.deriv_app_id && <Fact k="Deriv app ID" v={p!.deriv_app_id} />}
             {p!.markup !== null && <Fact k="Markup" v={`${p!.markup}%`} />}
           </div>
+          <SitesClients sites={d.sites} />
           <div className="stack" style={{ gap: 6 }}>
             <b>Deriv accounts</b>
             <span className="mono hint">{d.accounts.map((a) => `${a.account_id} (${a.account_type}${a.currency ? ' ' + a.currency : ''})`).join(' · ') || '—'}</span>
@@ -341,6 +345,41 @@ function Fact({ k, v }: { k: string; v: string }) {
     <div className="stack" style={{ gap: 2 }}>
       <span className="hint" style={{ fontSize: 12, fontWeight: 600 }}>{k.toUpperCase()}</span>
       <span className="mono" style={{ fontSize: 14 }}>{v}</span>
+    </div>
+  );
+}
+
+/** A mentor's sites with their client numbers. "Show more" opens the full list. */
+function SitesClients({ sites }: { sites: Detail['sites'] }) {
+  const [all, setAll] = useState(false);
+  const shown = all ? sites : sites.slice(0, 3);
+  const total = sites.reduce((s, x) => s + x.clients, 0);
+  return (
+    <div className="stack sc" style={{ gap: 8 }}>
+      <div className="row" style={{ justifyContent: 'space-between', alignItems: 'baseline' }}>
+        <b>Sites & clients</b>
+        <span className="hint">{sites.length} site{sites.length === 1 ? '' : 's'} · {total} client{total === 1 ? '' : 's'}</span>
+      </div>
+      {sites.length === 0 ? <span className="hint">No sites yet.</span> : (
+        <div className="sc-list">
+          {shown.map((s) => (
+            <div key={s.id} className="sc-row">
+              <div className="stack" style={{ gap: 2, minWidth: 0 }}>
+                <b className="sc-name">{s.name} <span className={`badge ${s.status === 'live' ? 'badge-green' : 'badge-blue'}`}>{s.status}</span></b>
+                <span className="hint mono sc-url">{s.custom_domain ?? `${s.subdomain}.mwasya.site`}</span>
+              </div>
+              <div className="sc-nums">
+                <span><b className="mono">{s.clients}</b><small>clients</small></span>
+                <span><b className="mono">{s.active_7d}</b><small>active 7d</small></span>
+                <span><b className="mono">{s.new_30d}</b><small>new 30d</small></span>
+                <span><b className="mono">{s.client_logins}</b><small>logins</small></span>
+              </div>
+              <span className="hint sc-last">{s.last_login ? `Last client login ${fmtDate(s.last_login)}` : 'No client logins yet'}</span>
+            </div>
+          ))}
+        </div>
+      )}
+      {sites.length > 3 && <button className="btn btn-ghost" style={{ alignSelf: 'flex-start' }} onClick={() => setAll((a) => !a)}>{all ? 'Show less' : `Show more (${sites.length - 3})`}</button>}
     </div>
   );
 }

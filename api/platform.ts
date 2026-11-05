@@ -173,6 +173,7 @@ async function network(req: VercelRequest, res: VercelResponse, rest: string) {
               (select string_agg(a.account_id, ', ' order by a.account_type) from operator_accounts a where a.operator_id = o.id) as accounts,
               (select count(*) from bots b where b.operator_id = o.id and b.status = 'published')::int as bots_published,
               (select count(*) from operators c where c.parent_id = o.id)::int as direct_children,
+              (select count(*) from site_clients sc join sites ss on ss.id = sc.site_id where ss.operator_id = o.id)::int as clients,
               e.markup_30d::float as markup_30d, e.fetched_at as earnings_at, s.custom_domain,
               count(*) over ()::int as total
          from tree t
@@ -230,13 +231,20 @@ async function network(req: VercelRequest, res: VercelResponse, rest: string) {
     const [earnings] = await query(`select markup_30d::float, volume_30d::float, contracts_30d, clients_30d, breakdown, fetched_at from operator_earnings where operator_id = $1`, [id]);
     const accounts = await query(`select account_id, account_type, currency, seen_at from operator_accounts where operator_id = $1 order by account_type`, [id]);
     const bots = await query(`select id, name, risk, status, updated_at from bots where operator_id = $1 and status <> 'archived' order by updated_at desc limit 50`, [id]);
+    // Every site this mentor runs, with its client numbers (unique clients, active this week, logins).
+    const sites = await query(
+      `select s.id, s.name, s.subdomain, s.custom_domain, s.status, s.client_logins, greatest(s.sub_login_at, s.domain_login_at) as last_login,
+              (select count(*) from site_clients c where c.site_id = s.id)::int as clients,
+              (select count(*) from site_clients c where c.site_id = s.id and c.last_seen > now() - interval '7 days')::int as active_7d,
+              (select count(*) from site_clients c where c.site_id = s.id and c.first_seen > now() - interval '30 days')::int as new_30d
+         from sites s where s.operator_id = $1 order by s.created_at desc limit 50`, [id]);
     const payments = op.role === 'owner'
       ? await query(`select id, amount, status, mpesa_receipt, phone, created_at from payments where operator_id = $1 order by created_at desc limit 20`, [id])
       : [];
     const history = op.role === 'owner'
       ? await query(`select action, meta, created_at from audit_log where target_id = $1 order by created_at desc limit 20`, [id])
       : [];
-    return res.status(200).json({ person, accounts, bots, payments, history, earnings: earnings ?? null });
+    return res.status(200).json({ person, accounts, bots, sites, payments, history, earnings: earnings ?? null });
   }
 
   if (req.method === 'POST') {

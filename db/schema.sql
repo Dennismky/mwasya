@@ -318,3 +318,15 @@ create table if not exists site_announcements (
   created_at  timestamptz not null default now()
 );
 create index if not exists site_announcements_site_idx on site_announcements(site_id, created_at desc);
+
+-- Unique clients per trading site (for the owner's / upline's Network view).
+-- client_key is an HMAC of the client's Deriv account id: we can count people without storing who they are.
+create table if not exists site_clients (
+  site_id    uuid not null references sites(id) on delete cascade,
+  client_key text not null check (length(client_key) = 64),
+  first_seen timestamptz not null default now(),
+  last_seen  timestamptz not null default now(),
+  logins     integer not null default 1,
+  primary key (site_id, client_key)
+);
+create index if not exists site_clients_seen_idx on site_clients(site_id, last_seen desc);
