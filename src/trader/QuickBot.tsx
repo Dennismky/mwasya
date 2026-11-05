@@ -35,7 +35,7 @@ export default function QuickBot() {
   const run = (bot: PublishedBot) => {
     if (!account) return;
     const spec: BotSpec = { ...bot.spec, contract: { ...bot.spec.contract, currency } };
-    if (!account.isVirtual && !confirm(`Run "${bot.name}" on your REAL account?\n\nYou can lose up to ${spec.params.stop_loss} ${currency}. Losses are not guaranteed to stop exactly at that amount.`)) return;
+    if (!account.isVirtual && !confirm(`Run "${bot.name}" on your real account?\n\nIt follows its own take profit and stop loss limits.`)) return;
     setError('');
     void runner.start(spec, bot.id);
   };

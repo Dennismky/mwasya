@@ -25,7 +25,7 @@ export function InfoTip({ children, label = 'More info' }: { children: ReactNode
 
 /** Plain-language explanations used across the trading site. */
 export const TIPS = {
-  stake: 'The amount you pay to open the trade. It is the most you can lose on Rise/Fall, Digits, Higher/Lower and Touch trades.',
+  stake: 'The amount you put into each trade. On Rise/Fall, Digits, Higher/Lower and Touch it is the full cost of the trade.',
   duration: 'How long the trade lasts. A tick is one price update (about one second on 1s indices).',
   digit: 'The last digit of the price when the trade ends, from 0 to 9.',
   growth: 'Your stake grows by this % every tick the price stays inside the range. Higher rates grow faster but the range is narrower, so the trade can end sooner.',

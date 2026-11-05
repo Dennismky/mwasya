@@ -49,7 +49,7 @@ export default function SiteLanding({ site }: { site: SiteBranding }) {
       checking={checking}
       error={state.error}
       onStart={(signup) => startLogin({ signup, returnTo })}
-      legal={<>© {new Date().getFullYear()} {site.name} · Built on the Deriv API · Trading carries risk; only trade what you can afford to lose.</>}
+      legal={<>© {new Date().getFullYear()} {site.name} · Built on the Deriv API · Trading derivatives involves risk.</>}
     />
   );
 }

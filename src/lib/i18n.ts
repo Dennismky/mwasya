@@ -26,7 +26,7 @@ const en = {
   'nav.signOut': 'Sign out',
   'nav.studio': 'OPERATOR STUDIO',
   'nav.owner': 'OWNER · ADMIN',
-  'legal.risk': 'Trading carries risk. Bots do not guarantee profit.',
+  'legal.risk': 'Trading derivatives involves risk. Bots do not guarantee outcomes.',
   'login.signIn': 'Sign in',
   'login.sub': "Use your Deriv account. You sign in on Deriv's own page and come straight back here.",
   'login.button': 'Log in with Deriv',

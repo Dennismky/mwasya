@@ -63,7 +63,7 @@ export default function TraderDashboard() {
           <ol className="hint" style={{ margin: 0, paddingLeft: 18, lineHeight: 1.8 }}>
             <li>Switch to your <b>Demo</b> account.</li>
             <li>Open <Link to={`${base}/quick-bot`}>Quick Bot</Link> and run a bot.</li>
-            <li>Watch the results, then decide on real money.</li>
+            <li>Review the results, then decide when to trade live.</li>
           </ol>
         </section>
         {has('learn') && <section className="card stack" style={{ gap: 4 }}>

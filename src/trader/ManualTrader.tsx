@@ -308,7 +308,7 @@ export default function ManualTrader() {
           {[...new Set(SIDES[kind].map((s) => quotes[s.type]?.error).filter(Boolean))].map((m) => <p key={m} className="error">{m}</p>)}
           {error && <p className="error" role="alert">{error}</p>}
           {isPreview && <p className="hint">Prices are live. Buying works once a client logs in.</p>}
-          {!account?.isVirtual && account && <p className="hint" style={{ color: 'var(--danger)' }}>Real money account</p>}
+          {!account?.isVirtual && account && <p className="hint" style={{ color: 'var(--danger)' }}>Real account</p>}
         </div>
 
         {contracts.length > 0 && (

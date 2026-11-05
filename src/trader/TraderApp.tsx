@@ -215,7 +215,7 @@ function Shell({ site, initialBots, initialXml, base, preview }: { site: SiteBra
         {notice && <div className="tp-preview" role="status">{notice}</div>}
         {preview && <div className="tp-preview"><b>Client preview.</b> This is exactly what your clients see. Prices and charts are live; trading is off until a client logs in on your deployed site.</div>}
         {account && !account.isVirtual && (
-          <div className="tp-real">You're on a <b>real money</b> account. Switch to Demo in the top bar to practise.</div>
+          <div className="tp-real">You're on your <b>real</b> account. Switch to Demo in the top bar to practise.</div>
         )}
           <PageBoundary resetKey={location.pathname}><Outlet context={{ site, bots, xmlBots, runner, bot, dark, autoStop, setAutoStop, base, preview } satisfies TraderCtx} /></PageBoundary>
         </div>
@@ -271,8 +271,8 @@ function Shell({ site, initialBots, initialXml, base, preview }: { site: SiteBra
         <div className="tp-modal" role="dialog" aria-modal="true" aria-labelledby="rd-title" onClick={() => setDisclaimer(false)}>
           <div className="card stack" style={{ gap: 12, maxWidth: 560 }} onClick={(e) => e.stopPropagation()}>
             <h2 id="rd-title" style={{ fontSize: 20, fontWeight: 700 }}>Risk Disclaimer</h2>
-            <p>Deriv offers complex derivatives, such as options and contracts for difference. These products may not be suitable for everyone. Trading is risky, and you could lose all of your stake.</p>
-            <p>Bots and signals do not guarantee profit. Past results don't predict future results. Only trade with money you can afford to lose, and practise on a demo account first.</p>
+            <p>Trading derivatives involves risk. Options, multipliers and other Deriv products are complex instruments and may not suit every trader.</p>
+            <p>Bots and signals follow the rules you set; they do not guarantee outcomes, and past performance does not indicate future results. We recommend practising on a demo account and setting clear limits before trading live.</p>
             <p className="hint">{site.name} is built on the Deriv API. Your funds stay in your Deriv account; this site can trade but can never withdraw.</p>
             <button className="btn btn-primary" style={{ alignSelf: 'flex-start' }} onClick={() => setDisclaimer(false)}>I understand</button>
           </div>

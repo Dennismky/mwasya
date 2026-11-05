@@ -42,7 +42,7 @@ export function Footer() {
         <Brand />
         <p className="muted" style={{ fontSize: 13, lineHeight: 1.6, paddingTop: 20, borderTop: '1px solid var(--border)' }}>
           © {new Date().getFullYear()} Mwasya. Built on the Deriv API.
-          Trading derivatives carries a high level of risk, and you can lose all of your stake. Bots and signals do not guarantee profit.
+          Trading derivatives involves risk. Bots and signals follow set rules and do not guarantee outcomes.
         </p>
       </div>
     </footer>
