@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import * as Blockly from 'blockly';
+import { MENU, defineMwasyaBlocks } from './blocks';
 
 /**
  * Shows a Deriv Bot XML file as its real blocks, exactly as it was built, and lets the client edit it.
@@ -20,7 +21,7 @@ interface Shape { fields: Map<string, Set<string>>; values: Set<string>; stateme
 const generated = new Map<string, Shape>();
 
 /** Learn every block's shape (fields, inputs, connections) from how the file uses it. */
-function learnShapes(doc: Document): Map<string, Shape> {
+export function learnShapes(doc: Document): Map<string, Shape> {
   const shapes = new Map<string, Shape>();
   for (const b of Array.from(doc.getElementsByTagName('block')).concat(Array.from(doc.getElementsByTagName('shadow')))) {
     const type = b.getAttribute('type') ?? '';
@@ -67,7 +68,7 @@ function merge(a: Shape | undefined, b: Shape): Shape {
   };
 }
 
-function defineShapes(found: Map<string, Shape>) {
+export function defineShapes(found: Map<string, Shape>) {
   for (const [type, shape] of found) {
     // Standard blocks that already match stay as Blockly made them; anything else is generated from the file.
     if (!generated.has(type) && fits(type, shape)) continue;
@@ -96,12 +97,17 @@ function defineShapes(found: Map<string, Shape>) {
   }
 }
 
-export default function BlockEditor({ xml, onChange, readOnly }: { xml: string; onChange: (xml: string) => void; readOnly?: boolean }) {
+export interface EditorApi { ws: Blockly.WorkspaceSvg; xml: () => string; showBlocks: (types: string[]) => void }
+
+export default function BlockEditor({ xml, onChange, locked, onReady }: {
+  xml: string; onChange: (xml: string) => void; locked?: boolean; onReady?: (api: EditorApi | null) => void;
+}) {
   const box = useRef<HTMLDivElement>(null);
-  const ws = useRef<Blockly.WorkspaceSvg | null>(null);
   const [error, setError] = useState('');
   const changeRef = useRef(onChange);
   changeRef.current = onChange;
+  const readyRef = useRef(onReady);
+  readyRef.current = onReady;
 
   useEffect(() => {
     const el = box.current;
@@ -109,38 +115,55 @@ export default function BlockEditor({ xml, onChange, readOnly }: { xml: string; 
     setError('');
     let workspace: Blockly.WorkspaceSvg | null = null;
     try {
+      defineMwasyaBlocks();
       const dom = Blockly.utils.xml.textToDom(xml);
       defineShapes(learnShapes(dom.ownerDocument));
       const dark = !!el.closest('.tp-dark');
       workspace = Blockly.inject(el, {
-        readOnly: !!readOnly, trashcan: !readOnly, sounds: false, renderer: 'zelos', move: { scrollbars: true, drag: true, wheel: true },
-        zoom: { controls: true, wheel: true, startScale: 0.7, maxScale: 2, minScale: 0.3 },
+        trashcan: true, sounds: false, renderer: 'zelos', move: { scrollbars: true, drag: true, wheel: true },
+        zoom: { controls: false, wheel: true, startScale: 0.72, maxScale: 2, minScale: 0.3 },
         grid: { spacing: 24, length: 2, colour: dark ? '#1B2B48' : '#E2E8F0', snap: true },
+        toolbox: {
+          kind: 'categoryToolbox',
+          contents: MENU.map((m) => (m.id === 'vars'
+            ? { kind: 'category', name: m.name, colour: m.colour, custom: 'VARIABLE' }
+            : { kind: 'category', name: m.name, colour: m.colour, contents: m.blocks.map((type) => ({ kind: 'block', type })) })),
+        },
         theme: Blockly.Theme.defineTheme(dark ? 'mw-dark' : 'mw-light', {
           name: dark ? 'mw-dark' : 'mw-light', base: Blockly.Themes.Classic,
-          componentStyles: { workspaceBackgroundColour: dark ? '#0B1530' : '#F7F9FC', scrollbarColour: '#94A3B8', flyoutBackgroundColour: dark ? '#12223B' : '#fff' },
+          componentStyles: {
+            workspaceBackgroundColour: dark ? '#0B1530' : '#F7F9FC', scrollbarColour: '#94A3B8',
+            toolboxBackgroundColour: dark ? '#0E1C33' : '#FFFFFF', toolboxForegroundColour: dark ? '#E6ECF5' : '#0B1F3A',
+            flyoutBackgroundColour: dark ? '#12223B' : '#F1F4F9', flyoutOpacity: 0.97,
+          },
         }),
       });
       Blockly.Xml.domToWorkspace(dom, workspace);
       workspace.scrollCenter();
-      ws.current = workspace;
+      const w = workspace;
+      readyRef.current?.({
+        ws: w,
+        xml: () => Blockly.Xml.domToText(Blockly.Xml.workspaceToDom(w)),
+        showBlocks: (types) => w.getToolbox()?.getFlyout()?.show({ kind: 'flyoutToolbox', contents: types.map((type) => ({ kind: 'block', type })) }),
+      });
       let t: ReturnType<typeof setTimeout> | undefined;
       workspace.addChangeListener((e) => {
         if (e.isUiEvent) return;
         clearTimeout(t);
-        t = setTimeout(() => { if (workspace) changeRef.current(Blockly.Xml.domToText(Blockly.Xml.workspaceToDom(workspace))); }, 400);
+        t = setTimeout(() => changeRef.current(Blockly.Xml.domToText(Blockly.Xml.workspaceToDom(w))), 400);
       });
     } catch (e) {
       setError(`This bot file could not be drawn: ${(e as Error).message}`);
     }
     const ro = new ResizeObserver(() => { if (workspace) Blockly.svgResize(workspace); });
     ro.observe(el);
-    return () => { ro.disconnect(); workspace?.dispose(); ws.current = null; };
-  }, [xml, readOnly]);
+    return () => { ro.disconnect(); readyRef.current?.(null); workspace?.dispose(); };
+  }, [xml]);
 
   return (
     <div className="be">
       <div className="be-ws" ref={box} />
+      {locked && <div className="be-lock" aria-live="polite">Bot running · blocks are locked</div>}
       {error && <p className="error be-err">{error}</p>}
     </div>
   );

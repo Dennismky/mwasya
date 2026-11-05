@@ -70,6 +70,7 @@ export default function Signals() {
     try { saved = JSON.parse(localStorage.getItem(key) ?? '{}'); } catch { /* fresh */ }
     const prediction = kind === 'over' || kind === 'under' ? barrier : kind === 'differs' ? s.digit ?? 0 : saved.prediction ?? 1;
     localStorage.setItem(key, JSON.stringify({ ...DEFAULT_CONFIG, ...saved, symbol: s.symbol, contract: CONTRACT[kind], prediction }));
+    localStorage.removeItem(`${key}_xml`); localStorage.removeItem(`${key}_name`);
     toast(`${MARKETS.find((m) => m.id === s.symbol)?.name ?? s.symbol} set in Bot Builder`);
     navigate(`${base}/bot-builder`);
   };

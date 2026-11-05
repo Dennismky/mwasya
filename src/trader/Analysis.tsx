@@ -39,6 +39,8 @@ export default function Analysis() {
         </select>
       </div>
 
+      <DigitCircles pct={s.pct} max={s.max} min={s.min} live={s.recent[s.recent.length - 1]} price={prices[prices.length - 1]} decimals={decimalsOf(prices)} />
+
       <section className="card stack" style={{ gap: 16 }}>
         <div className="row" style={{ justifyContent: 'space-between' }}>
           <b>Last digit distribution</b>
@@ -92,5 +94,25 @@ function Bar({ label, v, tone }: { label: string; v: number; tone: 'up' | 'down'
       <div className="row" style={{ justifyContent: 'space-between' }}><span>{label}</span><b className="mono">{v.toFixed(1)}%</b></div>
       <div className="meter"><span className={tone} style={{ width: `${v}%` }} /></div>
     </div>
+  );
+}
+
+/** Ten rings, one per last digit. The pointer glides to whichever digit Deriv's latest tick ends in. */
+function DigitCircles({ pct, max, min, live, price, decimals }: { pct: number[]; max: number; min: number; live: number | undefined; price: number | undefined; decimals: number }) {
+  return (
+    <section className="card dc">
+      <div className="dc-price mono" aria-live="polite">{price !== undefined ? price.toFixed(decimals) : '—'}</div>
+      <div className="dc-row">
+        {pct.map((p, d) => {
+          const tone = p === max ? 'hot' : p === min ? 'cold' : '';
+          return (
+            <div key={d} className={`dc-c ${tone} ${live === d ? 'live' : ''}`} style={{ '--p': Math.min(100, p * 5) } as React.CSSProperties}>
+              <div className="dc-ring"><div className="dc-face"><b>{d}</b><small>{p.toFixed(1)}%</small></div></div>
+            </div>
+          );
+        })}
+        {live !== undefined && <span className="dc-cursor" style={{ left: `${(live + 0.5) * 10}%` }} aria-label={`Last digit ${live}`} />}
+      </div>
+    </section>
   );
 }

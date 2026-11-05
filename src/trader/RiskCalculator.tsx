@@ -51,6 +51,7 @@ export default function RiskCalculator() {
     let saved = {};
     try { saved = JSON.parse(localStorage.getItem(key) ?? '{}'); } catch { /* fresh */ }
     localStorage.setItem(key, JSON.stringify({ ...DEFAULT_CONFIG, ...saved, stake: Number(r.stake.toFixed(2)), takeProfit: Number(r.goal.toFixed(2)), stopLoss: Number(r.loss.toFixed(2)), recovery: false }));
+    localStorage.removeItem(`${key}_xml`); localStorage.removeItem(`${key}_name`);
     toast('Plan applied to Bot Builder');
     navigate(`${base}/bot-builder`);
   };
