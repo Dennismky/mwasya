@@ -112,7 +112,7 @@ function Shell({ site, initialBots, initialXml, base, preview }: { site: SiteBra
   };
   const runner = useBotRunner(auth.account?.id, auth.expire, auth.refreshBalance);
   const bot = useBotEngine(auth.account?.id, auth.account?.currency ?? 'USD', auth.refreshBalance);
-  const [panelOpen, setPanelOpen] = useState(() => { const v = localStorage.getItem('mw_panel'); return v ? v !== '0' : !window.matchMedia('(max-width: 700px)').matches; });
+  const [panelOpen, setPanelOpen] = useState(() => localStorage.getItem('mw_panel') !== '0');
   const togglePanel = (o: boolean) => { setPanelOpen(o); localStorage.setItem('mw_panel', o ? '1' : '0'); };
   // Daily Plan does not trade, and Manual Trader has its own trade panel on the right (like a trading terminal), so the results panel stays out of the way there.
   const noPanel = /\/(manual|reports|risk)$/.test(location.pathname);
