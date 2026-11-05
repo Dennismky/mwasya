@@ -5,8 +5,8 @@ import { accountSocket, publicSocket, type DerivSocket } from '../lib/derivWs';
 import { useOffer } from './contracts';
 import { useTrader } from './TraderApp';
 import type { ChartLine } from './TickChart';
-import { LiveChart } from './LiveChart';
-import { SYMBOLS, decimalsOf, symbolName, useTicks } from './ticks';
+import { ChartView } from './Charts';
+import { symbolName } from './ticks';
 
 type Kind = 'risefall' | 'higherlower' | 'touch' | 'overunder' | 'evenodd' | 'matchdiff' | 'accu' | 'multipliers';
 const KINDS: { id: Kind; label: string; needs: string }[] = [
@@ -65,8 +65,6 @@ export default function ManualTrader() {
   const ws = useRef<DerivSocket | null>(null);
   const watchers = useRef(new Map<number, () => void>());
 
-  const { prices, times } = useTicks(symbol, 240);
-  const decimals = useMemo(() => decimalsOf(prices), [prices.length > 0]); // eslint-disable-line react-hooks/exhaustive-deps
   const offer = useOffer(symbol);
 
   // Only trade types Deriv offers on this market; fall back to the first available one.
@@ -188,26 +186,14 @@ export default function ManualTrader() {
   const oneSideBusy = (kind === 'accu' && open?.type === 'ACCU');
 
   const kindInfo = KINDS.find((k) => k.id === kind);
-  const lastPrice = prices.length ? prices[prices.length - 1] : undefined;
-  const firstPrice = prices[0];
-  const change = lastPrice !== undefined && firstPrice ? lastPrice - firstPrice : 0;
   const stayed = (kind === 'accu' ? accuQuote?.stayed : undefined) ?? [];
   const bump = (d: number) => setStake((s) => String(Math.max(0.35, Number(s || 0) + d).toFixed(2)));
 
   return (
     <div className="mt2">
       <section className="mt2-chart card">
-        <div className="mt2-market">
-          <select className="mt2-sym" value={symbol} onChange={(e) => setSymbol(e.target.value)} aria-label="Market">
-            {[...new Set(SYMBOLS.map((s) => s.group))].map((g) => (
-              <optgroup key={g} label={g}>{SYMBOLS.filter((s) => s.group === g).map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}</optgroup>
-            ))}
-          </select>
-          <span className={`mt2-px mono ${change >= 0 ? 'up' : 'down'}`}>
-            {lastPrice !== undefined ? lastPrice.toFixed(decimals) : '—'} <small>{change >= 0 ? '▲' : '▼'} {Math.abs(change).toFixed(decimals)}</small>
-          </span>
-        </div>
-        <LiveChart prices={prices} times={times} lines={lines} decimals={decimals} />
+        {/* Same chart as the Charts tab: ticks/candles, time frames, indicators, zoom — plus this trade's lines. */}
+        <ChartView symbol={symbol} onSymbol={setSymbol} lines={lines} defaultMode="ticks" />
         {stayed.length > 0 && (
           <div className="mt2-stats" title="How many ticks each recent run stayed inside the range">
             <b>Stats</b>

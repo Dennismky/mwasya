@@ -65,12 +65,38 @@ const rsi = (pts: Pt[], n: number): Pt[] => {
 const t = (s: number) => s as UTCTimestamp;
 const fmt = (v: number) => v.toLocaleString('en-US', { minimumFractionDigits: v > 1000 ? 2 : 3, maximumFractionDigits: v > 1000 ? 2 : 3 });
 
-/** Live Deriv chart: ticks or candles, time frames, indicators, zoom, and a countdown to the candle close. */
+/** A trade line drawn across the chart (entry, barrier, range…). Colour may be a CSS value such as "var(--primary)". */
+export interface TradeLine { value: number; label: string; color: string; dashed?: boolean }
+
+/** Any CSS colour as #rrggbb (the chart library cannot read var() or color-mix()). */
+const probe = typeof document !== 'undefined' ? document.createElement('canvas').getContext('2d') : null;
+const toHex = (el: HTMLElement, css: string, fallback = '#1F4FD1') => {
+  const m = css.match(/^var\((--[\w-]+)\)$/);
+  const v = m ? getComputedStyle(el).getPropertyValue(m[1]).trim() : css;
+  if (!probe || !v) return fallback;
+  probe.fillStyle = fallback; probe.fillStyle = v;
+  return /^#[0-9a-f]{6}$/i.test(String(probe.fillStyle)) ? String(probe.fillStyle) : fallback;
+};
+
+/** Charts tab: the full chart on its own. */
 export default function Charts() {
+  return <ChartView />;
+}
+
+/**
+ * Live Deriv chart: ticks or candles, time frames, indicators dropdown, zoom, price tag with candle countdown.
+ * Used by the Charts tab and by Manual Trader (which passes its market and trade lines).
+ */
+export function ChartView({ symbol: extSymbol, onSymbol, lines = [], defaultMode = 'candles' }: {
+  symbol?: string; onSymbol?: (s: string) => void; lines?: TradeLine[]; defaultMode?: Mode;
+}) {
   const { dark } = useTrader();
   const theme = dark ? THEME.dark : THEME.light;
-  const [symbol, setSymbol] = useState('1HZ100V');
-  const [mode, setMode] = useState<Mode>('candles');
+  const [ownSymbol, setOwnSymbol] = useState('1HZ100V');
+  const symbol = extSymbol ?? ownSymbol;
+  const setSymbol = onSymbol ?? setOwnSymbol;
+  const [mode, setMode] = useState<Mode>(defaultMode);
+  const mainRef = useRef<ISeriesApi<SeriesType> | null>(null);
   const [gran, setGran] = useState(60);
   const [inds, setInds] = useState<Ind[]>(['sma']);
   const [pop, setPop] = useState<Pop>(null);
@@ -109,6 +135,7 @@ export default function Charts() {
     let main: ISeriesApi<SeriesType>;
     if (mode === 'candles') main = chart.addSeries(CandlestickSeries, { upColor: theme.up, downColor: theme.down, borderVisible: false, wickUpColor: theme.up, wickDownColor: theme.down, lastValueVisible: false });
     else main = chart.addSeries(AreaSeries, { lineColor: theme.line, topColor: `${theme.line}55`, bottomColor: `${theme.line}05`, lineWidth: 2, lastValueVisible: false });
+    mainRef.current = main;
     chart.timeScale().applyOptions({ secondsVisible: mode === 'ticks' || gran < 300 });
 
     let candles: Candle[] = [];
@@ -205,6 +232,15 @@ export default function Charts() {
   }, [symbol, mode, gran, dark]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => { redrawRef.current(); }, [inds]);
+
+  // Trade lines from the page (Manual Trader: entry, barrier, accumulator range). Redrawn on any change.
+  const linesKey = lines.map((l) => `${l.label}:${l.value}:${l.color}`).join('|');
+  useEffect(() => {
+    const s = mainRef.current, el = box.current;
+    if (!s || !el || !lines.length) return;
+    const made = lines.map((l) => s.createPriceLine({ price: l.value, color: toHex(el, l.color), lineWidth: 1, lineStyle: l.dashed ? 2 : 0, axisLabelVisible: true, title: l.label }));
+    return () => { try { made.forEach((p) => s.removePriceLine(p)); } catch { /* series already replaced */ } };
+  }, [linesKey, symbol, mode, gran, dark, loading]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Countdown to the current candle's close.
   const [now, setNow] = useState(() => Date.now());

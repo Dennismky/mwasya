@@ -1856,3 +1856,9 @@ html, body { overflow-x: clip; }
 .tp-dark .sg2-timer span, .tp-dark .sg2-scan, .tp-dark .sg2-kind, .tp-dark .sg2-digits button { background: #12223B; }
 .tp-dark .sd-card { border-color: #2A3E62; }
 @media (max-width: 600px) { .sg2-digits { margin-left: 0; padding-left: 0; border-left: 0; flex-wrap: wrap; } .sd-grid { grid-template-columns: 1fr 1fr; } }
+
+/* Manual Trader: the shared chart (tools, indicators, ticks/candles) fills the chart card. */
+.mt2-chart { min-height: 520px; }
+.mt2-chart > .dc2 { position: absolute; inset: 0; height: auto; min-height: 0; border: 0; border-radius: inherit; }
+.mt2-chart .mt2-stats { z-index: 6; bottom: 62px; }
+@media (max-width: 1000px) { .mt2-chart { min-height: 460px; } }

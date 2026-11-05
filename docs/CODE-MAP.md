@@ -34,7 +34,7 @@ One build serves both sites. `src/App.tsx` decides which one to show from the we
 | Bot engine (run/stop, trades, Journal) | `botEngine.ts` | Shared by every page, so bots keep running across tabs. |
 | Reads a bot file's stake / martingale / limits | `xmlBot.ts` | |
 | Summary / Transactions / Journal panel | `RunPanel.tsx` | |
-| Manual Trader | `ManualTrader.tsx` + chart `LiveChart.tsx` | Chart colours: `EDIT HERE` in `LiveChart.tsx`. |
+| Manual Trader | `ManualTrader.tsx` (chart = `ChartView` from `Charts.tsx`) | Same chart and colours as the Charts tab. |
 | Charts tab | `Charts.tsx` | Colours: `EDIT HERE`. |
 | Signals (strategy desk + board) | `Signals.tsx` | Strategy cards: `EDIT HERE`. |
 | D-Circles (digit circles) | `Analysis.tsx` | |
@@ -107,7 +107,7 @@ One build serves both sites. `src/App.tsx` decides which one to show from the we
 ### Change colours
 * Mwasya navy / blue and global colours: top of `src/styles.css` (`:root`).
 * Dark mode colours: search `[data-theme="dark"]` and `.tp-dark` in `src/styles.css`.
-* Charts: `EDIT HERE` in `src/trader/Charts.tsx` and `src/trader/LiveChart.tsx`.
+* Charts (Charts tab and Manual Trader): `EDIT HERE` in `src/trader/Charts.tsx`.
 * Bot Builder blocks: `EDIT HERE` in `src/trader/blocks.ts`.
 
 ### Change risk / legal wording
