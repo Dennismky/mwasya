@@ -4,7 +4,8 @@ import { PREVIEW_ACCOUNT_ID, useAuth } from '../lib/auth';
 import { accountSocket, publicSocket, type DerivSocket } from '../lib/derivWs';
 import { useOffer } from './contracts';
 import { useTrader } from './TraderApp';
-import { TickChart, type ChartLine } from './TickChart';
+import type { ChartLine } from './TickChart';
+import { LiveChart } from './LiveChart';
 import { SYMBOLS, decimalsOf, symbolName, useTicks } from './ticks';
 
 type Kind = 'risefall' | 'higherlower' | 'touch' | 'overunder' | 'evenodd' | 'matchdiff' | 'accu' | 'multipliers';
@@ -206,7 +207,7 @@ export default function ManualTrader() {
             {lastPrice !== undefined ? lastPrice.toFixed(decimals) : '—'} <small>{change >= 0 ? '▲' : '▼'} {Math.abs(change).toFixed(decimals)}</small>
           </span>
         </div>
-        <TickChart prices={prices} times={times} height={600} lines={lines} decimals={decimals} />
+        <LiveChart prices={prices} times={times} lines={lines} decimals={decimals} />
         {stayed.length > 0 && (
           <div className="mt2-stats" title="How many ticks each recent run stayed inside the range">
             <b>Stats</b>

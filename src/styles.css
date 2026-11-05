@@ -1767,3 +1767,10 @@ html, body { overflow-x: clip; }
 .sc-nums small { font-size: 11px; color: var(--muted); white-space: nowrap; }
 .sc-last { grid-area: last; font-size: 12px; }
 @media (max-width: 700px) { .sc-row { grid-template-columns: 1fr; grid-template-areas: "site" "nums" "last"; } .sc-nums { grid-template-columns: repeat(2, 1fr); } }
+
+/* Manual Trader chart: same clean engine as Charts (white in light mode). */
+.live-chart { position: relative; flex: 1 1 auto; min-height: 420px; width: 100%; }
+.mt2-chart { background: var(--bg); }
+.tp:not(.tp-dark) .mt2-chart { background: #FFFFFF; }
+.mt2-chart .live-chart { margin: 70px 6px 46px 0; }
+@media (max-width: 1000px) { .mt2-chart .live-chart { min-height: 360px; } }
