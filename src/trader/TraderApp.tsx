@@ -108,6 +108,9 @@ function Shell({ site, initialBots, initialXml, base, preview }: { site: SiteBra
   const bot = useBotEngine(auth.account?.id, auth.account?.currency ?? 'USD', auth.refreshBalance);
   const [panelOpen, setPanelOpen] = useState(() => localStorage.getItem('mw_panel') !== '0');
   const togglePanel = (o: boolean) => { setPanelOpen(o); localStorage.setItem('mw_panel', o ? '1' : '0'); };
+  // Manual Trader has its own trade panel on the right (like a trading terminal), so the results panel stays out of the way there.
+  const noPanel = location.pathname.endsWith('/manual');
+  const showPanel = panelOpen && !noPanel;
   const [autoStop, setAutoStopState] = useState(() => localStorage.getItem('mw_autostop') !== '0');
   const setAutoStop = (on: boolean) => { setAutoStopState(on); localStorage.setItem('mw_autostop', on ? '1' : '0'); };
   const botRef = useRef(bot);
@@ -186,7 +189,7 @@ function Shell({ site, initialBots, initialXml, base, preview }: { site: SiteBra
       </nav>
       {has("charts") && <Ticker />}
 
-      <main className={`tp-main tp-fit ${panelOpen ? 'with-panel' : ''}`}>
+      <main className={`tp-main tp-fit ${showPanel ? 'with-panel' : ''}`}>
         <div className="tp-page">
         {notice && <div className="tp-preview" role="status">{notice}</div>}
         {preview && <div className="tp-preview"><b>Client preview.</b> This is exactly what your clients see. Prices and charts are live; trading is off until a client logs in on your deployed site.</div>}
@@ -195,7 +198,7 @@ function Shell({ site, initialBots, initialXml, base, preview }: { site: SiteBra
         )}
           <PageBoundary resetKey={location.pathname}><Outlet context={{ site, bots, xmlBots, runner, bot, autoStop, setAutoStop, base, preview } satisfies TraderCtx} /></PageBoundary>
         </div>
-        {panelOpen
+        {noPanel ? null : panelOpen
           ? <RunPanel bot={bot} currency={auth.account?.currency ?? 'USD'} onCollapse={() => togglePanel(false)} />
           : <button className="rp-open" aria-label="Show results panel" title="Results" onClick={() => togglePanel(true)}>«<span>Results</span></button>}
       </main>
