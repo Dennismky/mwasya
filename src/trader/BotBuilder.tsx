@@ -1,9 +1,9 @@
-import { Suspense, lazy, useEffect, useMemo, useState } from 'react';
+import { Suspense, lazy, useEffect, useMemo, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { InfoTip, TIPS } from '../components/InfoTip';
 import { Icon } from '../components/ui';
 import { toast } from '../components/motion';
-import { parseDerivXml, type LoadedBot } from './xmlBot';
+import { parseDerivXml, setXmlVariable, type LoadedBot } from './xmlBot';
 
 const BlockEditor = lazy(() => import('./BlockEditor'));
 import { PREVIEW_ACCOUNT_ID, useAuth } from '../lib/auth';
@@ -52,8 +52,18 @@ export default function BotBuilder() {
     setView('blocks');
     toast(`${b.name} loaded`);
   };
+  // The newest version of the bot (block edits do not re-draw the editor, so they live here).
+  const latestXml = useRef(botXml);
+  useEffect(() => { latestXml.current = botXml; }, [botXml]);
+  const setXmlVar = (name: string, value: number) => {
+    const next = setXmlVariable(latestXml.current, name, value);
+    latestXml.current = next;
+    setBotXml(next);
+    onBlocksChange(next);
+  };
   // Edits in the block editor flow back into the run settings.
   const onBlocksChange = (xml: string) => {
+    latestXml.current = xml;
     try { localStorage.setItem(`${key}_xml`, xml); } catch { /* ignore */ }
     try {
       const b = parseDerivXml(xml, loaded?.name ?? 'Bot');
@@ -164,6 +174,19 @@ export default function BotBuilder() {
             <Suspense fallback={<div className="bb-blocks-wait"><span className="spinner" /> Opening the bot…</div>}>
               <BlockEditor xml={botXml} readOnly={running} onChange={onBlocksChange} />
             </Suspense>
+          </section>
+        ) : botXml && loaded ? (
+          <section className="bb-step card">
+            <header><span>⚙</span><b>Bot settings</b></header>
+            {loaded.params.length === 0 ? <p className="hint">This bot has no start-up numbers to change. Edit it in Blocks.</p> : (
+              <div className="bb-row">
+                {loaded.params.map((p) => (
+                  <Field key={p.name} id={`xv-${p.name}`} label={p.name} value={p.value} disabled={running}
+                    onChange={(v) => { if (v !== '' && Number.isFinite(Number(v))) setXmlVar(p.name, Number(v)); }} />
+                ))}
+              </div>
+            )}
+            <p className="hint">These are the values the bot starts with. Everything else runs as built; open Blocks to change the logic.</p>
           </section>
         ) : (<>
         <Step n={1} title="Market & contract">
@@ -284,15 +307,16 @@ export default function BotBuilder() {
       </aside>
 
       <div className="bb-runbar">
-        {problems.length > 0 && !running && <span className="error">{problems[0]}</span>}
+        {!botXml && problems.length > 0 && !running && <span className="error">{problems[0]}</span>}
+        {botXml && !running && <span className="hint">Runs {loaded?.name ?? "this bot"} block by block, exactly as built.</span>}
         {preview && <span className="hint">Clients run the bot here after logging in.</span>}
         <span style={{ flex: 1 }} />
         <span className={`bb-status ${running ? 'on' : ''}`}><span className="bb-pulse" />{bot.state === 'running' ? 'Bot running' : bot.state === 'stopping' ? 'Stopping…' : 'Bot is not running'}</span>
         {running
           ? <button className="btn bb-stop" disabled={bot.state === 'stopping'} onClick={bot.stop}>■ Stop</button>
-          : <button className="btn bb-run" disabled={preview || problems.length > 0} onClick={() => {
-              if (account && !account.isVirtual && !confirm(`Run this bot on your REAL account? You can lose up to ${cfg.stopLoss} ${currency}.`)) return;
-              setPanel('transactions'); void bot.run(cfg);
+          : <button className="btn bb-run" disabled={preview || (!botXml && problems.length > 0)} onClick={() => {
+              if (account && !account.isVirtual && !confirm(botXml ? `Run ${loaded?.name ?? "this bot"} on your REAL account? It trades exactly as built, using its own limits.` : `Run this bot on your REAL account? You can lose up to ${cfg.stopLoss} ${currency}.`)) return;
+              setPanel('transactions'); void (botXml ? bot.runXml(latestXml.current || botXml) : bot.run(cfg));
             }}>▶ Run</button>}
       </div>
     </div>

@@ -109,3 +109,18 @@ export function parseDerivXml(xml: string, fileName = 'Imported bot'): LoadedBot
 
   return { name: fileName.replace(/\.xml$/i, '').replace(/[$_]+/g, ' ').trim() || 'Imported bot', config: cfg, params, notes, xml };
 }
+
+/** Change a bot's start-up value (e.g. Stake = 2) inside the XML: the first "set <name> to <number>". */
+export function setXmlVariable(xml: string, name: string, value: number): string {
+  const doc = new DOMParser().parseFromString(xml, 'text/xml');
+  for (const b of Array.from(doc.getElementsByTagName('block'))) {
+    if (b.getAttribute('type') !== 'variables_set') continue;
+    const f = Array.from(b.children).find((c) => c.tagName === 'field' && c.getAttribute('name') === 'VAR');
+    if ((f?.textContent ?? '').trim() !== name) continue;
+    const v = Array.from(b.children).find((c) => c.tagName === 'value' && c.getAttribute('name') === 'VALUE');
+    const numBlock = v && Array.from(v.children).find((c) => (c.tagName === 'block' || c.tagName === 'shadow') && c.getAttribute('type') === 'math_number');
+    const numField = numBlock && Array.from(numBlock.children).find((c) => c.tagName === 'field' && c.getAttribute('name') === 'NUM');
+    if (numField) { numField.textContent = String(value); return new XMLSerializer().serializeToString(doc); }
+  }
+  return xml;
+}

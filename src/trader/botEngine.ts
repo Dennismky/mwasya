@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { accountSocket, type DerivSocket } from '../lib/derivWs';
-import { decimalsOf, lastDigit, subscribeTicks } from './ticks';
+import { decimalsOf, lastDigit, subscribeTicks, tickHistory } from './ticks';
+import { XmlBot } from './xmlRunner';
 
 /** A Bot Builder strategy. Everything a client sets in the builder steps. */
 export interface BotConfig {
@@ -119,6 +120,39 @@ export function useBotEngine(accountId: string | undefined, currency: string, on
     }
   }, [state, currency, log]);
 
+  /** Run a Deriv Bot XML file block by block, exactly as it was built. */
+  const runXml = useCallback(async (xml: string) => {
+    const s = ws.current;
+    if (!s || state !== 'idle') return;
+    stopFlag.current = false;
+    setState('running');
+    setTrades([]);
+    try {
+      const bot = new XmlBot(xml, {
+        socket: s, currency, log,
+        shouldStop: () => stopFlag.current,
+        subscribeTicks: (sym, cb) => subscribeTicks(sym, cb),
+        tickHistory,
+        balance: async () => {
+          const r = await s.send<{ balance: { balance: number | string } }>({ balance: 1 });
+          return Number(r.balance.balance);
+        },
+        onBuy: ({ id, type, stake, payout }) => setTrades((t) => [{ id, type, stake, payout, profit: 0, status: 'open' as const, time: Date.now() }, ...t].slice(0, 500)),
+        onSettle: ({ id, profit, won, entry, exit }) => {
+          setTrades((t) => t.map((x) => (x.id === id ? { ...x, profit, status: won ? 'won' : 'lost', entry, exit } : x)));
+          tradeRef.current?.();
+        },
+      });
+      await bot.run();
+    } catch (e) {
+      log('error', (e as Error).message === 'SESSION_EXPIRED' ? 'Your session ended. Log in again.' : (e as Error).message);
+    } finally {
+      log('info', 'Bot stopped.');
+      setState('idle');
+      stopFlag.current = false;
+    }
+  }, [state, currency, log]);
+
   const stop = useCallback(() => {
     if (state !== 'running') return;
     stopFlag.current = true;
@@ -137,5 +171,5 @@ export function useBotEngine(accountId: string | undefined, currency: string, on
     lost: settled.filter((t) => t.status === 'lost').length,
     pnl: settled.reduce((s, t) => s + t.profit, 0),
   };
-  return { state, trades, journal, summary, run, stop, reset, ready: !!ws.current };
+  return { state, trades, journal, summary, run, runXml, stop, reset, ready: !!ws.current };
 }
