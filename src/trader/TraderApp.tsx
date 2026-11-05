@@ -115,6 +115,7 @@ function Shell({ site, initialBots, initialXml, base, preview }: { site: SiteBra
   return (
     <div className={`tp tpl-${site.template ?? 'bothub'} tp-l-${site.layout ?? 'classic'} ${dark ? 'tp-dark' : ''}`} style={style} data-theme={dark ? 'dark' : undefined}>
       <header className="tp-head">
+        <button className="tp-burger" aria-label="Menu" aria-expanded={more} onClick={() => setMore((m) => !m)}>☰</button>
         {site.logoUrl ? <img className="brand-mark" src={site.logoUrl} alt="" style={{ objectFit: "cover" }} /> : <span className="brand-mark" style={{ background: site.accent }}>{site.name.charAt(0).toUpperCase()}</span>}
         <div className="stack" style={{ lineHeight: 1.1 }}>
           <b style={{ fontSize: 16 }}>{site.name}</b>
@@ -169,32 +170,35 @@ function Shell({ site, initialBots, initialXml, base, preview }: { site: SiteBra
         <Clock />
       </footer>
 
-      {/* Phones: fixed bottom tab bar (always the same place, never scrolls) + "More" sheet. */}
-      <nav className="tp-bottom" aria-label="Trading tools">
-        {tabs.filter((t) => t.primary).slice(0, 4).map((t) => (
-          <NavLink key={t.to} to={base + t.to} end={t.end} className={({ isActive }) => (isActive ? 'on' : '')}>{t.icon}<span>{t.short}</span></NavLink>
-        ))}
-        <button className={more ? 'on' : ''} aria-expanded={more} onClick={() => setMore((m) => !m)}>☰<span>More</span></button>
-      </nav>
-      {more && (
-        <div className="tp-sheet-wrap" onClick={() => setMore(false)}>
-          <div className="tp-sheet" role="dialog" aria-label="More tools" onClick={(e) => e.stopPropagation()}>
-            <div className="tp-sheet-grid">
-              {tabs.filter((t) => !t.primary || tabs.filter((x) => x.primary).indexOf(t) >= 4).map((t) => (
-                <NavLink key={t.to} to={base + t.to} end={t.end} className={({ isActive }) => `tp-sheet-item ${isActive ? 'on' : ''}`}>{t.icon}<span>{t.label}</span></NavLink>
-              ))}
-            </div>
-            <div className="tp-sheet-foot">
-              <span className="tp-status" style={{ justifyContent: 'flex-start' }}>
-                {live.length > 0
-                  ? <><span className="dot dot-real pulse" /> {live.length} bot{live.length > 1 ? 's' : ''} running · <b className="mono" style={{ color: livePnl >= 0 ? 'var(--success)' : 'var(--danger)' }}>{livePnl >= 0 ? '+' : ''}{livePnl.toFixed(2)}</b></>
-                  : <><span className={`dot ${runner.conn === 'ready' || preview ? 'dot-real' : 'dot-demo'}`} /> {preview ? 'Preview' : runner.conn === 'ready' ? 'Connected' : 'Connecting…'}</>}
-              </span>
-              <button className="btn btn-secondary" onClick={() => { setMore(false); setDisclaimer(true); }}>Risk disclaimer</button>
-            </div>
-          </div>
+      {/* Phones: ☰ opens this drawer from the left with every tool and account action. */}
+      {more && <button className="tp-scrim" aria-label="Close menu" onClick={() => setMore(false)} />}
+      <aside className={`tp-drawer ${more ? 'open' : ''}`} aria-label="Menu" aria-hidden={!more}>
+        <div className="tp-drawer-head">
+          {site.logoUrl ? <img className="brand-mark" src={site.logoUrl} alt="" style={{ objectFit: 'cover' }} /> : <span className="brand-mark" style={{ background: site.accent }}>{site.name.charAt(0).toUpperCase()}</span>}
+          <b>{site.name}</b>
+          <button className="tp-drawer-x" aria-label="Close menu" onClick={() => setMore(false)}>✕</button>
         </div>
-      )}
+        <nav className="tp-drawer-nav">
+          {tabs.map((t) => (
+            <NavLink key={t.to} to={base + t.to} end={t.end} tabIndex={more ? 0 : -1} className={({ isActive }) => `tp-drawer-link ${isActive ? 'on' : ''}`} onClick={() => setMore(false)}>{t.icon}<span>{t.label}</span></NavLink>
+          ))}
+        </nav>
+        <div className="tp-drawer-foot">
+          {has('deposit') && (
+            <div className="row" style={{ gap: 8 }}>
+              <a className="btn tp-deposit" style={{ flex: 1 }} href={DERIV_CASHIER} target="_blank" rel="noreferrer" tabIndex={more ? 0 : -1}>Deposit</a>
+              <a className="btn tp-withdraw" style={{ flex: 1, display: 'inline-flex', justifyContent: 'center' }} href={DERIV_CASHIER} target="_blank" rel="noreferrer" tabIndex={more ? 0 : -1}>Withdraw</a>
+            </div>
+          )}
+          <span className="tp-status" style={{ justifyContent: 'flex-start' }}>
+            {live.length > 0
+              ? <><span className="dot dot-real pulse" /> {live.length} bot{live.length > 1 ? 's' : ''} running · <b className="mono" style={{ color: livePnl >= 0 ? 'var(--success)' : 'var(--danger)' }}>{livePnl >= 0 ? '+' : ''}{livePnl.toFixed(2)}</b></>
+              : <><span className={`dot ${runner.conn === 'ready' || preview ? 'dot-real' : 'dot-demo'}`} /> {preview ? 'Preview' : runner.conn === 'ready' ? 'Connected' : 'Connecting…'}</>}
+          </span>
+          <button className="tp-drawer-link" tabIndex={more ? 0 : -1} onClick={() => { setMore(false); setDisclaimer(true); }}><Icon.Shield /><span>Risk disclaimer</span></button>
+          {!preview && <button className="tp-drawer-link" tabIndex={more ? 0 : -1} onClick={auth.signOut}><Icon.Logout /><span>Log out</span></button>}
+        </div>
+      </aside>
 
       {disclaimer && (
         <div className="tp-modal" role="dialog" aria-modal="true" aria-labelledby="rd-title" onClick={() => setDisclaimer(false)}>

@@ -133,12 +133,6 @@ function Shell() {
         </main>
         <ToTop target="window" />
       </div>
-      <nav className="bottom-bar" aria-label="Quick navigation">
-        {([['/app', 'Home', <Icon.Chart key="i" />], ['/sites', 'Sites', <Icon.Globe key="i" />], ['/forge', 'Bots', <Icon.Chip key="i" />], ['/support', 'Support', <Icon.Help key="i" />]] as const).map(([to, label, icon]) => (
-          <NavLink key={to} to={to} end={to !== '/sites'} className={({ isActive }) => (isActive ? 'on' : '')}>{icon}<span>{label}</span></NavLink>
-        ))}
-        <button onClick={() => setOpen(true)}>☰<span>More</span></button>
-      </nav>
       {open && <button className="scrim" aria-label="Close menu" onClick={() => setOpen(false)} />}
     </div>
   );

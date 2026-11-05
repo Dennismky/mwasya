@@ -1215,3 +1215,36 @@ html, body { overflow-x: clip; }
 .bb-blocks-wait { height: 420px; display: grid; place-items: center; color: var(--muted); }
 .be .blocklyMainBackground { stroke: none; }
 @media (max-width: 700px) { .be-ws { height: 460px; } }
+
+/* =================== Phones: one ☰ menu, no bottom bars =================== */
+.tp-burger { display: none; flex: none; width: 40px; height: 40px; border-radius: 10px; border: 1px solid var(--tp-line, var(--border)); background: none; color: inherit; font-size: 20px; line-height: 1; cursor: pointer; }
+.tp-drawer, .tp-scrim { display: none; }
+@media (max-width: 900px) {
+  /* Studio: the sidebar (opened by ☰) is the only menu. */
+  .bottom-bar { display: none !important; }
+  .shell-content { padding-bottom: 32px; }
+
+  /* Client site: ☰ top-left opens a drawer; no tab row, no bottom bar. */
+  .tp-burger { display: grid; place-items: center; }
+  .tp > .tp-nav, .tp:not(.tp-l-dock) > .tp-nav, .tp-l-dock > .tp-nav, .tp > .tp-bottom { display: none !important; }
+  .tp-scrim { display: block; position: fixed; inset: 0; z-index: 90; border: 0; background: rgba(6, 13, 32, .5); animation: tp-fade .2s ease both; }
+  @keyframes tp-fade { from { opacity: 0; } }
+  .tp-drawer { display: flex; flex-direction: column; position: fixed; top: 0; bottom: 0; left: 0; z-index: 91; width: min(300px, 84vw);
+    background: var(--tp-nav, #0B1F3A); color: #E6ECF5; box-shadow: 20px 0 50px rgba(6, 13, 32, .35);
+    transform: translateX(-102%); visibility: hidden; transition: transform .28s cubic-bezier(.2, .8, .2, 1), visibility 0s linear .28s; }
+  .tp-drawer.open { transform: none; visibility: visible; transition: transform .28s cubic-bezier(.2, .8, .2, 1), visibility 0s; }
+  .tp-drawer-head { display: flex; align-items: center; gap: 10px; padding: 16px 14px; border-bottom: 1px solid rgba(255, 255, 255, .1); }
+  .tp-drawer-head b { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: #fff; }
+  .tp-drawer-x { width: 36px; height: 36px; border-radius: 10px; border: 0; background: rgba(255, 255, 255, .08); color: #fff; font-size: 15px; cursor: pointer; }
+  .tp-drawer-nav { flex: 1; overflow-y: auto; padding: 10px 8px; display: flex; flex-direction: column; gap: 2px; }
+  .tp-drawer-link { display: flex; align-items: center; gap: 12px; width: 100%; padding: 12px 12px; border-radius: 10px; border: 0; background: none; font: inherit; font-size: 15px; font-weight: 600; text-align: left; color: #D7DEEA; text-decoration: none; cursor: pointer; }
+  .tp-drawer-link svg { width: 20px; height: 20px; flex: none; opacity: .85; }
+  .tp-drawer-link:hover { background: rgba(255, 255, 255, .06); color: #fff; }
+  .tp-drawer-link.on { background: color-mix(in srgb, var(--accent, #1F4FD1) 85%, #0B1F3A); color: #fff; }
+  .tp-drawer-nav .tp-drawer-link { animation: rise .3s ease both; }
+  .tp-drawer-foot { display: flex; flex-direction: column; gap: 6px; padding: 12px 8px calc(14px + env(safe-area-inset-bottom)); border-top: 1px solid rgba(255, 255, 255, .1); }
+  .tp-drawer-foot .tp-status { padding: 6px 12px; font-size: 13px; color: #B9C6DA; }
+  .tp-drawer-foot .tp-withdraw { color: #fff; }
+  .tp-head .tp-deposit, .tp-head .tp-withdraw { display: none; }
+  .tp .totop { bottom: 24px; }
+}
