@@ -1,4 +1,4 @@
-import { Suspense, lazy, useEffect, useState, type CSSProperties, type ReactNode } from 'react';
+import { Suspense, lazy, useEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react';
 import { Navigate, NavLink, Route, Routes, useLocation, useOutletContext, Outlet } from 'react-router-dom';
 import { Icon } from '../components/ui';
 import { ToTop } from '../components/motion';
@@ -32,6 +32,9 @@ export interface TraderCtx {
   runner: ReturnType<typeof useBotRunner>;
   /** The bot engine lives here so a bot keeps running on every page, and every tool logs to one Journal. */
   bot: ReturnType<typeof useBotEngine>;
+  /** Stop the bot (after its open trade) when the client leaves Bot Builder or the browser tab. */
+  autoStop: boolean;
+  setAutoStop: (on: boolean) => void;
   /** Where the trading site is mounted: '/app' on a live site, '/preview/<id>' in the studio preview. */
   base: string;
   preview: boolean;
@@ -104,6 +107,29 @@ function Shell({ site, initialBots, initialXml, base, preview }: { site: SiteBra
   const bot = useBotEngine(auth.account?.id, auth.account?.currency ?? 'USD', auth.refreshBalance);
   const [panelOpen, setPanelOpen] = useState(() => localStorage.getItem('mw_panel') !== '0');
   const togglePanel = (o: boolean) => { setPanelOpen(o); localStorage.setItem('mw_panel', o ? '1' : '0'); };
+  const [autoStop, setAutoStopState] = useState(() => localStorage.getItem('mw_autostop') !== '0');
+  const setAutoStop = (on: boolean) => { setAutoStopState(on); localStorage.setItem('mw_autostop', on ? '1' : '0'); };
+  const botRef = useRef(bot);
+  botRef.current = bot;
+  // Security: stop when the browser tab is hidden (another tab, minimised, phone locked)…
+  useEffect(() => {
+    if (!autoStop) return;
+    const onHide = () => {
+      if (document.visibilityState === 'hidden' && botRef.current.state === 'running') {
+        botRef.current.log('info', 'You left this page, so the bot is stopping after its open trade.');
+        botRef.current.stop();
+      }
+    };
+    document.addEventListener('visibilitychange', onHide);
+    return () => document.removeEventListener('visibilitychange', onHide);
+  }, [autoStop]);
+  // …and when the client leaves Bot Builder for another tool.
+  useEffect(() => {
+    if (autoStop && !location.pathname.endsWith('/bot-builder') && botRef.current.state === 'running') {
+      botRef.current.log('info', 'You left Bot Builder, so the bot is stopping after its open trade.');
+      botRef.current.stop();
+    }
+  }, [location.pathname, autoStop]);
   const dark = site.theme === 'dark';
   // Older sites have no feature list yet: show everything.
   const has = (f?: string) => !f || !site.features?.length || site.features.includes(f);
@@ -166,7 +192,7 @@ function Shell({ site, initialBots, initialXml, base, preview }: { site: SiteBra
         {account && !account.isVirtual && (
           <div className="tp-real">You're on a <b>real money</b> account. Switch to Demo in the top bar to practise.</div>
         )}
-          <Outlet context={{ site, bots, xmlBots, runner, bot, base, preview } satisfies TraderCtx} />
+          <Outlet context={{ site, bots, xmlBots, runner, bot, autoStop, setAutoStop, base, preview } satisfies TraderCtx} />
         </div>
         {panelOpen
           ? <RunPanel bot={bot} currency={auth.account?.currency ?? 'USD'} onCollapse={() => togglePanel(false)} />

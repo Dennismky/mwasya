@@ -24,7 +24,7 @@ const pretty = (t: string) => t.replace(/^trade_definition_/, '').replace(/_/g, 
 
 /** Bot Builder: blocks menu (left) · toolbar + workspace (centre) · Summary / Transactions / Journal (right) · Run bar. */
 export default function BotBuilder() {
-  const { site, xmlBots, bot } = useTrader();
+  const { site, xmlBots, bot, autoStop, setAutoStop } = useTrader();
   const auth = useAuth();
   const account = auth.account;
   const currency = account?.currency ?? 'USD';
@@ -184,6 +184,10 @@ export default function BotBuilder() {
       <div className="bw-runbar">
         <span className={`bb-status ${running ? 'on' : ''}`}><span className="bb-pulse" />{bot.state === 'running' ? 'Bot running' : bot.state === 'stopping' ? 'Stopping…' : 'Bot is not running'}</span>
         {preview && <span className="hint">Clients run bots here after logging in.</span>}
+        <label className="bw-autostop" title="Stops after the open trade when you switch browser tab, minimise, lock your phone, or leave Bot Builder.">
+          <input type="checkbox" checked={autoStop} onChange={(e) => setAutoStop(e.target.checked)} />
+          <span className="bw-switch" aria-hidden="true" />Stop when I leave
+        </label>
         {running
           ? <button className="bw-run stop" disabled={bot.state === 'stopping'} onClick={bot.stop}>■ Stop</button>
           : <button className="bw-run" disabled={preview} onClick={run}>▶ Run</button>}
