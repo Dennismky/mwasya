@@ -6,7 +6,7 @@ import { useAuth } from '../lib/auth';
 import { startLogin } from '../lib/derivAuth';
 import { useT } from '../lib/i18n';
 
-interface MySite { name: string; subdomain: string; url: string }
+interface MySite { id: string; name: string; subdomain: string; url: string; status: string; accent: string; logoUrl: string | null; custom_domain: string | null; domain_status: string }
 interface Summary { people: number; sites: number }
 
 const usd = (n: number) => `$${n.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
@@ -17,6 +17,8 @@ export default function Dashboard() {
   const t = useT();
   const [site, setSite] = useState<MySite | null | undefined>(undefined);
   const [siteCount, setSiteCount] = useState(0);
+  const [sites, setSites] = useState<MySite[]>([]);
+  const [copied, setCopied] = useState('');
   const [bots, setBots] = useState<number | null>(null);
   const [xml, setXml] = useState<number | null>(null);
   const [network, setNetwork] = useState<Summary | null>(null);
@@ -25,7 +27,7 @@ export default function Dashboard() {
   useEffect(() => {
     if (!auth.operator) return;
     const get = (u: string) => fetch(u, { credentials: 'same-origin' }).then((r) => (r.ok ? r.json() : null)).catch(() => null);
-    void get('/api/sites').then((j) => { const list = (j?.sites ?? []) as (MySite & { status: string })[]; setSite(list.find((s) => s.status === 'live') ?? list[0] ?? null); setSiteCount(list.length); });
+    void get('/api/sites').then((j) => { const list = (j?.sites ?? []) as MySite[]; setSites(list); setSite(list.find((s) => s.status === 'live') ?? list[0] ?? null); setSiteCount(list.length); });
     void get('/api/bots').then((j) => setBots(j ? (j.bots as { status: string }[]).filter((b) => b.status === 'published').length : 0));
     void get('/api/xmlbots').then((j) => setXml(j ? (j.bots as { status: string }[]).filter((b) => b.status === 'published').length : 0));
     void get('/api/network').then((j) => setNetwork(j?.summary ?? null));
@@ -67,6 +69,34 @@ export default function Dashboard() {
         <Tile label="SITES IN YOUR NETWORK" value={network ? String(network.sites) : '—'} />
         <Tile label="BOTS ON YOUR SITE" value={bots === null || xml === null ? '—' : String(bots + xml)} action={<Link to="/xml-bots" className="hint">XML bots →</Link>} />
       </Reveal>
+
+      {sites.length > 0 && (
+        <section className="stack" style={{ gap: 10 }}>
+          <div className="row" style={{ alignItems: 'baseline', justifyContent: 'space-between' }}>
+            <h2 style={{ fontSize: 18, fontWeight: 700 }}>Your sites</h2>
+            <Link to="/sites" className="hint">Manage all →</Link>
+          </div>
+          <Reveal className="ys">
+            {sites.slice(0, 6).map((s) => (
+              <article key={s.id} className="ys-card card spot" style={{ '--accent': s.accent } as React.CSSProperties}>
+                <div className="row" style={{ gap: 10, alignItems: 'center' }}>
+                  {s.logoUrl ? <img className="ys-logo" src={s.logoUrl} alt="" /> : <span className="ys-logo" style={{ background: s.accent }}>{s.name.slice(0, 2).toUpperCase()}</span>}
+                  <div className="stack" style={{ minWidth: 0, flex: 1 }}>
+                    <b className="ys-name">{s.name}</b>
+                    <a className="hint mono ys-url" href={s.url} target="_blank" rel="noreferrer">{s.url.replace('https://', '')}</a>
+                  </div>
+                  <span className={`badge ${s.status === 'live' ? 'badge-green' : 'badge-blue'}`}>{s.status === 'live' ? 'Live' : s.status === 'paused' ? 'Paused' : 'Draft'}</span>
+                </div>
+                <div className="ys-actions">
+                  <a className="btn btn-primary" href={s.url} target="_blank" rel="noreferrer">Open site ↗</a>
+                  <a className="btn btn-secondary" href={`/preview/${s.id}`} target="_blank" rel="noreferrer">Preview</a>
+                  <button className="btn btn-ghost" onClick={() => { void navigator.clipboard?.writeText(s.url).then(() => { setCopied(s.id); setTimeout(() => setCopied(''), 1500); }); }}>{copied === s.id ? 'Copied' : 'Copy link'}</button>
+                </div>
+              </article>
+            ))}
+          </Reveal>
+        </section>
+      )}
 
       <section className="card stack" style={{ gap: 18, maxWidth: 820 }}>
         <div className="stack" style={{ gap: 4 }}>

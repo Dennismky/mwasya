@@ -1067,3 +1067,63 @@ html, body { overflow-x: clip; }
 .lg .auth-steps li > span { background: linear-gradient(135deg, var(--lg-a), #0B1F3A); }
 .lg-logo .brand-mark { font-weight: 800; font-size: 14px; color: #fff; }
 .lg-logo img.brand-mark { background: #fff; }
+
+/* =================== Signals =================== */
+.sg-kinds { flex-wrap: wrap; }
+.sg-kinds button { flex: 1 1 80px; }
+.sg-top { display: flex; align-items: center; gap: 20px; flex-wrap: wrap; padding: 20px;
+  background: linear-gradient(135deg, color-mix(in srgb, var(--accent, var(--primary)) 14%, var(--bg)), var(--bg)); border-color: color-mix(in srgb, var(--accent, var(--primary)) 35%, var(--border)); }
+.sg-top > .stack { flex: 1 1 220px; }
+.sg-top small { font-size: 12px; font-weight: 800; letter-spacing: .1em; color: var(--accent, var(--primary)); }
+.sg-top b { font-size: 20px; }
+.sg-ring { --p: 50; width: 84px; height: 84px; border-radius: 50%; display: grid; place-items: center; flex: none;
+  background: conic-gradient(var(--accent, var(--primary)) calc(var(--p) * 1%), var(--bg-alt) 0); transition: background .6s ease; }
+.sg-ring span { width: 66px; height: 66px; border-radius: 50%; display: grid; place-items: center; background: var(--bg); font: 800 18px var(--mono); }
+.sg-list { display: flex; flex-direction: column; padding: 6px 12px; }
+.sg-row { display: grid; grid-template-columns: 28px minmax(0, 1.4fr) minmax(80px, 1fr) 76px auto; gap: 12px; align-items: center; padding: 10px 0; border-bottom: 1px solid var(--border); animation: rise .35s ease both; }
+.sg-row:last-child { border-bottom: 0; }
+.sg-rank { width: 26px; height: 26px; border-radius: 50%; display: grid; place-items: center; font-size: 12px; font-weight: 800; background: var(--bg-alt); color: var(--muted); }
+.sg-row:first-child .sg-rank { background: var(--accent, var(--primary)); color: #fff; }
+.sg-name { display: flex; flex-direction: column; min-width: 0; }
+.sg-name small { color: var(--muted); font-size: 11.5px; letter-spacing: .08em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sg-bar { height: 8px; border-radius: 99px; background: var(--bg-alt); overflow: hidden; }
+.sg-bar i { display: block; height: 100%; border-radius: 99px; background: linear-gradient(90deg, color-mix(in srgb, var(--accent, var(--primary)) 55%, #fff), var(--accent, var(--primary))); transition: width .6s cubic-bezier(.2, .7, .2, 1); }
+.sg-pct { text-align: right; }
+.sg-pct small { color: var(--muted); font-weight: 600; }
+.sg-use { padding: 6px 12px; }
+@media (max-width: 600px) {
+  .sg-row { grid-template-columns: 24px minmax(0, 1fr) 64px auto; }
+  .sg-bar { display: none; }
+}
+
+/* =================== Tutorials =================== */
+.tu { display: flex; flex-direction: column; gap: 10px; }
+.tu-item { padding: 0; overflow: hidden; transition: border-color .2s, box-shadow .2s; }
+.tu-item.on { border-color: color-mix(in srgb, var(--accent, var(--primary)) 40%, var(--border)); box-shadow: 0 10px 28px rgba(11, 31, 58, .08); }
+.tu-head { width: 100%; display: flex; align-items: center; gap: 12px; padding: 16px 18px; border: 0; background: none; font: inherit; color: inherit; text-align: left; cursor: pointer; }
+.tu-head b { flex: 1; font-size: 16px; }
+.tu-head small { color: var(--muted); font-size: 12.5px; }
+.tu-head svg { transition: transform .2s; color: var(--muted); }
+.tu-head[aria-expanded="true"] svg { transform: rotate(180deg); }
+.tu-num { width: 30px; height: 30px; border-radius: 50%; display: grid; place-items: center; font-weight: 800; font-size: 13px; color: #fff;
+  background: linear-gradient(135deg, var(--accent, var(--primary)), color-mix(in srgb, var(--accent, var(--primary)) 55%, #0B1F3A)); }
+.tu-body { display: flex; flex-direction: column; gap: 14px; padding: 0 18px 18px 60px; animation: rise .3s ease both; }
+.tu-body ol { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 10px; }
+.tu-body li { display: flex; gap: 10px; align-items: flex-start; font-size: 14.5px; }
+.tu-body li > span { flex: none; width: 22px; height: 22px; border-radius: 50%; display: grid; place-items: center; font-size: 11px; font-weight: 800; background: var(--bg-alt); color: var(--muted); }
+.tu-body .btn { align-self: flex-start; }
+@media (max-width: 600px) { .tu-body { padding: 0 16px 16px; } }
+
+/* =================== Mentor dashboard: site shortcuts =================== */
+.ys { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(320px, 100%), 1fr)); gap: 14px; }
+.ys-card { display: flex; flex-direction: column; gap: 14px; padding: 18px; border-top: 3px solid var(--accent, var(--primary)); }
+.ys-logo { width: 42px; height: 42px; border-radius: 12px; flex: none; display: grid; place-items: center; color: #fff; font-weight: 800; font-size: 14px; object-fit: cover; }
+.ys-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ys-url { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ys-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.ys-actions .btn { padding: 8px 12px; font-size: 13.5px; }
+
+/* Client tabs: many tabs still fit one row */
+@media (max-width: 1400px) { .tp-tab { padding: 12px 8px; font-size: 13px; gap: 6px; } }
+@media (max-width: 1200px) { .tp-tab svg { display: none; } }
+.tp-tab span { overflow: hidden; text-overflow: ellipsis; }

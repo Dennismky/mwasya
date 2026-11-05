@@ -8,6 +8,8 @@ import { reloadTenant, type PublishedBot, type SiteBranding } from '../lib/tenan
 import { useBotRunner } from '../lib/useBotRunner';
 import { runPnL } from '../lib/autoTrade';
 import Analysis from './Analysis';
+import Signals from './Signals';
+import Tutorials from './Tutorials';
 import Charts from './Charts';
 import FreeBots from './FreeBots';
 import ManualTrader from './ManualTrader';
@@ -40,8 +42,10 @@ const TABS: { to: string; label: string; short: string; icon: ReactNode; end?: b
   { to: '/reports', label: 'Reports', short: 'Reports', icon: <Icon.Card />, primary: true },
   { to: '/free-bots', label: 'Free Bots', short: 'Free Bots', icon: <Icon.Code />, feature: 'freebots' },
   { to: '/charts', label: 'Charts', short: 'Charts', icon: <Icon.Chart />, feature: 'charts' },
+  { to: '/signals', label: 'Signals', short: 'Signals', icon: <Icon.Chip />, feature: 'analysis' },
   { to: '/analysis', label: 'Analysis Tools', short: 'Analysis', icon: <Icon.Help />, feature: 'analysis' },
   { to: '/risk', label: 'Daily Plan', short: 'Plan', icon: <Icon.Gear />, feature: 'risk' },
+  { to: '/tutorials', label: 'Tutorials', short: 'Learn', icon: <Icon.Help />, feature: 'learn' },
 ];
 
 /** `/app/*` on <brand>.mwasya.site — the client trading platform. */
@@ -58,6 +62,8 @@ export default function TraderApp({ site, bots, xmlBots, base = '/app', preview 
           <Route path="manual" element={<ManualTrader />} />
           <Route path="charts" element={<Charts />} />
           <Route path="analysis" element={<Analysis />} />
+          <Route path="signals" element={<Signals />} />
+          <Route path="tutorials" element={<Tutorials />} />
           <Route path="risk" element={<RiskCalculator />} />
           <Route path="reports" element={<Reports />} />
           <Route path="*" element={<Navigate to={base} replace />} />
