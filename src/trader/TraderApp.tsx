@@ -1,4 +1,4 @@
-import { useEffect, useState, type CSSProperties, type ReactNode } from 'react';
+import { Suspense, lazy, useEffect, useState, type CSSProperties, type ReactNode } from 'react';
 import { Navigate, NavLink, Route, Routes, useLocation, useOutletContext, Outlet } from 'react-router-dom';
 import { Icon } from '../components/ui';
 import { ToTop } from '../components/motion';
@@ -10,7 +10,7 @@ import { runPnL } from '../lib/autoTrade';
 import Analysis from './Analysis';
 import Signals from './Signals';
 import Tutorials from './Tutorials';
-import Charts from './Charts';
+const Charts = lazy(() => import('./Charts'));
 import FreeBots from './FreeBots';
 import ManualTrader from './ManualTrader';
 import QuickBot from './QuickBot';
@@ -60,7 +60,7 @@ export default function TraderApp({ site, bots, xmlBots, base = '/app', preview 
           <Route path="free-bots" element={<FreeBots />} />
           <Route path="quick-bot" element={<QuickBot />} />
           <Route path="manual" element={<ManualTrader />} />
-          <Route path="charts" element={<Charts />} />
+          <Route path="charts" element={<Suspense fallback={<div className="ch-loading" style={{ position: "static", height: 300 }}><span className="spinner" /> Loading chart…</div>}><Charts /></Suspense>} />
           <Route path="analysis" element={<Analysis />} />
           <Route path="signals" element={<Signals />} />
           <Route path="tutorials" element={<Tutorials />} />

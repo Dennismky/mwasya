@@ -1,9 +1,11 @@
-import { useEffect, useMemo, useState } from 'react';
+import { Suspense, lazy, useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { InfoTip, TIPS } from '../components/InfoTip';
 import { Icon } from '../components/ui';
 import { toast } from '../components/motion';
 import { parseDerivXml, type LoadedBot } from './xmlBot';
+
+const BlockEditor = lazy(() => import('./BlockEditor'));
 import { PREVIEW_ACCOUNT_ID, useAuth } from '../lib/auth';
 import { DEFAULT_CONFIG, useBotEngine, type BotConfig } from './botEngine';
 import { useTrader } from './TraderApp';
@@ -38,12 +40,28 @@ export default function BotBuilder() {
   const [importing, setImporting] = useState(false);
   const [loadError, setLoadError] = useState('');
   const [params, setParams] = useSearchParams();
+  const [botXml, setBotXml] = useState<string>(() => localStorage.getItem(`${key}_xml`) ?? '');
+  const [view, setView] = useState<'blocks' | 'settings'>(() => (localStorage.getItem(`${key}_xml`) ? 'blocks' : 'settings'));
   const applyBot = (b: LoadedBot) => {
     setCfg(b.config);
     const meta = { name: b.name, params: b.params, notes: b.notes };
     setLoaded(meta);
     localStorage.setItem(`${key}_name`, JSON.stringify(meta));
+    try { localStorage.setItem(`${key}_xml`, b.xml); } catch { /* storage full: blocks still show this session */ }
+    setBotXml(b.xml);
+    setView('blocks');
     toast(`${b.name} loaded`);
+  };
+  // Edits in the block editor flow back into the run settings.
+  const onBlocksChange = (xml: string) => {
+    try { localStorage.setItem(`${key}_xml`, xml); } catch { /* ignore */ }
+    try {
+      const b = parseDerivXml(xml, loaded?.name ?? 'Bot');
+      setCfg(b.config);
+      const meta = { name: loaded?.name ?? b.name, params: b.params, notes: b.notes };
+      setLoaded(meta);
+      localStorage.setItem(`${key}_name`, JSON.stringify(meta));
+    } catch { /* half-edited workspace: keep the last good settings */ }
   };
   const importFile = async (f: File) => {
     setLoadError('');
@@ -99,7 +117,7 @@ export default function BotBuilder() {
       <div className="bb-steps">
         <section className={`bb-step bb-load card ${loaded ? 'has' : ''}`}>
           <header><span><Icon.Code /></span><b>{loaded ? loaded.name : 'Load a bot'}</b>
-            {loaded && <button className="btn btn-ghost bb-clear" disabled={running} onClick={() => { setLoaded(null); localStorage.removeItem(`${key}_name`); }}>Clear</button>}
+            {loaded && <button className="btn btn-ghost bb-clear" disabled={running} onClick={() => { setLoaded(null); setBotXml(""); setView("settings"); localStorage.removeItem(`${key}_name`); localStorage.removeItem(`${key}_xml`); }}>Clear</button>}
           </header>
           <div className="bb-load-row">
             <label className={`btn btn-primary bb-import ${running || importing ? 'disabled' : ''}`}>
@@ -131,11 +149,23 @@ export default function BotBuilder() {
                 </div>
               )}
               {loaded.notes.map((n) => <p key={n} className="hint">• {n}</p>)}
-              <p className="hint">Settings from the file are filled in below. Edit any of them before you run.</p>
+              {botXml && (
+                <div className="seg bb-view" role="tablist" aria-label="Bot view">
+                  <button role="tab" aria-selected={view === 'blocks'} className={view === 'blocks' ? 'on' : ''} onClick={() => setView('blocks')}>Blocks</button>
+                  <button role="tab" aria-selected={view === 'settings'} className={view === 'settings' ? 'on' : ''} onClick={() => setView('settings')}>Quick settings</button>
+                </div>
+              )}
             </>
           )}
         </section>
 
+        {view === 'blocks' && botXml ? (
+          <section className="card bb-blocks">
+            <Suspense fallback={<div className="bb-blocks-wait"><span className="spinner" /> Opening the bot…</div>}>
+              <BlockEditor xml={botXml} readOnly={running} onChange={onBlocksChange} />
+            </Suspense>
+          </section>
+        ) : (<>
         <Step n={1} title="Market & contract">
           <div className="field">
             <label className="label" htmlFor="bb-sym">Market</label>
@@ -194,6 +224,7 @@ export default function BotBuilder() {
             <Field id="bb-runs" label="Max runs (0 = none)" value={cfg.maxRuns} disabled={running} onChange={(v) => set('maxRuns', Math.max(0, Math.floor(num(v))))} />
           </div>
         </Step>
+        </>)}
       </div>
 
       <aside className="bb-panel card">

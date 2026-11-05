@@ -12,6 +12,8 @@
     "make-owner": "node --env-file-if-exists=.env.local scripts/make-owner.mjs"
   },
   "dependencies": {
+    "blockly": "^12.5.1",
+    "lightweight-charts": "^5.2.1",
     "pg": "^8.23.1",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",

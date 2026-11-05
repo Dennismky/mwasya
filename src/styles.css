@@ -1174,3 +1174,44 @@ html, body { overflow-x: clip; }
 .wl-dock .wl-nav { left: 20%; right: 20%; bottom: 6px; height: 14%; border-radius: 99px; }
 .wl-dock .wl-body { left: 6px; right: 6px; top: 6px; bottom: 26%; }
 @media (max-width: 600px) { .wiz-layouts { grid-template-columns: 1fr; } }
+
+/* =================== Charts (ticks / candles / indicators) =================== */
+.ch-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; padding: 10px 12px; }
+.ch-sym { width: auto; min-width: 200px; flex: 0 1 260px; }
+.ch-seg button { padding: 7px 12px; }
+.ch-frames button { padding: 7px 10px; font-family: var(--mono); }
+.ch-inds { display: flex; flex-wrap: wrap; gap: 6px; margin-left: auto; }
+.ch-ind { display: inline-flex; align-items: center; gap: 6px; padding: 6px 11px; border-radius: 99px; border: 1px solid var(--tp-line, var(--border)); background: none; font: inherit; font-size: 13px; font-weight: 600; color: var(--muted); cursor: pointer; transition: all .15s; }
+.ch-ind i { width: 10px; height: 10px; border-radius: 50%; background: var(--ic); opacity: .45; }
+.ch-ind.on { color: var(--text); border-color: var(--ic); background: color-mix(in srgb, var(--ic) 10%, transparent); }
+.ch-ind.on i { opacity: 1; }
+.ch-card { padding: 0; overflow: hidden; }
+.ch-head { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; padding: 12px 16px; border-bottom: 1px solid var(--tp-line, var(--border)); }
+.ch-price { font-size: 22px; font-weight: 800; }
+.ch-head .up { color: var(--success); } .ch-head .down { color: var(--danger); }
+.ch-plot { position: relative; height: clamp(360px, calc(100dvh - 330px), 720px); }
+.ch-loading { position: absolute; inset: 0; display: grid; place-items: center; z-index: 2; color: var(--muted); pointer-events: none; }
+@media (max-width: 700px) {
+  .ch-sym { flex: 1 1 100%; }
+  .ch-inds { margin-left: 0; }
+  .ch-plot { height: 380px; }
+}
+
+/* Phones: tabs sit at the top (scrollable), like a trading app header. Dock layout keeps its bottom bar. */
+@media (max-width: 900px) {
+  .tp:not(.tp-l-dock) > .tp-nav { display: flex; overflow-x: auto; overflow-y: hidden; padding: 0 4px; gap: 0; scrollbar-width: none; -webkit-overflow-scrolling: touch; }
+  .tp:not(.tp-l-dock) > .tp-nav::-webkit-scrollbar { display: none; }
+  .tp:not(.tp-l-dock) .tp-tab { flex: none; padding: 11px 12px; font-size: 13px; gap: 6px; }
+  .tp:not(.tp-l-dock) .tp-tab svg { display: block; width: 16px; height: 16px; }
+  .tp:not(.tp-l-dock) > .tp-bottom { display: none; }
+}
+
+/* =================== Bot Builder: block view =================== */
+.bb-view { max-width: 320px; }
+.bb-blocks { padding: 0; overflow: hidden; }
+.be { position: relative; }
+.be-ws { height: clamp(420px, calc(100dvh - 360px), 760px); width: 100%; }
+.be-err { padding: 12px 16px; }
+.bb-blocks-wait { height: 420px; display: grid; place-items: center; color: var(--muted); }
+.be .blocklyMainBackground { stroke: none; }
+@media (max-width: 700px) { .be-ws { height: 460px; } }
