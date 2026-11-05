@@ -5,7 +5,7 @@ import {
 } from 'lightweight-charts';
 import { publicSocket } from '../lib/derivWs';
 import { useTrader } from './TraderApp';
-import { SYMBOLS } from './ticks';
+import { SYMBOLS, decimalsOf, lastDigit, useTicks } from './ticks';
 import { CATEGORIES, INDICATORS, byId, type Bar, type Category } from './indicators';
 
 type Mode = 'ticks' | 'candles';
@@ -86,6 +86,18 @@ export function ChartView({ symbol: extSymbol, onSymbol, lines = [], defaultMode
   const [ohlc, setOhlc] = useState<{ o: number; h: number; l: number; c: number; time: number; x: number } | null>(null);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(true);
+  // Last-digit distribution over the last 1000 ticks (works in both ticks and candles mode).
+  const [showDigits, setShowDigits] = useState(() => localStorage.getItem('mw_chart_digits') !== '0');
+  const { prices: tickPrices } = useTicks(symbol, 1000);
+  const digitStats = (() => {
+    if (tickPrices.length < 20) return null;
+    const dec = decimalsOf(tickPrices);
+    const count = Array(10).fill(0) as number[];
+    for (const p of tickPrices) count[lastDigit(p, dec)]++;
+    const pct = count.map((c) => (c / tickPrices.length) * 100);
+    const max = Math.max(...pct), min = Math.min(...pct);
+    return { pct, max, min, live: lastDigit(tickPrices[tickPrices.length - 1], dec), n: tickPrices.length };
+  })();
   const [, setFrame] = useState(0); // re-render drawings when the view moves
   const box = useRef<HTMLDivElement>(null);
   const chartRef = useRef<IChartApi | null>(null);
@@ -339,6 +351,18 @@ export function ChartView({ symbol: extSymbol, onSymbol, lines = [], defaultMode
           <button onClick={() => setPlacing(null)}>Cancel</button>
         </div>
       )}
+
+      {showDigits && digitStats && (
+        <div className="dc2-digits" onClick={(e) => e.stopPropagation()} title={`Last digits of the last ${digitStats.n} ticks`}>
+          {digitStats.pct.map((p, d) => (
+            <span key={d} className={`${p === digitStats.max ? 'hot' : p === digitStats.min ? 'cold' : ''} ${digitStats.live === d ? 'live' : ''}`}>
+              <b>{d}</b><small className="mono">{p.toFixed(1)}%</small>
+            </span>
+          ))}
+          <button aria-label="Hide digit distribution" onClick={() => { setShowDigits(false); localStorage.setItem('mw_chart_digits', '0'); }}>✕</button>
+        </div>
+      )}
+      {!showDigits && <button className="dc2-digits-show" onClick={(e) => { e.stopPropagation(); setShowDigits(true); localStorage.setItem('mw_chart_digits', '1'); }}>0–9 %</button>}
 
       <div className="dc2-market" onClick={(e) => e.stopPropagation()}>
         <span className="dc2-mk-ic" aria-hidden="true">▤</span>

@@ -1955,3 +1955,23 @@ html, body { overflow-x: clip; }
 .dc2-ohlc span { color: var(--muted); }
 .dc2-ohlc i { font-style: normal; font-weight: 700; text-align: right; }
 .dc2-ohlc small { grid-column: 1 / -1; color: var(--muted); font-size: 11px; }
+
+/* Account card as an overlay above everything (opened from the Real/Demo button). */
+.as-overlay { position: fixed; inset: 0; z-index: 150; background: rgba(6, 13, 32, .32); backdrop-filter: blur(2px); animation: tp-fade .18s ease both; }
+.as-panel.as-float { position: fixed; z-index: 151; box-shadow: 0 30px 70px rgba(6, 13, 32, .35); animation: as-pop .24s cubic-bezier(.2, .9, .3, 1.15) both; transform-origin: 90% 0; }
+@keyframes as-pop { from { opacity: 0; transform: translateY(-8px) scale(.96); } }
+@media (max-width: 600px) { .as-panel.as-float { left: 10px !important; right: 10px !important; top: 70px !important; width: auto; } }
+
+/* Chart: last-digit distribution strip (green = most frequent, red = least frequent) */
+.dc2-digits { position: absolute; top: 12px; left: 360px; right: 96px; z-index: 4; display: flex; align-items: stretch; gap: 4px; padding: 5px; border-radius: 12px; width: fit-content; max-width: calc(100% - 460px);
+  background: var(--bg); border: 1px solid var(--tp-line, var(--border)); box-shadow: 0 8px 22px rgba(11, 31, 58, .08); overflow-x: auto; scrollbar-width: none; }
+.dc2-digits > span { min-width: 44px; display: flex; flex-direction: column; align-items: center; padding: 4px 6px; border-radius: 8px; background: var(--bg-alt); border: 1.5px solid transparent; transition: background .3s, border-color .2s, transform .2s; }
+.dc2-digits b { font-size: 14px; line-height: 1.1; }
+.dc2-digits small { font-size: 10.5px; font-weight: 700; color: var(--muted); }
+.dc2-digits > span.hot { background: #12A07A; } .dc2-digits > span.cold { background: #E5484D; }
+.dc2-digits > span.hot b, .dc2-digits > span.hot small, .dc2-digits > span.cold b, .dc2-digits > span.cold small { color: #fff; }
+.dc2-digits > span.live { border-color: var(--accent, var(--primary)); transform: translateY(-1px); }
+.dc2-digits > button, .dc2-digits-show { border: 0; background: none; color: var(--muted); cursor: pointer; font: inherit; font-size: 12px; padding: 0 6px; }
+.dc2-digits-show { position: absolute; top: 18px; left: 360px; z-index: 4; padding: 6px 10px; border-radius: 99px; background: var(--bg); border: 1px solid var(--tp-line, var(--border)); font-weight: 700; }
+.dc2.dark .dc2-digits > span.hot { background: #17B886; } .dc2.dark .dc2-digits > span.cold { background: #E5484D; }
+@media (max-width: 1100px) { .dc2-digits { left: 66px; top: 74px; max-width: calc(100% - 160px); } .dc2-digits-show { left: 66px; top: 78px; } }
