@@ -1,7 +1,6 @@
 import { useState, type CSSProperties, type ReactNode } from 'react';
 import { Icon } from './ui';
 
-const KEY_EMAIL = 'mw_login_email';
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
 
 /** Animated forex symbols floating behind the card. */
@@ -52,8 +51,7 @@ export function AuthCard({ brand, checking, askName, initialView = 'login', noti
   const [view, setView] = useState<'login' | 'signup' | 'forgot'>(initialView);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
-  const [email, setEmail] = useState(() => localStorage.getItem(KEY_EMAIL) ?? '');
-  const [remember, setRemember] = useState(() => !!localStorage.getItem(KEY_EMAIL));
+  const [email, setEmail] = useState('');
   const [name, setName] = useState('');
   const shownError = error || outerError;
 
@@ -70,7 +68,6 @@ export function AuthCard({ brand, checking, askName, initialView = 'login', noti
     if (mail && !EMAIL_RE.test(mail)) return setError('Enter a valid email address.');
     if (signup && askName && name.trim().length < 2) return setError('Enter your full name.');
     if (signup && askName && !mail) return setError('Enter your email address.');
-    if (remember && mail) localStorage.setItem(KEY_EMAIL, mail); else if (!signup) localStorage.removeItem(KEY_EMAIL);
     start(signup);
   };
   const switchTo = (v: typeof view) => { setView(v); setError(''); };
@@ -104,7 +101,7 @@ export function AuthCard({ brand, checking, askName, initialView = 'login', noti
         </aside>
 
         <main className="lg-form" aria-busy={checking}>
-          <div className="lg-head" key={view}>
+          <div className="lg-head" key={`head-${view}`}>
             <h3>{view === 'login' ? 'Sign in' : view === 'signup' ? 'Sign up' : 'Reset password'}</h3>
             <p>{view === 'login' ? `Welcome back to ${brand.name}.` : view === 'signup' ? `Create your account on ${brand.name}.` : 'Reset your password on Deriv in four steps.'}</p>
           </div>
@@ -114,7 +111,7 @@ export function AuthCard({ brand, checking, askName, initialView = 'login', noti
           {checking ? (
             <p className="muted" aria-live="polite"><span className="spinner" /> Checking your session…</p>
           ) : view === 'forgot' ? (
-            <div className="lg-body" key="forgot">
+            <div className="lg-body" key="body-forgot">
               <ol className="auth-steps">
                 <li><span>1</span>Continue to the Deriv sign-in page.</li>
                 <li><span>2</span>Select <b>Forgot password?</b> and enter your email.</li>
@@ -128,32 +125,26 @@ export function AuthCard({ brand, checking, askName, initialView = 'login', noti
               <p className="lg-foot"><button type="button" className="auth-link" onClick={() => switchTo('login')}>← Back to sign in</button></p>
             </div>
           ) : (
-            <form className="lg-body" key={view} onSubmit={submit} noValidate>
+            <form className="lg-body" key={`body-${view}`} onSubmit={submit} noValidate>
+              {/* Name + email are only asked where they are used: a new mentor's profile on mwasya.site. */}
               {view === 'signup' && askName && (
-                <label className="lg-in">
-                  <Icon.Users />
-                  <input type="text" autoComplete="name" placeholder="e.g. Emily Carter" value={name} onChange={(e) => setName(e.target.value)} aria-label="Full name" maxLength={60} />
-                </label>
-              )}
-              <label className="lg-in">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2" /><path d="M3 7l9 6 9-6" /></svg>
-                <input type="email" autoComplete="email" inputMode="email" placeholder={view === 'signup' ? 'e.g. emily.carter@gmail.com' : 'e.g. james.walker@gmail.com'} value={email} onChange={(e) => setEmail(e.target.value)} aria-label="Email" maxLength={120} />
-              </label>
-              {view === 'login' && (
-                <div className="lg-row">
-                  <label className="lg-check"><input type="checkbox" checked={remember} onChange={(e) => setRemember(e.target.checked)} /> Remember me</label>
-                  <button type="button" className="auth-link" onClick={() => switchTo('forgot')}>Forgot password?</button>
-                </div>
+                <>
+                  <label className="lg-in">
+                    <Icon.Users />
+                    <input type="text" autoComplete="name" placeholder="e.g. Emily Carter" value={name} onChange={(e) => setName(e.target.value)} aria-label="Full name" maxLength={60} />
+                  </label>
+                  <label className="lg-in">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2" /><path d="M3 7l9 6 9-6" /></svg>
+                    <input type="email" autoComplete="email" inputMode="email" placeholder="e.g. emily.carter@gmail.com" value={email} onChange={(e) => setEmail(e.target.value)} aria-label="Email" maxLength={120} />
+                  </label>
+                </>
               )}
 
               <button className={`lg-btn ${busy ? 'loading' : ''}`} type="submit" disabled={busy} aria-busy={busy} aria-label={busy ? 'Loading' : undefined}>
                 {busy ? <span className="lg-spin" aria-hidden="true" /> : view === 'login' ? 'Sign in' : 'Create account'}
               </button>
               {shownError && <p className="error" role="alert">{shownError}</p>}
-              <div className="auth-or"><span>or</span></div>
-              <button type="button" className="lg-btn lg-ghost" disabled={busy} onClick={() => switchTo(view === 'login' ? 'signup' : 'login')}>
-                {view === 'login' ? 'Create a new account' : 'Sign in to my account'}
-              </button>
+              {view === 'login' && <p className="lg-foot"><button type="button" className="auth-link" onClick={() => switchTo('forgot')}>Forgot password?</button></p>}
               <p className="lg-foot">
                 {view === 'login'
                   ? <>Don't have an account? <button type="button" className="auth-link" onClick={() => switchTo('signup')}>Sign up</button></>
