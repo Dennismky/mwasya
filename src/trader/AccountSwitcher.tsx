@@ -10,6 +10,25 @@ export const DERIV_CASHIER = 'https://home.deriv.com/dashboard/cashier';
 const fmt = (n: number | undefined, cur = 'USD') =>
   n === undefined ? '—' : `${n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ${cur}`;
 
+/** Round currency badge: a US flag for USD accounts (drawn, so it shows on every device), the code otherwise. */
+// EDIT HERE: add more flags (e.g. EUR, GBP) as new branches if clients get other currencies.
+function CurrencyIcon({ currency, size = 38 }: { currency?: string; size?: number }) {
+  if ((currency ?? 'USD').toUpperCase() !== 'USD') return <span className="as-cur" style={{ width: size, height: size }}>{(currency ?? '').slice(0, 3)}</span>;
+  const stripes = Array.from({ length: 7 }, (_, i) => <rect key={i} x="0" y={i * 2 * (20 / 13)} width="38" height={20 / 13} fill="#B22234" />);
+  return (
+    <svg className="as-us" width={size} height={size} viewBox="0 0 20 20" role="img" aria-label="USD">
+      <defs><clipPath id="as-us-c"><circle cx="10" cy="10" r="10" /></clipPath></defs>
+      <g clipPath="url(#as-us-c)">
+        <rect width="38" height="20" fill="#fff" />
+        {stripes}
+        <rect width="10" height={20 * 7 / 13} fill="#3C3B6E" />
+        {[2, 5, 8].map((x) => [2, 5, 8].map((y) => <circle key={`${x}${y}`} cx={x} cy={y * 0.95} r=".7" fill="#fff" />))}
+      </g>
+      <circle cx="10" cy="10" r="9.6" fill="none" stroke="rgba(0,0,0,.15)" strokeWidth=".8" />
+    </svg>
+  );
+}
+
 /**
  * Deriv account switcher. Every row is the real Deriv account (ROT… real, DOT… demo) with the balance Deriv reports.
  * Whatever is selected here is exactly the account that trades.
@@ -46,7 +65,7 @@ export function AccountSwitcher({ preview, onResetDemo }: { preview: boolean; on
         <span className="as-flag">{account?.isVirtual ? 'Demo' : 'Real'}</span>
         <span className="as-main">
           <b className="mono">{auth.balance}</b>
-          <small className="mono">{account?.id}</small>
+          <small className="mono as-id"><CurrencyIcon currency={account?.currency} size={13} />{account?.id}</small>
         </span>
         <svg className="as-chev" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" aria-hidden="true"><path d="M6 9l6 6 6-6" /></svg>
       </button>
@@ -65,7 +84,7 @@ export function AccountSwitcher({ preview, onResetDemo }: { preview: boolean; on
               return (
                 <li key={a.id}>
                   <button className={`as-row ${on ? 'on' : ''}`} disabled={a.active === false} onClick={() => pick(a)}>
-                    <span className={`as-cur ${a.isVirtual ? 'demo' : 'real'}`}>{(a.currency ?? 'USD').slice(0, 3)}</span>
+                    <CurrencyIcon currency={a.currency} />
                     <span className="as-row-main">
                       <b>{a.isVirtual ? 'Demo' : 'Real'} {a.currency ?? ''}</b>
                       <small className="mono">{a.id}{a.active === false ? ' · inactive' : ''}</small>

@@ -140,10 +140,12 @@ export function AuthProvider({ children, live = true }: { children: ReactNode; l
     if (list) setAccounts(list);
   }, [expire]);
 
-  const value = useMemo<AuthState>(() => ({
-    status, error, operator, me, suspended, reloadMe, accounts, balance, refreshBalance, expire, signOut, setAccountId, reloadAccounts,
-    account: accounts.find((a) => a.id === accountId),
-  }), [status, error, operator, me, suspended, reloadMe, accounts, accountId, balance, refreshBalance, expire, signOut, setAccountId, reloadAccounts]);
+  const value = useMemo<AuthState>(() => {
+    const account = accounts.find((a) => a.id === accountId);
+    // Until the live stream answers, show the balance Deriv gave with the account list, never a blank.
+    const shown = balance === '—' && typeof account?.balance === 'number' ? `${account.balance.toFixed(2)} ${account.currency ?? ''}`.trim() : balance;
+    return { status, error, operator, me, suspended, reloadMe, accounts, balance: shown, refreshBalance, expire, signOut, setAccountId, reloadAccounts, account };
+  }, [status, error, operator, me, suspended, reloadMe, accounts, accountId, balance, refreshBalance, expire, signOut, setAccountId, reloadAccounts]);
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }
