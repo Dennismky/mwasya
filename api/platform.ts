@@ -8,6 +8,7 @@ import { derivFetch } from './_lib/deriv.js';
 import { saveEarnings, snapshotMonths, type MarkupStats } from './_lib/earnings.js';
 import { addDomain, buyDomain, checkDomain, domainPrice, domainsConfigured, registrarOrder, removeDomain, searchDomains, type RegistrantContact } from './_lib/vercelDomains.js';
 import { RESERVED_SUBDOMAINS, ROOT_DOMAIN } from './_lib/tenant.js';
+import { verifyRegistered } from './_lib/domainCheck.js';
 
 /**
  * One function for the operator platform (keeps us under Vercel's function limit and shares one warm DB pool).
@@ -1066,11 +1067,13 @@ async function siteDomain(req: VercelRequest, res: VercelResponse, op: Operator,
     if (d === ROOT_DOMAIN || d.endsWith(`.${ROOT_DOMAIN}`) || /(^|\.)(vercel\.app|deriv\.com|deriv\.me|binary\.com)$/.test(d)) return res.status(422).json({ error: 'This domain cannot be used' });
     const [taken] = await query(`select 1 from sites where custom_domain = $1 and id <> $2`, [d, site.id]);
     if (taken) return res.status(409).json({ error: 'Another site already uses this domain' });
+    const reg = await verifyRegistered(d);
+    if (!reg.ok) return res.status(422).json({ error: reg.error });
     if (site.custom_domain && site.custom_domain !== d) await removeDomain(site.custom_domain).catch(() => undefined);
     const st = await addDomain(d);
     await query(`update sites set custom_domain = $2, domain_status = $3, domain_checked_at = now(), updated_at = now() where id = $1`, [site.id, d, verdict(st)]);
     await audit(op.id, 'site.domain.add', op.id, { siteId: site.id, domain: d });
-    return res.status(200).json({ domain: d, status: verdict(st), ...st });
+    return res.status(200).json({ domain: d, status: verdict(st), registeredUntil: reg.expires ?? null, ...st });
   }
   if (!site.custom_domain) return res.status(200).json({ domain: null, status: 'none', records: [] });
   if (req.method === 'GET') {

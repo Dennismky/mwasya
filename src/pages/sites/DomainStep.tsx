@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import BuyDomain from './BuyDomain';
 
 interface DnsRecord { type: string; name: string; value: string; why: string }
-interface DomainInfo { domain: string | null; status: 'none' | 'pending' | 'verified' | 'error'; records?: DnsRecord[]; error?: string }
+interface DomainInfo { domain: string | null; status: 'none' | 'pending' | 'verified' | 'error'; records?: DnsRecord[]; error?: string; registeredUntil?: string | null }
 
 /** Connect the mentor's own domain (e.g. statefx.pro): we attach it on Vercel and show the DNS records to set. */
 /** Connect a domain to one site: buy a new one, or connect one the mentor already owns. */
@@ -52,7 +52,7 @@ export default function DomainStep({ siteId, onChange, initialMode = 'buy' }: { 
                   onChange={(e) => setInput(e.target.value.trim().toLowerCase())} aria-label="Your domain" />
                 <button className="btn btn-primary" disabled={busy || input.length < 4} onClick={connect}>{busy ? 'Connecting…' : 'Connect'}</button>
               </div>
-              <span className="hint">Bought it elsewhere (Namecheap, Truehost, GoDaddy…)? Connect it here and we'll show the DNS records to add.</span>
+              <span className="hint">Bought it elsewhere (Namecheap, Truehost, GoDaddy…)? We check with the registry that it is registered and paid up, then show the DNS records to add.</span>
             </>
           )}
         </>
@@ -67,6 +67,7 @@ export default function DomainStep({ siteId, onChange, initialMode = 'buy' }: { 
             <button className="btn btn-secondary" disabled={busy} onClick={check}>{busy ? 'Checking…' : 'Check again'}</button>
             <button className="btn btn-secondary" disabled={busy} onClick={remove}>Disconnect</button>
           </div>
+          {info?.registeredUntil && <p className="hint" style={{ color: 'var(--success)', fontWeight: 600 }}>✓ Registered and paid until {new Date(info.registeredUntil).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' })}</p>}
           {info?.status === 'verified' ? (
             <p className="hint">Your trading site is live at <a href={`https://${d}`} target="_blank" rel="noreferrer">https://{d}</a>. HTTPS is automatic.</p>
           ) : (
