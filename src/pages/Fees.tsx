@@ -8,7 +8,8 @@ interface Row {
   due_id: string | null; amount_usd: number | null; amount_kes: number | null; status: 'due' | 'pending_review' | 'paid' | 'waived' | null;
   paid_via: string | null; mpesa_code: string | null; paid_at: string | null; note: string | null;
 }
-interface Data { period: string; commissionMonth: string; window: { open: number; by: number; today: number; current: boolean }; rows: Row[]; summary: { expected: number; received: number; outstanding: number }; settings: { paybill_number: string; paybill_account: string; send_money_phone: string; send_money_name: string; kes_per_usd: number } }
+interface Approval { id: string; period: string; amount_kes: number; amount_usd: number; paid_via: string | null; mpesa_code: string | null; updated_at: string; site_name: string | null; custom_domain: string | null; subdomain: string | null; pay_phone: string | null }
+interface Data { approvals?: Approval[]; period: string; commissionMonth: string; window: { open: number; by: number; today: number; current: boolean }; rows: Row[]; summary: { expected: number; received: number; outstanding: number }; settings: { paybill_number: string; paybill_account: string; send_money_phone: string; send_money_name: string; kes_per_usd: number } }
 
 const usd = (n: number | null | undefined) => (n === null || n === undefined ? '—' : `$${n.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`);
 const kes = (n: number) => `KES ${n.toLocaleString()}`;
@@ -36,8 +37,10 @@ export default function Fees() {
     let note: string | null = null;
     if (decision === 'reject') { note = prompt('Message to the mentor (optional):', 'We could not find this payment. Please check the code and try again.'); if (note === null) return; }
     if (decision === 'waive' && !confirm('Waive this month\'s fee? It will be marked as not owed.')) return;
-    await fetch(`/api/dues/${dueId}/review`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'same-origin', body: JSON.stringify({ decision, note }) });
+    const res = await fetch(`/api/dues/${dueId}/review`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'same-origin', body: JSON.stringify({ decision, note }) });
+    if (!res.ok) toast('Could not save that. Try again.', 'error');
     load();
+    return res.ok;
   };
   const issue = async (r: Row) => {
     const res = await fetch('/api/dues/issue', { method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'same-origin', body: JSON.stringify({ operatorId: r.operator_id }) });
@@ -72,6 +75,7 @@ export default function Fees() {
             <Tile label="RECEIVED" value={kes(data.summary.received)} tone="ok" />
             <Tile label="OUTSTANDING" value={kes(data.summary.outstanding)} tone={data.summary.outstanding ? 'bad' : undefined} />
           </div>
+          <ApprovalQueue items={data.approvals ?? []} onReview={review} />
           <SendMoneySettings initial={data.settings} onSaved={load} />
           {data.window.current && data.window.today < data.window.open && <p className="notice">This month's fees open on the {data.window.open}th. Rows show last month's commission so far.</p>}
 
@@ -170,6 +174,57 @@ function Agreement({ row, onDone }: { row: Row; onDone: () => void }) {
       </div>
       <span className="hint">Applies from the next fee.</span>
     </div>
+  );
+}
+
+/**
+ * Payments waiting for the owner, from any month. Check shows the details; Allow marks the fee as paid and stays
+ * locked until Check has been opened, so nothing is approved unseen.
+ */
+function ApprovalQueue({ items, onReview }: { items: Approval[]; onReview: (id: string, decision: 'approve' | 'reject') => Promise<boolean | undefined> }) {
+  const [open, setOpen] = useState<string | null>(null);
+  const [checked, setChecked] = useState<string[]>([]);
+  const [busy, setBusy] = useState<string | null>(null);
+  const check = (id: string) => { setOpen((o) => (o === id ? null : id)); setChecked((c) => (c.includes(id) ? c : [...c, id])); };
+  const decide = async (a: Approval, decision: 'approve' | 'reject') => {
+    setBusy(a.id);
+    const ok = await onReview(a.id, decision);
+    setBusy(null);
+    if (ok && decision === 'approve') toast(`${a.site_name ?? 'Mentor'}: KES ${a.amount_kes.toLocaleString()} allowed`);
+  };
+  return (
+    <section className="card stack ap-queue" style={{ gap: 10 }} aria-label="Waiting for your approval">
+      <div className="row" style={{ alignItems: 'center', gap: 8 }}>
+        <b>Waiting for your approval</b>
+        {items.length > 0 && <span className="ap-count">{items.length}</span>}
+      </div>
+      {items.length === 0 ? <p className="hint">Nothing to approve right now.</p> : items.map((a) => (
+        <article key={a.id} className="ap-item">
+          <div className="ap-row">
+            <div className="ap-who"><b>{a.site_name ?? 'No site yet'}</b><span className="hint">{monthLabel(a.period)}</span></div>
+            <b className="mono ap-amt">{kes(a.amount_kes)}</b>
+            <span className={`badge ${a.paid_via === 'mpesa_stk' ? 'badge-green' : 'badge-blue'}`}>{a.paid_via === 'mpesa_stk' ? 'Confirmed by M-Pesa' : 'Code to check'}</span>
+            <span className="ap-actions">
+              <button className="btn btn-secondary" aria-expanded={open === a.id} onClick={() => check(a.id)}>Check</button>
+              <button className="btn btn-primary" disabled={!checked.includes(a.id) || busy === a.id} title={checked.includes(a.id) ? 'Mark this fee as paid' : 'Press Check first'} onClick={() => void decide(a, 'approve')}>{busy === a.id ? 'Allowing…' : 'Allow'}</button>
+            </span>
+          </div>
+          {open === a.id && (
+            <div className="ap-detail">
+              <dl>
+                <div><dt>M-Pesa code</dt><dd className="mono">{a.mpesa_code ?? '—'}</dd></div>
+                <div><dt>Amount</dt><dd className="mono">{kes(a.amount_kes)}</dd></div>
+                <div><dt>Account</dt><dd className="mono">{(a.subdomain ?? '—').toUpperCase()}</dd></div>
+                {a.pay_phone && <div><dt>Paid from</dt><dd className="mono">{a.pay_phone}</dd></div>}
+                <div><dt>Received</dt><dd>{new Date(a.updated_at).toLocaleString(undefined, { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}</dd></div>
+              </dl>
+              <p className="hint">{a.paid_via === 'mpesa_stk' ? 'Safaricom confirmed this payment. Allow it to mark the fee as paid.' : 'The mentor typed this code. Find it on your M-Pesa statement or SMS and check the amount before you allow it.'}</p>
+              <button className="btn btn-ghost" style={{ color: 'var(--danger)', alignSelf: 'flex-start' }} disabled={busy === a.id} onClick={() => void decide(a, 'reject')}>Reject</button>
+            </div>
+          )}
+        </article>
+      ))}
+    </section>
   );
 }
 

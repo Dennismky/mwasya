@@ -1334,7 +1334,16 @@ async function duesRoute(req: VercelRequest, res: VercelResponse, rest: string) 
       if (r.status !== 'waived') a.expected += r.amount_kes ?? 0;
       return a;
     }, { expected: 0, received: 0, outstanding: 0 });
-    return res.status(200).json({ period: p, commissionMonth, window: { open: DUE_OPEN, by: DUE_BY, today: today.d, current: p === today.period }, rows, summary: sum, settings: await feeSettings() });
+    // Everything waiting for the owner, from any month, so an older payment is never missed.
+    const approvals = await query(
+      `select d.id, d.period::text as period, d.amount_kes, d.amount_usd::float as amount_usd, d.paid_via, d.mpesa_code, d.updated_at,
+              s.name as site_name, s.custom_domain, s.subdomain, pay.phone as pay_phone
+         from dues d
+         left join operator_primary_site s on s.operator_id = d.operator_id
+         left join payments pay on pay.id = d.payment_id
+        where d.status = 'pending_review'
+        order by d.updated_at limit 200`);
+    return res.status(200).json({ period: p, commissionMonth, window: { open: DUE_OPEN, by: DUE_BY, today: today.d, current: p === today.period }, rows, approvals, summary: sum, settings: await feeSettings() });
   }
 
   if (!isUuid(id)) return res.status(404).json({ error: 'not_found' });

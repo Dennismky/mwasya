@@ -257,7 +257,7 @@ Laptops (1001–1599 px wide) get a compact layout at the end of the same file (
   ```bash
   npm run make-owner -- <YOUR_DERIV_ACCOUNT_ID>     # e.g. ROT91861465
   ```
-- **Mentor fees** (`/fees`, owner only): set each mentor's fee (fixed KES, % of commission, or none) and the **Paybill** mentors pay to (`Where mentors pay`). With a Paybill set, it is the only number mentors see; the account number is the mentor's site name unless a fixed one is set. A monthly fee only counts as paid when the owner presses **Approve**, including payments Safaricom has confirmed (these show "confirmed by M-Pesa"). The M-Pesa prompt uses the `MPESA_*` settings below (`MPESA_TYPE=paybill`).
+- **Mentor fees** (`/fees`, owner only): set each mentor's fee (fixed KES, % of commission, or none) and the **Paybill** mentors pay to (`Where mentors pay`). With a Paybill set, it is the only number mentors see; the account number is the mentor's site name unless a fixed one is set. A monthly fee only counts as paid when the owner allows it: **Waiting for your approval** lists every waiting payment from any month, with **Check** (details) and **Allow** (locked until checked). This includes payments Safaricom has confirmed. The M-Pesa prompt uses the `MPESA_*` settings below (`MPESA_TYPE=paybill`).
 - **Billing** (`/billing`): M-Pesa STK push. Payments are credited only after Safaricom confirms them, either through the callback (secret key, amount checked, re-verified with an STK query) or by querying Safaricom directly when the callback is late. Each payment is credited exactly once.
 
 ### Scale
