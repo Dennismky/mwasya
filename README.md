@@ -240,7 +240,7 @@ Clients log in with Deriv on `<brand>.mwasya.site` and trade on their own Deriv 
 ### Look and feel
 A soft, Apple-style layer sits at the end of [src/styles.css](src/styles.css) (search `SOFT / APPLE-STYLE REFINEMENT`): system font (San Francisco on Apple devices, Inter elsewhere), soft greys, hairline borders, rounded cards, pill buttons, frosted header bars and thin quiet scrollbars. Its `:root` tokens change the whole light look; dark mode keeps its navy palette with the same shapes. Mentor accent colours are always kept.
 
-Laptops (1001–1599 px wide) get a compact layout at the end of the same file (search `LAPTOP LAYOUT`): slimmer bars, tighter cards in even columns, and a sidebar that fits every link. Phones and larger screens are not affected.
+Laptops (1001–1599 px wide) get a compact layout at the end of the same file (search `LAPTOP LAYOUT`): slimmer bars, tighter cards in even columns, and a sidebar that fits every link. Phones and larger screens are not affected. Short laptop screens (display scaling at 125–150% leaves 550–700 px of height) get a compact login card and a Bot Builder that keeps Run on screen (search `SHORT LAPTOP SCREENS`).
 
 ### Operators and the network
 - **Identity:** Deriv exposes no user ID, so an operator is identified by the Deriv accounts they own (`operator_accounts`). Traders who log in on a trader site never become operators.

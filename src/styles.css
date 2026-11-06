@@ -2276,7 +2276,7 @@ html, body { overflow-x: clip; }
 /* Type */
 body, button, input, select, textarea, .btn, .side-link, .tp-tab, .label, .seg button, .bw-quick, .bw-pill, .bw-run, .cx-primary, .lg-btn, .tk-name { font-family: var(--font); }
 body { color: var(--text); letter-spacing: -0.011em; text-rendering: optimizeLegibility; }
-h1, h2, h3 { font-weight: 600; letter-spacing: -0.022em; color: var(--text); }
+h1, h2, h3 { font-weight: 600; letter-spacing: -0.022em; }
 h1 { line-height: 1.12; }
 .muted, .hint { color: var(--muted); }
 .label { font-weight: 500; font-size: 13px; color: var(--muted); }
@@ -2566,3 +2566,44 @@ h1 { line-height: 1.12; }
 .ap-detail dl { margin: 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 8px 14px; }
 .ap-detail dt { font-size: 11.5px; color: var(--muted); }
 .ap-detail dd { margin: 0; font-weight: 600; overflow-wrap: anywhere; }
+
+/* =====================================================================================================
+   SHORT LAPTOP SCREENS. Display scaling (125–150%) leaves many laptops only 550–700 px of page height.
+   EDIT HERE: the heights below decide when the login card and Bot Builder go compact.
+   ===================================================================================================== */
+/* Login / sign-up card */
+@media (min-width: 701px) and (max-height: 860px) {
+  .lg-card { max-width: 860px; min-height: 460px; }
+}
+@media (min-width: 701px) and (max-height: 700px) {
+  .lg { padding: 12px 20px; gap: 6px; justify-content: center; }
+  .lg-card { max-width: 780px; min-height: min(360px, calc(100dvh - 72px)); border-radius: 18px; }
+  .lg-bub.b5 { display: none; }
+  .lg-bub.b1 { width: 130px; height: 130px; right: -30px; bottom: -50px; }
+  .lg-bub.b2 { width: 170px; height: 170px; left: -70px; bottom: -100px; }
+  .lg-hero { padding: 20px 26px; }
+  .lg-hero-in { gap: 5px; }
+  .lg-logo { margin-bottom: 4px; font-size: 16px; }
+  .lg-hero h1 { font-size: 28px; }
+  .lg-hero h2 { font-size: 11.5px; letter-spacing: .1em; }
+  .lg-hero p { font-size: 13px; line-height: 1.4; margin-top: 2px; }
+  .lg-ticks { margin-top: 6px; gap: 4px; }
+  .lg-ticks span { padding: 3px 9px; font-size: 11.5px; }
+  .lg-form { padding: 18px 30px; gap: 10px; }
+  .lg-head h3 { font-size: 23px; }
+  .lg-head p { font-size: 13px; margin-top: 2px; }
+  .lg-body { gap: 8px; }
+  .lg-in, .lg-btn { height: 42px; }
+  .lg-in input, .lg-btn { font-size: 15px; }
+  .lg-foot { font-size: 13px; }
+  .lg-legal { font-size: 11.5px; }
+}
+/* Bot Builder: the workspace gives way first, so the Run button always stays on screen */
+@media (min-width: 1001px) and (max-height: 760px) {
+  .tp-page > .bw { min-height: 0; gap: 6px; }
+  .tp-main:has(.bw) { padding: 6px 10px; }
+  .tp .bw-toolbar { padding: 3px 6px; }
+  .tp .bw-runbar { padding: 4px 12px 4px 72px; }
+  .tp .bw-run { height: 36px; padding-top: 0; padding-bottom: 0; }
+  .tp-preview, .tp-real { margin-bottom: 6px; padding: 5px 12px; font-size: 13px; }
+}
