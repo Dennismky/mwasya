@@ -1990,3 +1990,7 @@ html, body { overflow-x: clip; }
 .as-id .as-us { box-shadow: none; }
 .as-overlay { z-index: 1000; }
 .as-panel.as-float { z-index: 1001; }
+/* The account card's wrapper on <body> copies the site root's classes for colours only: it must never take up space or paint. */
+.tp.as-root { display: contents !important; height: auto; min-height: 0; overflow: visible; background: none; }
+.as-root > .as-overlay { z-index: 2147483000; }
+.as-root .as-panel.as-float { z-index: 2147483001; }

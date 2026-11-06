@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, type CSSProperties } from 'react';
 import { createPortal } from 'react-dom';
 import { useAuth } from '../lib/auth';
 import type { Account } from '../lib/accounts';
@@ -56,6 +56,8 @@ export function AccountSwitcher({ preview, onResetDemo }: { preview: boolean; on
     return () => document.removeEventListener('keydown', onKey);
   }, [open]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  const root = box.current?.closest('.tp') as HTMLElement | null;
+  const rootStyle = { ...Object.fromEntries(Array.from(root?.style ?? []).filter((k) => k.startsWith('--')).map((k) => [k, root!.style.getPropertyValue(k)])), display: 'contents' } as CSSProperties;
   const list = auth.accounts.filter((a) => (tab === 'demo' ? a.isVirtual : !a.isVirtual));
   const pick = (a: Account) => { auth.setAccountId(a.id); setOpen(false); };
 
@@ -71,6 +73,9 @@ export function AccountSwitcher({ preview, onResetDemo }: { preview: boolean; on
       </button>
 
       {open && createPortal(
+        // EDIT HERE: the account card lives on <body> (above every panel, tab and floating button), wrapped in a copy of the
+        // site root's classes and colour variables so the site's colours and dark mode still apply.
+        <div className={`${root?.className ?? ''} as-root`} style={rootStyle} data-theme={root?.dataset.theme}>
         <div className="as-overlay" onMouseDown={() => setOpen(false)}>
         <div className="as-panel as-float" role="dialog" aria-label="Deriv accounts" style={{ top: pos.top, right: pos.right }} onMouseDown={(e) => e.stopPropagation()}>
           <div className="as-tabs" role="tablist">
@@ -102,9 +107,9 @@ export function AccountSwitcher({ preview, onResetDemo }: { preview: boolean; on
             <span className="hint">{loading ? 'Updating from Deriv…' : 'Balances from Deriv'}</span>
           </div>
         </div>
+        </div>
         </div>,
-        // Inside the client site root so its colours and dark mode apply.
-        (box.current?.closest('.tp') as HTMLElement | null) ?? document.body,
+        document.body,
       )}
     </div>
   );
