@@ -297,8 +297,8 @@ async function settle(paymentId: string, outcome: StkOutcome, receipt?: string) 
       );
     }
     if (p && p.purpose === 'due' && outcome.state === 'paid') {
-      // Confirmed by Safaricom: settle the monthly fee automatically — the bell disappears.
-      await client.query(`update dues set status = 'paid', paid_via = 'mpesa_stk', paid_at = now(), mpesa_code = coalesce($2, mpesa_code), updated_at = now() where payment_id = $1 and status = 'due'`, [paymentId, receipt ?? null]);
+      // Confirmed by Safaricom, then it waits for the owner: only the owner's approval marks a monthly fee as paid.
+      await client.query(`update dues set status = 'pending_review', paid_via = 'mpesa_stk', mpesa_code = coalesce($2, mpesa_code), updated_at = now() where payment_id = $1 and status = 'due'`, [paymentId, receipt ?? null]);
     }
     if (p && p.purpose === 'domain') {
       const d = await client.query<{ id: string }>(
@@ -1165,12 +1165,21 @@ async function siteDomain(req: VercelRequest, res: VercelResponse, op: Operator,
 
 /* ------------------------------------------------------------------ monthly mentor fees ("dues") */
 
-interface FeeSettings { enabled: boolean; send_money_phone: string; send_money_name: string; kes_per_usd: number }
+interface FeeSettings { enabled: boolean; paybill_number: string; paybill_account: string; send_money_phone: string; send_money_name: string; kes_per_usd: number }
+/** Account name on a Paybill payment: the owner's fixed one, otherwise the mentor's site, so the owner can see who paid. */
+async function dueAccount(cfg: FeeSettings, operatorId: string): Promise<string> {
+  if (cfg.paybill_account) return cfg.paybill_account;
+  const [s] = await query<{ subdomain: string | null }>(`select subdomain from operator_primary_site where operator_id = $1`, [operatorId]);
+  return (s?.subdomain ?? 'MENTOR').toUpperCase().slice(0, 12);
+}
+
 async function feeSettings(): Promise<FeeSettings> {
   const [row] = await query<{ value: Partial<FeeSettings> }>(`select value from settings where key = 'fees'`);
   const v = row?.value ?? {};
   return {
     enabled: v.enabled !== false,
+    paybill_number: String(v.paybill_number ?? ''),
+    paybill_account: String(v.paybill_account ?? ''),
     send_money_phone: String(v.send_money_phone ?? ''),
     send_money_name: String(v.send_money_name ?? ''),
     kes_per_usd: Math.max(1, Number(v.kes_per_usd ?? 130)),
@@ -1225,10 +1234,15 @@ async function duesRoute(req: VercelRequest, res: VercelResponse, rest: string) 
     const cfg = await feeSettings();
     const list = await query(`select ${DUE_COLS} from dues d where d.operator_id = $1 order by d.period desc limit 24`, [op.id]);
     const open = (list as { status: string }[]).filter((x) => x.status === 'due' || x.status === 'pending_review');
+    // With a Paybill set, that is the only number mentors see; the owner's own phone stays private.
+    const paybill = cfg.paybill_number;
     return res.status(200).json({
       dues: list, open,
       window: { open: DUE_OPEN, by: DUE_BY, today: today.d, overdue: today.d > DUE_BY },
-      pay: { sendMoneyPhone: cfg.send_money_phone, sendMoneyName: cfg.send_money_name, stk: mpesaConfigured() },
+      pay: {
+        paybillNumber: paybill, paybillAccount: paybill ? await dueAccount(cfg, op.id) : '',
+        sendMoneyPhone: paybill ? '' : cfg.send_money_phone, sendMoneyName: paybill ? '' : cfg.send_money_name, stk: mpesaConfigured(),
+      },
     });
   }
 
@@ -1240,8 +1254,14 @@ async function duesRoute(req: VercelRequest, res: VercelResponse, rest: string) 
     const b = (req.body ?? {}) as Record<string, unknown>;
     const phone = String(b.send_money_phone ?? '').trim() ? normalizePhone(String(b.send_money_phone)) : '';
     if (phone === null) return res.status(422).json({ error: 'Enter your Safaricom number, e.g. 0712 345 678' });
+    const paybillNumber = String(b.paybill_number ?? '').trim();
+    if (paybillNumber && !/^\d{5,7}$/.test(paybillNumber)) return res.status(422).json({ error: 'A Paybill number has 5 to 7 digits.' });
+    const paybillAccount = String(b.paybill_account ?? '').trim().toUpperCase();
+    if (paybillAccount && !/^[A-Z0-9 -]{1,12}$/.test(paybillAccount)) return res.status(422).json({ error: 'The account name can have up to 12 letters or numbers.' });
     const next: FeeSettings = {
       enabled: b.enabled !== false,
+      paybill_number: paybillNumber,
+      paybill_account: paybillAccount,
       send_money_phone: phone ? `0${phone.slice(3)}` : '',
       send_money_name: String(b.send_money_name ?? '').trim().slice(0, 60).replace(/[<>]/g, ''),
       kes_per_usd: Math.min(10_000, Math.max(1, Number(b.kes_per_usd) || 130)),
@@ -1338,7 +1358,7 @@ async function duesRoute(req: VercelRequest, res: VercelResponse, rest: string) 
   // ---- mentor: pay through an M-Pesa prompt (confirmed automatically by Safaricom)
   if (action === 'pay' && req.method === 'POST') {
     if (due.status !== 'due') return res.status(409).json({ error: 'This fee is already settled or waiting for review.' });
-    if (!mpesaConfigured()) return res.status(503).json({ error: 'M-Pesa prompts are not set up yet. Use Send Money for now.' });
+    if (!mpesaConfigured()) return res.status(503).json({ error: 'M-Pesa prompts are not set up yet. Pay manually for now.' });
     const phone = normalizePhone(String((req.body ?? {}).phone ?? ''));
     if (!phone) return res.status(422).json({ error: 'Enter your Safaricom number' });
     if (!(await rateLimit(`stk:${op.id}`, 5, 600))) return res.status(429).json({ error: 'Too many attempts. Try again in a few minutes.' });
@@ -1346,16 +1366,16 @@ async function duesRoute(req: VercelRequest, res: VercelResponse, rest: string) 
       `insert into payments (operator_id, phone, amount, period_days, purpose) values ($1, $2, $3, 1, 'due') returning id`, [op.id, phone, due.amount_kes]);
     await query(`update dues set payment_id = $2, updated_at = now() where id = $1`, [id, p.id]);
     try {
-      const r = await stkPush({ phone, amount: due.amount_kes, reference: 'FEE', description: 'Monthly fee' });
+      const r = await stkPush({ phone, amount: due.amount_kes, reference: await dueAccount(await feeSettings(), op.id), description: 'Monthly fee' });
       await query(`update payments set merchant_request_id = $2, checkout_request_id = $3, updated_at = now() where id = $1`, [p.id, r.merchantRequestId, r.checkoutRequestId]);
       return res.status(200).json({ paymentId: p.id, message: r.customerMessage ?? 'Check your phone and enter your M-Pesa PIN.' });
     } catch (e) {
       await query(`update payments set status = 'failed', result_desc = $2, updated_at = now() where id = $1`, [p.id, String((e as Error).message).slice(0, 200)]);
-      return res.status(502).json({ error: 'Could not reach M-Pesa. Try again or use Send Money.' });
+      return res.status(502).json({ error: 'Could not reach M-Pesa. Try again or pay manually.' });
     }
   }
 
-  // ---- owner: approve / reject a Send Money code, or waive
+  // ---- owner: approve / reject a payment, or waive
   if (action === 'review' && req.method === 'POST') {
     if (!owner) return res.status(403).json({ error: 'owner_only' });
     const b = (req.body ?? {}) as { decision?: unknown; note?: unknown };

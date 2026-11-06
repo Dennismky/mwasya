@@ -8,13 +8,13 @@ interface Row {
   due_id: string | null; amount_usd: number | null; amount_kes: number | null; status: 'due' | 'pending_review' | 'paid' | 'waived' | null;
   paid_via: string | null; mpesa_code: string | null; paid_at: string | null; note: string | null;
 }
-interface Data { period: string; commissionMonth: string; window: { open: number; by: number; today: number; current: boolean }; rows: Row[]; summary: { expected: number; received: number; outstanding: number }; settings: { send_money_phone: string; send_money_name: string; kes_per_usd: number } }
+interface Data { period: string; commissionMonth: string; window: { open: number; by: number; today: number; current: boolean }; rows: Row[]; summary: { expected: number; received: number; outstanding: number }; settings: { paybill_number: string; paybill_account: string; send_money_phone: string; send_money_name: string; kes_per_usd: number } }
 
 const usd = (n: number | null | undefined) => (n === null || n === undefined ? '—' : `$${n.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`);
 const kes = (n: number) => `KES ${n.toLocaleString()}`;
 const monthLabel = (p: string) => new Date(`${p}T00:00:00Z`).toLocaleDateString(undefined, { month: 'long', year: 'numeric', timeZone: 'UTC' });
 const thisMonth = () => new Date().toISOString().slice(0, 7);
-const STATUS = { due: 'Unpaid', pending_review: 'Check code', paid: 'Paid', waived: 'Waived' } as const;
+const STATUS = { due: 'Unpaid', pending_review: 'Approve', paid: 'Paid', waived: 'Waived' } as const;
 
 /** Owner: every mentor's commission next to what they owe you and what they paid, per month. */
 export default function Fees() {
@@ -105,7 +105,7 @@ export default function Fees() {
                         {r.status ? <span className={`badge ${r.status === 'paid' ? 'badge-green' : r.status === 'pending_review' ? 'badge-blue' : ''}`}
                           style={r.status === 'due' ? { background: late ? 'var(--danger-tint)' : '#FFF4DB', color: late ? 'var(--danger)' : '#8A5A00' } : undefined}>
                           {r.status === 'due' && late ? 'Overdue' : STATUS[r.status]}</span> : <span className="hint">{r.fee_mode === 'none' ? 'No fee' : 'Not due yet'}</span>}
-                        {r.mpesa_code && <div className="mono hint">{r.mpesa_code}{r.paid_via === 'mpesa_stk' ? ' · auto' : ''}</div>}
+                        {r.mpesa_code && <div className="mono hint">{r.mpesa_code}{r.paid_via === 'mpesa_stk' ? ' · confirmed by M-Pesa' : ''}</div>}
                         {r.paid_at && <div className="hint">{new Date(r.paid_at).toLocaleDateString()}</div>}
                       </td>
                       <td style={{ whiteSpace: 'nowrap', textAlign: 'right' }}>
@@ -127,7 +127,7 @@ export default function Fees() {
                 </tbody>
               </table>
             </div>
-            <p className="hint">Commission comes from each mentor's own Deriv earnings report and updates when they log in. "Check code": compare the M-Pesa code with the SMS on your phone, then Approve.</p>
+            <p className="hint">Commission comes from each mentor's own Deriv earnings report and updates when they log in. "Approve": a fee only counts as paid once you approve it. Prompt payments show "confirmed by M-Pesa". For a typed code, compare it with your M-Pesa statement or SMS, then Approve.</p>
           </section>
         </>
       )}
@@ -174,21 +174,30 @@ function Agreement({ row, onDone }: { row: Row; onDone: () => void }) {
 }
 
 function SendMoneySettings({ initial, onSaved }: { initial: Data['settings']; onSaved: () => void }) {
+  const [paybill, setPaybill] = useState(initial.paybill_number);
+  const [account, setAccount] = useState(initial.paybill_account);
   const [phone, setPhone] = useState(initial.send_money_phone);
   const [name, setName] = useState(initial.send_money_name);
   const [rate, setRate] = useState(String(initial.kes_per_usd));
   const [msg, setMsg] = useState('');
   const save = async () => {
     const r = await fetch('/api/dues/settings', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, credentials: 'same-origin',
-      body: JSON.stringify({ send_money_phone: phone, send_money_name: name, kes_per_usd: Number(rate) }) });
+      body: JSON.stringify({ paybill_number: paybill, paybill_account: account, send_money_phone: phone, send_money_name: name, kes_per_usd: Number(rate) }) });
     const j = await r.json().catch(() => ({}));
     if (r.ok) toast('Saved'); setMsg(r.ok ? '' : j.error ?? 'Could not save.');
     if (r.ok) onSaved();
   };
   return (
     <section className="card stack" style={{ gap: 12 }}>
-      <b>Where mentors send money</b>
-      {!initial.send_money_phone && <p className="error" style={{ margin: 0 }}>Add your M-Pesa number so mentors know where to pay.</p>}
+      <b>Where mentors pay</b>
+      {!initial.paybill_number && !initial.send_money_phone && <p className="error" style={{ margin: 0 }}>Add your Paybill so mentors know where to pay.</p>}
+      <span className="hint">With a Paybill set, it is the only number mentors see. Your phone number stays hidden.</span>
+      {/* EDIT HERE: the Paybill mentors pay to. */}
+      <div className="grid" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(min(190px, 100%), 1fr))', gap: 12 }}>
+        <div className="field"><label className="label" htmlFor="sm-paybill">Paybill business number</label><input id="sm-paybill" className="input mono" inputMode="numeric" maxLength={7} placeholder="e.g. 123456" value={paybill} onChange={(e) => setPaybill(e.target.value.replace(/\D/g, ''))} /></div>
+        <div className="field"><label className="label" htmlFor="sm-account">Account number (optional)</label><input id="sm-account" className="input mono" maxLength={12} placeholder="Blank: each mentor's site name" value={account} onChange={(e) => setAccount(e.target.value.toUpperCase())} /></div>
+      </div>
+      <span className="hint">Leave the account blank and each mentor pays with their own site name, so your statement shows who paid.</span>
       <div className="grid" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(min(190px, 100%), 1fr))', gap: 12 }}>
         <div className="field"><label className="label" htmlFor="sm-phone">Your M-Pesa number</label><input id="sm-phone" className="input mono" inputMode="tel" placeholder="0712 345 678" value={phone} onChange={(e) => setPhone(e.target.value)} /></div>
         <div className="field"><label className="label" htmlFor="sm-name">Name shown on M-Pesa</label><input id="sm-name" className="input" placeholder="e.g. DENNIS KYALO" value={name} onChange={(e) => setName(e.target.value)} /></div>

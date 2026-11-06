@@ -2,12 +2,12 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { useAuth } from '../lib/auth';
 
 interface Due { id: string; period: string; amount_usd: number; amount_kes: number; status: 'due' | 'pending_review' | 'paid' | 'waived'; mpesa_code: string | null; note: string | null; basis: { mode?: string; pct?: number; commission_usd?: number | null } }
-interface Mine { open: Due[]; window: { open: number; by: number; today: number; overdue: boolean }; pay: { sendMoneyPhone: string; sendMoneyName: string; stk: boolean } }
+interface Mine { open: Due[]; window: { open: number; by: number; today: number; overdue: boolean }; pay: { paybillNumber: string; paybillAccount: string; sendMoneyPhone: string; sendMoneyName: string; stk: boolean } }
 
 const monthName = (p: string) => new Date(`${p}T00:00:00Z`).toLocaleDateString(undefined, { month: 'long', year: 'numeric', timeZone: 'UTC' });
 const usd = (n: number) => `$${n.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
-/** Yellow bell for mentors with a monthly fee due (10th–13th). Disappears once the payment is confirmed. */
+/** Yellow bell for mentors with a monthly fee due (10th–13th). Disappears once the owner approves the payment. */
 export default function DuesBell() {
   const auth = useAuth();
   const [data, setData] = useState<Mine | null>(null);
@@ -60,7 +60,7 @@ export default function DuesBell() {
         <div className="bell-panel" role="dialog" aria-label="Monthly fee">
           <div className="row" style={{ justifyContent: 'space-between', alignItems: 'flex-start', gap: 8 }}>
             <div className="stack" style={{ gap: 2 }}>
-              <b style={{ fontSize: 16 }}>{due.status === 'pending_review' ? 'Payment being confirmed' : late ? 'Payment overdue' : 'Payment due'}</b>
+              <b style={{ fontSize: 16 }}>{due.status === 'pending_review' ? 'Waiting for approval' : late ? 'Payment overdue' : 'Payment due'}</b>
               <span className="hint">Monthly fee for {monthName(due.period)} · due {data.window.open}–{data.window.by} {new Date(`${due.period}T00:00:00Z`).toLocaleDateString(undefined, { month: 'short', timeZone: 'UTC' })}</span>
             </div>
             <button className="btn btn-ghost" style={{ padding: 4 }} aria-label="Close" onClick={() => setOpen(false)}>✕</button>
@@ -73,7 +73,7 @@ export default function DuesBell() {
           {due.note && due.status === 'due' && <p className="error" style={{ margin: 0 }}>{due.note}</p>}
 
           {due.status === 'pending_review' ? (
-            <p className="hint">We received your M-Pesa code <b className="mono">{due.mpesa_code}</b>. This notice clears as soon as the payment is confirmed.</p>
+            <p className="hint">We received your M-Pesa payment{due.mpesa_code ? <> <b className="mono">{due.mpesa_code}</b></> : null}. This notice clears as soon as it is approved.</p>
           ) : (
             <>
               {data.pay.stk && (
@@ -83,15 +83,22 @@ export default function DuesBell() {
                     <input className="input mono" style={{ flex: 1 }} inputMode="tel" placeholder="0712 345 678" value={phone} onChange={(e) => setPhone(e.target.value)} aria-label="Your Safaricom number" />
                     <button className="btn btn-primary" disabled={busy || !phone.trim()} onClick={payStk}>Pay KES {due.amount_kes.toLocaleString()}</button>
                   </div>
-                  <span className="hint">Confirmed automatically. {data.pay.sendMoneyPhone ? 'Or use Send Money below.' : ''}</span>
+                  <span className="hint">You get an M-Pesa prompt on your phone. The payment is then approved.{data.pay.paybillNumber ? ' Or pay manually below.' : data.pay.sendMoneyPhone ? ' Or use Send Money below.' : ''}</span>
                 </div>
               )}
-              {data.pay.sendMoneyPhone ? (
+              {data.pay.paybillNumber || data.pay.sendMoneyPhone ? (
                 <div className="stack" style={{ gap: 8 }}>
-                  <b>Pay with Send Money</b>
+                  <b>{data.pay.paybillNumber ? 'Pay by Paybill' : 'Pay with Send Money'}</b>
+                  {/* EDIT HERE: the payment steps mentors see. */}
                   <ol className="bell-steps">
-                    <li>Open <b>M-Pesa</b> and choose <b>Send Money</b>.</li>
-                    <li>Enter <b className="mono">{data.pay.sendMoneyPhone}</b>{data.pay.sendMoneyName ? <> ({data.pay.sendMoneyName})</> : null}.</li>
+                    {data.pay.paybillNumber ? <>
+                      <li>Open <b>M-Pesa</b>, then <b>Lipa na M-Pesa</b>, then <b>Pay Bill</b>.</li>
+                      <li>Business number: <b className="mono">{data.pay.paybillNumber}</b></li>
+                      <li>Account number: <b className="mono">{data.pay.paybillAccount}</b></li>
+                    </> : <>
+                      <li>Open <b>M-Pesa</b> and choose <b>Send Money</b>.</li>
+                      <li>Enter <b className="mono">{data.pay.sendMoneyPhone}</b>{data.pay.sendMoneyName ? <> ({data.pay.sendMoneyName})</> : null}.</li>
+                    </>}
                     <li>Amount: <b className="mono">KES {due.amount_kes.toLocaleString()}</b>. Enter your PIN and send.</li>
                     <li>Copy the code from the M-Pesa SMS (e.g. <span className="mono">SKA1B2C3D4</span>) and paste it here.</li>
                   </ol>
