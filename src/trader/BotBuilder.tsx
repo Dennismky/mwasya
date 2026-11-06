@@ -84,6 +84,8 @@ export default function BotBuilder() {
     try { openBot(await fetchBotXml(id), name); } catch (e) { setLoadError((e as Error).message); } finally { setBusy(false); setLoadingName(''); }
   };
   useEffect(() => {
+    // ?quick=1 (Daily Plan's "Use this plan in Bot Builder"): open Quick strategy filled with the saved plan.
+    if (params.get('quick')) { setParams({}, { replace: true }); setQuick(true); return; }
     const id = params.get('bot');
     if (!id) return;
     setParams({}, { replace: true });
@@ -193,7 +195,7 @@ export default function BotBuilder() {
           : <button className="bw-run" disabled={preview} onClick={run}>▶ Run</button>}
       </div>
 
-      {quick && <QuickStrategy initial={savedCfg()} currency={currency} onClose={() => setQuick(false)} onApply={applyQuick} />}
+      {quick && <QuickStrategy initial={{ ...savedCfg(), ...(isBotMarket(market) ? { symbol: market } : {}) }} currency={currency} onClose={() => setQuick(false)} onApply={applyQuick} />}
       {settings && (
         <div className="cx-wrap" role="dialog" aria-modal="true" aria-label="Bot settings" onClick={() => setSettings(false)}>
           <div className="cx" onClick={(e) => e.stopPropagation()}>
