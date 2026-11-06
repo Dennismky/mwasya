@@ -2139,3 +2139,42 @@ html, body { overflow-x: clip; }
 .sf { grid-template-columns: 1fr 1fr; align-items: start; }
 .qs .sf { grid-template-columns: 1fr; }
 @media (max-width: 760px) { .sf { grid-template-columns: 1fr; } }
+
+/* =================== Settings: Website colours =================== */
+.sc-colours { display: grid; grid-template-columns: 1fr 300px; gap: 20px; align-items: start; }
+@media (max-width: 760px) { .sc-colours { grid-template-columns: 1fr; } }
+.sc-swatches { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.sc-swatches button { width: 34px; height: 34px; border-radius: 50%; border: 3px solid var(--bg, #fff); box-shadow: 0 0 0 1px var(--border); cursor: pointer; transition: transform .15s, box-shadow .15s; }
+.sc-swatches button:hover { transform: scale(1.08); }
+.sc-swatches button.on { box-shadow: 0 0 0 2px var(--text); }
+.sc-custom { display: inline-flex; align-items: center; gap: 6px; padding: 4px 4px 4px 12px; border-radius: 99px; border: 1px solid var(--border); font-size: 13px; font-weight: 600; cursor: pointer; }
+.sc-custom input { width: 30px; height: 26px; border: 0; padding: 0; background: none; cursor: pointer; }
+.sc-preview { border-radius: 14px; overflow: hidden; border: 1px solid var(--border); background: #F4F6FB; color: #0B1F3A; display: flex; flex-direction: column; }
+.sc-preview.dark { background: #0B1530; color: #E6ECF5; border-color: #22304A; }
+.sc-p-head { display: flex; align-items: center; gap: 8px; padding: 10px 12px; background: #fff; font-size: 13px; }
+.sc-preview.dark .sc-p-head { background: #0E1C33; }
+.sc-p-mark { width: 24px; height: 24px; border-radius: 7px; display: grid; place-items: center; background: var(--sc); color: #fff; font-weight: 800; font-size: 12px; }
+.sc-p-btn { margin-left: auto; padding: 4px 10px; border-radius: 8px; background: var(--sc); color: #fff; font-size: 11px; font-weight: 700; }
+.sc-p-nav { display: flex; gap: 2px; padding: 0 8px; background: #0B1F3A; font-size: 11px; color: #C9D3E3; }
+.sc-p-nav span { padding: 7px 8px; }
+.sc-p-nav span.on { background: var(--sc); color: #fff; }
+.sc-p-body { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; padding: 12px; }
+.sc-p-card { height: 44px; border-radius: 9px; background: #fff; border-top: 3px solid var(--sc); }
+.sc-preview.dark .sc-p-card { background: #12223B; }
+.sc-p-run { grid-column: 1 / -1; text-align: center; padding: 7px; border-radius: 9px; background: var(--sc); color: #fff; font-weight: 800; font-size: 12px; }
+.sc-preview small { padding: 0 12px 10px; opacity: .6; font-size: 11px; }
+
+/* My websites: share link under a live site. */
+.share-link { flex-basis: 100%; display: flex; flex-wrap: wrap; align-items: center; gap: 8px 10px; padding: 10px 12px; border-radius: 12px; background: var(--primary-tint, #EEF3FF); }
+.share-l { font-size: 11px; font-weight: 800; letter-spacing: .05em; text-transform: uppercase; color: var(--muted); }
+.share-link code { padding: 6px 10px; border-radius: 8px; background: var(--bg, #fff); border: 1px solid var(--border); font-size: 13px; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.share-link .btn { padding: 6px 12px; font-size: 13px; }
+.share-wa { background: #25D366; color: #fff; border: 0; }
+.share-tg { background: #229ED9; color: #fff; border: 0; }
+.share-h { flex-basis: 100%; }
+
+/* Announcements: links and the WhatsApp group button. */
+.an-text { white-space: pre-wrap; overflow-wrap: anywhere; }
+.an-text a { color: var(--accent, var(--primary)); font-weight: 600; text-decoration: underline; }
+.an-wa { display: inline-flex; align-items: center; gap: 8px; align-self: flex-start; margin-top: 8px; padding: 8px 14px; border-radius: 99px; background: #25D366; color: #fff !important; font-weight: 700; font-size: 13.5px; text-decoration: none; box-shadow: 0 4px 12px rgba(37, 211, 102, .3); transition: transform .15s; }
+.an-wa:hover { transform: translateY(-1px); }

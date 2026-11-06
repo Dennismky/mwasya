@@ -106,12 +106,38 @@ export default function MyWebsites() {
                     )}
                   </div>
                   {openReady === s.id && <div style={{ flexBasis: '100%' }}><ReadyChecklist siteId={s.id} ready={s.ready} compact /></div>}
+                  {s.status === 'live' && !s.needs.length && <ShareLink name={s.name} url={s.url} />}
                 </li>
               );
             })}
             {shown.length === 0 && <li className="muted" style={{ padding: 16 }}>No sites match.</li>}
           </ul>
         )}
+    </div>
+  );
+}
+
+/**
+ * The site's client link, under a live and ready site: share it so clients sign up and trade there,
+ * which is what earns the mentor markup commission.
+ */
+// EDIT HERE: message sent when a mentor shares their site link on WhatsApp / Telegram.
+const shareText = (name: string, url: string) => `Trade with ready-made bots, signals and live digit analysis on ${name}. Open your free account here: ${url}`;
+function ShareLink({ name, url }: { name: string; url: string }) {
+  const [copied, setCopied] = useState(false);
+  const copy = async () => {
+    try { await navigator.clipboard.writeText(url); } catch { window.prompt('Copy your link:', url); return; }
+    setCopied(true); setTimeout(() => setCopied(false), 1800);
+  };
+  const text = encodeURIComponent(shareText(name, url));
+  return (
+    <div className="share-link">
+      <span className="share-l">Your client link</span>
+      <code className="mono" title={url}>{url.replace(/^https:\/\//, '')}</code>
+      <button className="btn btn-secondary" onClick={copy}>{copied ? '✓ Copied' : 'Copy'}</button>
+      <a className="btn share-wa" href={`https://wa.me/?text=${text}`} target="_blank" rel="noreferrer">WhatsApp</a>
+      <a className="btn share-tg" href={`https://t.me/share/url?url=${encodeURIComponent(url)}&text=${text}`} target="_blank" rel="noreferrer">Telegram</a>
+      <span className="hint share-h">Every client who trades through this link earns you markup.</span>
     </div>
   );
 }

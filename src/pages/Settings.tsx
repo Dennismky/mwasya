@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, type CSSProperties } from 'react';
 import { toast } from '../components/motion';
 import { useAuth } from '../lib/auth';
 import { LANGUAGES, useLang, useT, type Lang } from '../lib/i18n';
@@ -40,6 +40,8 @@ export default function Settings() {
         <h1 style={{ fontSize: 28, fontWeight: 700 }}>{t('set.title')}</h1>
         <p className="muted">{t('set.sub')}</p>
       </div>
+
+      <SiteColours />
 
       <section className="card stack" style={{ gap: 16 }}>
         <h2 style={{ fontSize: 18, fontWeight: 600 }}>Profile</h2>
@@ -180,6 +182,90 @@ function DomainSales() {
               ))}
             </tbody>
           </table>
+        </div>
+      )}
+    </section>
+  );
+}
+
+// EDIT HERE: ready-made colours a mentor can pick for their client website (any other colour via "Custom").
+const SITE_COLOURS = ['#1F4FD1', '#0B1F3A', '#0E7C66', '#3B3FB6', '#0F6E9E', '#2D3748', '#E11D48', '#C9A227', '#7C3AED', '#EA580C'];
+interface SiteLite { id: string; name: string; subdomain: string; accent: string; theme: 'light' | 'dark' }
+
+/** Website colours: a mentor changes their client site's main colour and light/dark look; clients see it on their next visit. */
+function SiteColours() {
+  const [sites, setSites] = useState<SiteLite[] | null>(null);
+  const [id, setId] = useState('');
+  const [accent, setAccent] = useState('#1F4FD1');
+  const [look, setLook] = useState<'light' | 'dark'>('light');
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState('');
+
+  useEffect(() => {
+    fetch('/api/sites', { credentials: 'same-origin' }).then((r) => (r.ok ? r.json() : { sites: [] })).then((j) => {
+      const list = (j.sites ?? []) as SiteLite[];
+      setSites(list);
+      if (list[0]) { setId(list[0].id); setAccent(list[0].accent.toUpperCase()); setLook(list[0].theme === 'dark' ? 'dark' : 'light'); }
+    }).catch(() => setSites([]));
+  }, []);
+  const site = sites?.find((s) => s.id === id);
+  const pickSite = (sid: string) => { const s = sites?.find((x) => x.id === sid); setId(sid); if (s) { setAccent(s.accent.toUpperCase()); setLook(s.theme === 'dark' ? 'dark' : 'light'); } };
+  const changed = !!site && (site.accent.toUpperCase() !== accent.toUpperCase() || site.theme !== look);
+
+  const save = async () => {
+    if (!site) return;
+    setBusy(true); setError('');
+    try {
+      const r = await fetch(`/api/sites/${site.id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, credentials: 'same-origin', body: JSON.stringify({ accent, theme: look }) });
+      if (!r.ok) throw new Error('Could not save the colours. Try again.');
+      setSites((l) => l?.map((s) => (s.id === site.id ? { ...s, accent, theme: look } : s)) ?? null);
+      toast(`${site.name} colours saved`);
+    } catch (e) { setError((e as Error).message); } finally { setBusy(false); }
+  };
+
+  if (sites && sites.length === 0) return null; // no website yet: colours are chosen when it is created
+  const dark = look === 'dark';
+  return (
+    <section className="card stack" style={{ gap: 16 }} aria-label="Website colours">
+      <div className="row" style={{ justifyContent: 'space-between', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+        <h2 style={{ fontSize: 18, fontWeight: 600 }}>Website colours</h2>
+        {sites && sites.length > 1 && (
+          <select className="input" style={{ width: 'auto' }} value={id} onChange={(e) => pickSite(e.target.value)} aria-label="Website">
+            {sites.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
+          </select>
+        )}
+      </div>
+      {!sites ? <p className="hint">Loading your website…</p> : (
+        <div className="sc-colours">
+          <div className="stack" style={{ gap: 14 }}>
+            <div className="stack" style={{ gap: 8 }}>
+              <span className="label">Main colour</span>
+              <div className="sc-swatches">
+                {SITE_COLOURS.map((c) => <button key={c} type="button" aria-label={c} aria-pressed={accent === c} className={accent === c ? 'on' : ''} style={{ background: c }} onClick={() => setAccent(c)} />)}
+                <label className="sc-custom" title="Any colour">Custom <input type="color" value={accent} onChange={(e) => setAccent(e.target.value.toUpperCase())} /></label>
+              </div>
+            </div>
+            <div className="stack" style={{ gap: 8 }}>
+              <span className="label">Look clients see first</span>
+              <div className="seg" style={{ maxWidth: 260 }}>
+                <button type="button" className={!dark ? 'on' : ''} onClick={() => setLook('light')}>☀ Light</button>
+                <button type="button" className={dark ? 'on' : ''} onClick={() => setLook('dark')}>☾ Dark</button>
+              </div>
+              <span className="hint">Clients can still switch light / dark on the site.</span>
+            </div>
+            {error && <p className="error" role="alert">{error}</p>}
+            <div className="row" style={{ gap: 8 }}>
+              <button className="btn btn-primary" disabled={!changed || busy} onClick={save}>{busy ? 'Saving…' : 'Save colours'}</button>
+              {changed && <button className="btn btn-ghost" onClick={() => site && pickSite(site.id)}>Undo</button>}
+            </div>
+          </div>
+          {/* Live preview of the client site's top bar, tab, cards and Run button. */}
+          <div className={`sc-preview ${dark ? 'dark' : ''}`} style={{ '--sc': accent } as CSSProperties} aria-label="Preview">
+            <div className="sc-p-head"><span className="sc-p-mark">{(site?.name ?? 'S').charAt(0).toUpperCase()}</span><b>{site?.name}</b><span className="sc-p-btn">Cashier</span></div>
+            <div className="sc-p-nav"><span className="on">Dashboard</span><span>Bot Builder</span><span>Quick Bot</span></div>
+            <div className="sc-p-body"><span className="sc-p-card" /><span className="sc-p-card" /><span className="sc-p-run">▶ Run</span></div>
+            <small className="mono">{site?.subdomain}.mwasya.site</small>
+          </div>
         </div>
       )}
     </section>

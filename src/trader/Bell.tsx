@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { Floating } from '../components/Floating';
 import type { Announcement } from '../lib/tenant';
+import { AnnouncementText } from '../components/AnnouncementText';
 
 const ago = (iso: string) => {
   const m = Math.round((Date.now() - Date.parse(iso)) / 60000);
@@ -50,7 +51,7 @@ export function Bell({ items, siteKey, siteName }: { items: Announcement[]; site
                 return (
                   <article key={a.id} className={`an-card ${fresh ? 'fresh' : ''}`} style={{ animationDelay: `${i * 45}ms` }}>
                     <div className="an-top"><b>{a.title}</b>{fresh && <span className="an-new">NEW</span>}</div>
-                    <p>{a.body}</p>
+                    <AnnouncementText text={a.body} />
                     <small className="hint">{ago(a.created_at)}</small>
                   </article>
                 );

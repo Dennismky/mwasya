@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { toast } from '../components/motion';
+import { AnnouncementText, isWhatsApp } from '../components/AnnouncementText';
 
 interface Site { id: string; name: string; subdomain: string; status: string }
 interface Item { id: string; title: string; body: string; created_at: string }
@@ -20,6 +21,7 @@ export default function Announcements() {
   const [items, setItems] = useState<Item[] | null>(null);
   const [title, setTitle] = useState('');
   const [body, setBody] = useState('');
+  const [wa, setWa] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
 
@@ -41,13 +43,18 @@ export default function Announcements() {
   const post = async () => {
     setError('');
     if (!title.trim() || !body.trim()) return setError('Write a title and a message.');
+    const link = wa.trim();
+    if (link && !isWhatsApp(link)) return setError('Paste a WhatsApp link that starts with https://chat.whatsapp.com/ or https://wa.me/');
+    // The group link is saved with the message; client sites show it as a "Join WhatsApp group" button.
+    const text = link && !body.includes(link) ? `${body.trim()}\n\n${link}` : body;
+    if (text.length > 1000) return setError('Message and link must be 1000 characters or less.');
     setBusy(true);
-    const r = await fetch(`/api/sites/${siteId}/announcements`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'same-origin', body: JSON.stringify({ title, body }) });
+    const r = await fetch(`/api/sites/${siteId}/announcements`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'same-origin', body: JSON.stringify({ title, body: text }) });
     const j = await r.json().catch(() => ({}));
     setBusy(false);
     if (!r.ok) return setError(j.error ?? 'Could not post. Try again.');
     setItems((x) => [j.announcement, ...(x ?? [])]);
-    setTitle(''); setBody('');
+    setTitle(''); setBody(''); setWa('');
     toast('Announcement posted');
   };
   const remove = async (id: string) => {
@@ -80,6 +87,8 @@ export default function Announcements() {
         </div>
         <input className="input" maxLength={80} placeholder="Title, e.g. New free bot added" value={title} onChange={(e) => setTitle(e.target.value)} aria-label="Title" />
         <textarea className="input" rows={4} maxLength={1000} placeholder="Message, e.g. Try the Even/Odd bot on demo first. Markets are busy after 10 am." value={body} onChange={(e) => setBody(e.target.value)} aria-label="Message" />
+        {/* EDIT HERE: optional WhatsApp group link added to the announcement (shown to clients as a green Join button). */}
+        <input className="input" type="url" inputMode="url" maxLength={200} placeholder="WhatsApp group link (optional), e.g. https://chat.whatsapp.com/…" value={wa} onChange={(e) => setWa(e.target.value)} aria-label="WhatsApp group link" />
         <div className="row" style={{ justifyContent: 'space-between', alignItems: 'center', gap: 10 }}>
           <span className="hint">{body.length}/1000</span>
           <button className="btn btn-primary" disabled={busy || !siteId} onClick={() => void post()}>{busy ? 'Posting…' : `Post to ${site?.name ?? 'site'}`}</button>
@@ -97,7 +106,7 @@ export default function Announcements() {
                 <b>{a.title}</b>
                 <span className="hint">{ago(a.created_at)}</span>
               </div>
-              <p>{a.body}</p>
+              <AnnouncementText text={a.body} />
               <button className="btn btn-ghost" style={{ alignSelf: 'flex-start', color: 'var(--danger)' }} onClick={() => void remove(a.id)}>Delete</button>
             </article>
           ))}
