@@ -118,15 +118,7 @@ export default function QuickBot() {
                 {winPct !== null && (
                   <div className="qb-stats" aria-label="Live statistics">
                     <div className="qb-win"><b className="mono">{ready ? `${winPct.toFixed(1)}%` : '…'}</b><span>{!ready || !stats.n ? `Loading the last ${STATS_TICKS} ticks…` : wins ? `of the last ${stats.n} ticks ended on a winning digit` : `of the last ${stats.n} tick moves went this way`}</span></div>
-                    {wins && (
-                      <div className="qb-digits">
-                        {stats.pct.map((p, dg) => (
-                          <span key={dg} className={`${wins(dg) ? 'win' : ''} ${stats.last === dg ? 'live' : ''}`} title={`Digit ${dg}: ${p.toFixed(1)}%`}>
-                            <b>{dg}</b><small className="mono">{ready ? p.toFixed(1) : '…'}</small>
-                          </span>
-                        ))}
-                      </div>
-                    )}
+                    {wins && <DigitHeat pct={stats.pct} live={stats.last} ready={ready && stats.n > 0} wins={wins} />}
                   </div>
                 )}
                 <dl className="bot-facts">
@@ -170,7 +162,7 @@ export default function QuickBot() {
  * Results show in the Summary / Transactions / Journal panel.
  */
 function CreateBot({ market, currency, stats, ready, engine, siteKey, preview, isReal, autoStop, setAutoStop }: {
-  market: string; currency: string; stats: { pct: number[]; n: number; rise: number }; ready: boolean;
+  market: string; currency: string; stats: { pct: number[]; n: number; rise: number; last?: number }; ready: boolean;
   engine: ReturnType<typeof useTrader>['bot']; siteKey: string; preview: boolean; isReal: boolean; autoStop: boolean; setAutoStop: (on: boolean) => void;
 }) {
   // EDIT HERE: settings a new client starts with in "Create your bot".
@@ -202,6 +194,7 @@ function CreateBot({ market, currency, stats, ready, engine, siteKey, preview, i
         </div>
         <button className="btn btn-ghost" onClick={toggle} aria-expanded={open}>{open ? 'Hide settings' : 'Show settings'}</button>
       </header>
+      <DigitHeat pct={stats.pct} live={stats.last} ready={ready && stats.n > 0} wins={wins} />
       {open && <StrategyFields cfg={cfg} setCfg={setCfg} currency={currency} market={false} disabled={running} />}
       <div className="qb-create-foot">
         <div className="qb-win"><b className="mono">{ready && stats.n ? `${winPct.toFixed(1)}%` : '…'}</b><span>{contractName(cfg)} · of the last {stats.n || 1000} ticks</span></div>
@@ -217,5 +210,31 @@ function CreateBot({ market, currency, stats, ready, engine, siteKey, preview, i
       {problems[0] && !running && <p className="error">{problems[0]}</p>}
       {preview && <p className="hint">Clients run their bot here after logging in.</p>}
     </section>
+  );
+}
+
+/**
+ * Digits 0–9 with how often each ended the last ticks. Colours: most frequent = green, least = red, the rest tinted by
+ * how often they appear. A dot marks the digits this bot wins on; the outline follows the latest tick's digit.
+ */
+function DigitHeat({ pct, live, ready, wins }: { pct: number[]; live?: number; ready: boolean; wins: ((d: number) => boolean) | null }) {
+  const max = Math.max(...pct), min = Math.min(...pct), span = max - min || 1;
+  return (
+    <div className="qb-heat-wrap">
+      <div className="qb-digits qb-heat" role="list" aria-label="Last digit frequency">
+        {pct.map((p, d) => {
+          const tone = !ready ? '' : p === max ? 'hot' : p === min ? 'cold' : '';
+          return (
+            <span key={d} role="listitem" className={`${tone} ${live === d ? 'live' : ''}`} style={{ '--heat': ready ? (p - min) / span : 0 } as CSSProperties}
+              title={`Digit ${d}: ${p.toFixed(1)}%${tone === 'hot' ? ' · most frequent' : tone === 'cold' ? ' · least frequent' : ''}${wins?.(d) ? ' · this bot wins on it' : ''}`}>
+              <b>{d}</b><small className="mono">{ready ? `${p.toFixed(1)}%` : '…'}</small>
+              {wins?.(d) && <i className="qb-win-dot" aria-label="wins" />}
+            </span>
+          );
+        })}
+      </div>
+      {/* EDIT HERE: legend wording under the digit colours. */}
+      {ready && <div className="qb-legend"><span><i className="hot" />Most</span><span><i className="cold" />Least</span>{wins && <span><i className="dot" />Bot wins on</span>}</div>}
+    </div>
   );
 }

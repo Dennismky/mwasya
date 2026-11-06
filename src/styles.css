@@ -2215,3 +2215,26 @@ html, body { overflow-x: clip; }
 @keyframes tk-flash { from { opacity: 1; } to { opacity: 0; } }
 @media (max-width: 700px) { .tk-live { padding-left: 10px; padding-right: 16px; } .tk-spark, .tk-chg { display: none; } .tk-chip { gap: 6px; } }
 @media (prefers-reduced-motion: reduce) { .tp .ticker-track, .tk-live-dot, .tk-flash { animation: none; } .tk-flash { display: none; } .ticker-view { overflow-x: auto; } }
+
+/* Quick Bot: digit colours by frequency (green = most, red = least, others tinted by how often they appear). */
+/* EDIT HERE: most / least frequent digit colours on Quick Bot. */
+.qb-heat span { position: relative; background: color-mix(in srgb, var(--accent, var(--primary)) calc(var(--heat, 0) * 22%), var(--bg)); }
+.qb-heat span.hot { background: #16A34A; border-color: #16A34A; }
+.qb-heat span.cold { background: #DC2626; border-color: #DC2626; }
+.qb-heat span.hot b, .qb-heat span.hot small, .qb-heat span.cold b, .qb-heat span.cold small { color: #fff; }
+.qb-heat span.live { border-color: var(--text); }
+.qb-heat span.hot.live, .qb-heat span.cold.live { box-shadow: 0 0 0 2px var(--bg), 0 0 0 4px var(--text); }
+.qb-heat small { font-size: 9px; }
+.qb-win-dot { position: absolute; top: 3px; right: 3px; width: 6px; height: 6px; border-radius: 50%; background: var(--accent, var(--primary)); box-shadow: 0 0 0 1.5px var(--bg); }
+.qb-heat span.hot .qb-win-dot, .qb-heat span.cold .qb-win-dot { background: #fff; box-shadow: none; }
+.qb-legend { display: flex; gap: 12px; flex-wrap: wrap; margin-top: 6px; font-size: 11.5px; color: var(--muted); }
+.qb-legend span { display: inline-flex; align-items: center; gap: 5px; }
+.qb-legend i { width: 10px; height: 10px; border-radius: 3px; display: inline-block; }
+.qb-legend i.hot { background: #16A34A; } .qb-legend i.cold { background: #DC2626; }
+.qb-legend i.dot { width: 7px; height: 7px; border-radius: 50%; background: var(--accent, var(--primary)); }
+.tp-dark .qb-heat span:not(.hot):not(.cold) { background: color-mix(in srgb, var(--accent, #1F4FD1) calc(var(--heat, 0) * 35%), #12223B); }
+.tp-dark .qb-legend { color: #A9B6CA; }
+.qb-heat-wrap { padding: 10px; border-radius: 12px; background: var(--bg-alt, #F1F4F9); }
+.qb-stats .qb-heat-wrap { padding: 0; background: none; }
+.tp-dark .qb-heat-wrap { background: #0E1C33; }
+.tp-dark .qb-stats .qb-heat-wrap { background: none; }
