@@ -122,6 +122,7 @@ export function ChartView({ symbol: extSymbol, onSymbol, lines = [], defaultMode
   const seriesInd = useRef(new Map<ISeriesApi<SeriesType>, string>());
   const indColour = useRef(new Map<string, string>());
   const [picked, setPicked] = useState<{ id: string; x: number; y: number } | null>(null);
+  const lastPointer = useRef({ x: 0, y: 0 }); // where the cursor last pressed, inside the chart area
 
   useEffect(() => { localStorage.setItem(KEY_INDS, JSON.stringify(inds)); }, [inds]);
 
@@ -296,7 +297,7 @@ export function ChartView({ symbol: extSymbol, onSymbol, lines = [], defaultMode
         }
       }
       if (!id || !p.point || !box.current) { setPicked(null); return; }
-      setPicked({ id, x: p.point.x + (parseFloat(getComputedStyle(box.current).paddingLeft) || 0), y: p.point.y });
+      setPicked({ id, ...lastPointer.current });
     };
     chart.subscribeClick(onChartClick);
 
@@ -393,7 +394,7 @@ export function ChartView({ symbol: extSymbol, onSymbol, lines = [], defaultMode
 
   return (
     <div className={`dc2 ${dark ? 'dark' : 'light'}`} onClick={() => setPop(null)}>
-      <div className="dc2-plot" ref={box}>
+      <div className="dc2-plot" ref={box} onPointerDownCapture={(e) => { const r = e.currentTarget.getBoundingClientRect(); lastPointer.current = { x: e.clientX - r.left, y: e.clientY - r.top }; }}>
         {loading && <div className="ch-loading"><span className="spinner" /> Loading from Deriv…</div>}
         {error && <div className="ch-loading error">{error}</div>}
         {tag && last && (
@@ -409,17 +410,19 @@ export function ChartView({ symbol: extSymbol, onSymbol, lines = [], defaultMode
             {inds.map((id) => (
               <span key={id} className="dc2-chip">
                 <i style={{ background: indColour.current.get(id) ?? 'currentColor' }} />
-                <button className="dc2-chip-name" title="Show options" onClick={(e) => { const b = box.current?.getBoundingClientRect(), r = e.currentTarget.getBoundingClientRect(); setPicked({ id, x: r.left - (b?.left ?? 0), y: r.top - (b?.top ?? 0) - 60 }); }}>{byId(id)?.name ?? id}</button>
+                <button className="dc2-chip-name" title="Show options" onClick={(e) => { const b = box.current?.getBoundingClientRect(), r = e.currentTarget.getBoundingClientRect(); setPicked({ id, x: r.left - (b?.left ?? 0), y: r.top - (b?.top ?? 0) - 46 }); }}>{byId(id)?.name ?? id}</button>
                 <button className="dc2-chip-x" aria-label={`Remove ${byId(id)?.name ?? id}`} title="Remove" onClick={() => removeInd(id)}>✕</button>
               </span>
             ))}
           </div>
         )}
         {picked && inds.includes(picked.id) && (
-          <div className="dc2-picked" role="dialog" aria-label="Indicator" style={{ left: Math.max(8, Math.min(picked.x, (box.current?.clientWidth ?? 600) - 330)), top: Math.max(8, Math.min(picked.y + 10, (box.current?.clientHeight ?? 400) - 110)) }} onClick={(e) => e.stopPropagation()}>
+          // EDIT HERE: the box opens just beside the cursor (6 px away), and stays inside the chart at the edges.
+          <div className="dc2-picked" role="dialog" aria-label="Indicator" style={{ left: Math.max(8, Math.min(picked.x + 6, (box.current?.clientWidth ?? 600) - 300)), top: Math.max(8, Math.min(picked.y + 6, (box.current?.clientHeight ?? 400) - 48)) }} onClick={(e) => e.stopPropagation()}>
             <b>{byId(picked.id)?.name ?? picked.id}</b>
-            <button className="dc2-picked-del" onClick={() => removeInd(picked.id)}>Delete</button>
-            <button className="dc2-picked-x" aria-label="Close" onClick={() => setPicked(null)}>✕</button>
+            <button className="dc2-picked-del" aria-label={`Delete ${byId(picked.id)?.name ?? picked.id}`} title="Delete" onClick={() => removeInd(picked.id)}>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#000" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13M10 11v5M14 11v5" /></svg>
+            </button>
           </div>
         )}
         {older === 'loading' && <div className="dc2-older"><span className="spinner" /> Loading older prices…</div>}
