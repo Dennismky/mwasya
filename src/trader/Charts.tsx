@@ -118,6 +118,10 @@ export function ChartView({ symbol: extSymbol, onSymbol, lines = [], defaultMode
   const indRef = useRef(inds);
   indRef.current = inds;
   const redrawRef = useRef<() => void>(() => undefined);
+  // Which indicator each drawn line belongs to, so a click on a line can find it, and each indicator's colour for its chip.
+  const seriesInd = useRef(new Map<ISeriesApi<SeriesType>, string>());
+  const indColour = useRef(new Map<string, string>());
+  const [picked, setPicked] = useState<{ id: string; x: number; y: number } | null>(null);
 
   useEffect(() => { localStorage.setItem(KEY_INDS, JSON.stringify(inds)); }, [inds]);
 
@@ -160,12 +164,14 @@ export function ChartView({ symbol: extSymbol, onSymbol, lines = [], defaultMode
     const redraw = () => {
       if (chartRef.current !== chart) return;
       extra.forEach((s) => { try { chart.removeSeries(s); } catch { /* gone */ } }); extra = [];
+      seriesInd.current.clear();
       for (let i = chart.panes().length - 1; i > 0; i--) { try { chart.removePane(i); } catch { /* gone */ } }
       let pane = 0;
       for (const id of indRef.current) {
         const def = byId(id);
         if (!def) continue;
         const out = def.run(bars);
+        if (out.plots[0]?.color) indColour.current.set(id, out.plots[0].color);
         const target = def.place === 'pane' ? ++pane : 0;
         for (const pl of out.plots) {
           const common = { priceLineVisible: false, lastValueVisible: def.place === 'pane', crosshairMarkerVisible: false };
@@ -174,6 +180,7 @@ export function ChartView({ symbol: extSymbol, onSymbol, lines = [], defaultMode
             : chart.addSeries(LineSeries, { ...common, color: pl.color, lineWidth: pl.width ?? 2, lineVisible: pl.kind !== 'dots', pointMarkersVisible: pl.kind === 'dots', pointMarkersRadius: 2 }, target);
           s.setData(pl.data.map((p) => ({ time: t(p.time), value: p.value, ...(p.color ? { color: p.color } : {}) })));
           extra.push(s);
+          seriesInd.current.set(s, id);
         }
         const host = extra[extra.length - 1];
         if (host && out.levels) for (const lv of out.levels) host.createPriceLine({ price: lv, color: theme.grid.replace(/[\d.]+\)$/, '.35)'), lineWidth: 1, lineStyle: 2, axisLabelVisible: false, title: '' });
@@ -275,12 +282,29 @@ export function ChartView({ symbol: extSymbol, onSymbol, lines = [], defaultMode
       setOhlc({ o: d.open ?? c, h: d.high ?? c, l: d.low ?? c, c, time: Number(p.time), x: p.point.x });
     };
     chart.subscribeCrosshairMove(onMove);
+    // Click an indicator's line: a small box offers Delete. A click anywhere else closes it.
+    const onChartClick = (p: MouseEventParams<Time>) => {
+      let id = p.hoveredSeries ? seriesInd.current.get(p.hoveredSeries) : undefined;
+      if (!id && p.point) {
+        // Lines are thin and redrawn every second, so also accept a click close to one (EDIT HERE: distance in pixels).
+        let nearest = 8;
+        for (const [series, ind] of seriesInd.current) {
+          if (p.paneIndex !== undefined && series.getPane().paneIndex() !== p.paneIndex) continue;
+          const value = (p.seriesData.get(series) as { value?: number } | undefined)?.value;
+          const y = value === undefined ? null : series.priceToCoordinate(value);
+          if (y !== null && Math.abs(y - p.point.y) < nearest) { nearest = Math.abs(y - p.point.y); id = ind; }
+        }
+      }
+      if (!id || !p.point || !box.current) { setPicked(null); return; }
+      setPicked({ id, x: p.point.x + (parseFloat(getComputedStyle(box.current).paddingLeft) || 0), y: p.point.y });
+    };
+    chart.subscribeClick(onChartClick);
 
     return () => {
       alive = false; stop?.(); ws.close();
       if (chartRef.current === chart) {
         try {
-          chart.timeScale().unsubscribeVisibleLogicalRangeChange(onRange); chart.unsubscribeCrosshairMove(onMove);
+          chart.timeScale().unsubscribeVisibleLogicalRangeChange(onRange); chart.unsubscribeCrosshairMove(onMove); chart.unsubscribeClick(onChartClick);
           extra.forEach((s) => chart.removeSeries(s)); chart.removeSeries(main);
           for (let i = chart.panes().length - 1; i > 0; i--) chart.removePane(i);
         } catch { /* chart already gone */ }
@@ -319,6 +343,7 @@ export function ChartView({ symbol: extSymbol, onSymbol, lines = [], defaultMode
     const a = document.createElement('a'); a.href = c.toDataURL('image/png'); a.download = `${symbol}-${mode}.png`; a.click();
   };
   const toggleInd = (id: string) => setInds((xs) => (xs.includes(id) ? xs.filter((x) => x !== id) : [...xs, id]));
+  const removeInd = (id: string) => { setInds((xs) => xs.filter((x) => x !== id)); setPicked(null); };
 
   // Templates: save / apply / delete the current chart setup.
   const saveTpl = () => {
@@ -378,16 +403,35 @@ export function ChartView({ symbol: extSymbol, onSymbol, lines = [], defaultMode
         )}
         <svg className="dc2-draw" style={{ color: theme.draw }} aria-hidden="true">{svg}</svg>
         {placing && <div className="dc2-catch" onClick={placeClick} />}
+        {/* EDIT HERE: indicator chips on the chart (name + ✕ to remove). */}
+        {inds.length > 0 && (
+          <div className="dc2-legend" onClick={(e) => e.stopPropagation()}>
+            {inds.map((id) => (
+              <span key={id} className="dc2-chip">
+                <i style={{ background: indColour.current.get(id) ?? 'currentColor' }} />
+                <button className="dc2-chip-name" title="Show options" onClick={(e) => { const b = box.current?.getBoundingClientRect(), r = e.currentTarget.getBoundingClientRect(); setPicked({ id, x: r.left - (b?.left ?? 0), y: r.top - (b?.top ?? 0) - 60 }); }}>{byId(id)?.name ?? id}</button>
+                <button className="dc2-chip-x" aria-label={`Remove ${byId(id)?.name ?? id}`} title="Remove" onClick={() => removeInd(id)}>✕</button>
+              </span>
+            ))}
+          </div>
+        )}
+        {picked && inds.includes(picked.id) && (
+          <div className="dc2-picked" role="dialog" aria-label="Indicator" style={{ left: Math.max(8, Math.min(picked.x, (box.current?.clientWidth ?? 600) - 330)), top: Math.max(8, Math.min(picked.y + 10, (box.current?.clientHeight ?? 400) - 110)) }} onClick={(e) => e.stopPropagation()}>
+            <b>{byId(picked.id)?.name ?? picked.id}</b>
+            <button className="dc2-picked-del" onClick={() => removeInd(picked.id)}>Delete</button>
+            <button className="dc2-picked-x" aria-label="Close" onClick={() => setPicked(null)}>✕</button>
+          </div>
+        )}
         {older === 'loading' && <div className="dc2-older"><span className="spinner" /> Loading older prices…</div>}
         {older === 'end' && <div className="dc2-older">Start of the loaded history</div>}
-        {ohlc && mode === 'ticks' && (
+        {ohlc && !picked && mode === 'ticks' && (
           <div className="dc2-ohlc dc2-tickread" style={{ left: Math.max(70, Math.min(ohlc.x - 64, (box.current?.clientWidth ?? 600) - 200)) }}>
             <span>Price</span><i className="mono"><Px text={fmt(ohlc.c)} /></i>
             <span>Last digit</span><i className="mono">{fmt(ohlc.c).slice(-1)}</i>
             <small>{new Date(ohlc.time * 1000).toLocaleString(undefined, { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit', second: '2-digit', timeZone: 'UTC' })} GMT</small>
           </div>
         )}
-        {ohlc && mode === 'candles' && (
+        {ohlc && !picked && mode === 'candles' && (
           <div className="dc2-ohlc" style={{ left: Math.max(70, Math.min(ohlc.x - 64, (box.current?.clientWidth ?? 600) - 200)) }}>
             <b className={ohlcPct >= 0 ? 'up' : 'down'}>{ohlcPct >= 0 ? '+' : ''}{ohlcPct.toFixed(2)}%</b>
             <span>Open</span><i className="mono">{fmt(ohlc.o)}</i>
