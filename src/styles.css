@@ -2178,3 +2178,40 @@ html, body { overflow-x: clip; }
 .an-text a { color: var(--accent, var(--primary)); font-weight: 600; text-decoration: underline; }
 .an-wa { display: inline-flex; align-items: center; gap: 8px; align-self: flex-start; margin-top: 8px; padding: 8px 14px; border-radius: 99px; background: #25D366; color: #fff !important; font-weight: 700; font-size: 13.5px; text-decoration: none; box-shadow: 0 4px 12px rgba(37, 211, 102, .3); transition: transform .15s; }
 .an-wa:hover { transform: translateY(-1px); }
+
+/* =================== Moving price bar (client site) =================== */
+/* EDIT HERE: moving bar colours, chip size and scroll speed (animation seconds). */
+.tp .ticker { position: relative; display: flex; align-items: stretch; overflow: hidden; padding: 0;
+  background: radial-gradient(120% 220% at 0% 0%, color-mix(in srgb, var(--accent, #1F4FD1) 32%, transparent), transparent 55%), linear-gradient(90deg, #050B1C, #0A1430 50%, #050B1C);
+  border-bottom: 1px solid color-mix(in srgb, var(--accent, #1F4FD1) 30%, #16213D); }
+.tp .ticker::after { content: ""; position: absolute; left: 0; right: 0; bottom: 0; height: 1px; background: linear-gradient(90deg, transparent, color-mix(in srgb, var(--accent, #1F4FD1) 70%, #fff), transparent); opacity: .55; }
+.tk-live { position: relative; z-index: 2; flex: none; display: inline-flex; align-items: center; gap: 7px; padding: 0 14px 0 16px; font: 800 10.5px var(--mono); letter-spacing: .14em; color: #fff;
+  background: linear-gradient(90deg, color-mix(in srgb, var(--accent, #1F4FD1) 85%, #000), color-mix(in srgb, var(--accent, #1F4FD1) 55%, #050B1C)); clip-path: polygon(0 0, 100% 0, calc(100% - 10px) 100%, 0 100%); padding-right: 22px; }
+.tk-live-dot { width: 7px; height: 7px; border-radius: 50%; background: #4ADE80; box-shadow: 0 0 0 0 rgba(74, 222, 128, .7); animation: tk-pulse 1.6s ease-out infinite; }
+@keyframes tk-pulse { 0% { box-shadow: 0 0 0 0 rgba(74, 222, 128, .7); } 100% { box-shadow: 0 0 0 9px rgba(74, 222, 128, 0); } }
+.ticker-view { flex: 1; min-width: 0; overflow: hidden; -webkit-mask-image: linear-gradient(90deg, transparent, #000 40px, #000 calc(100% - 40px), transparent); mask-image: linear-gradient(90deg, transparent, #000 40px, #000 calc(100% - 40px), transparent); }
+.tp .ticker-track { display: inline-flex; align-items: center; gap: 8px; padding: 5px 0; white-space: nowrap; animation: tk-scroll 70s linear infinite; }
+.tp .ticker:hover .ticker-track { animation-play-state: paused; }
+.tk-gap { width: 0; }
+.tk-chip { position: relative; overflow: hidden; display: inline-flex; align-items: center; gap: 8px; height: 28px; padding: 0 10px 0 11px; border-radius: 99px; cursor: pointer; font: 600 12px var(--mono); color: #C9D3E3;
+  background: rgba(255, 255, 255, .045); border: 1px solid rgba(255, 255, 255, .08); transition: background .2s, border-color .2s, transform .15s; }
+.tk-chip:hover { background: color-mix(in srgb, var(--accent, #1F4FD1) 22%, transparent); border-color: color-mix(in srgb, var(--accent, #1F4FD1) 60%, transparent); transform: translateY(-1px); }
+.tk-chip:focus-visible { outline: 2px solid color-mix(in srgb, var(--accent, #1F4FD1) 70%, #fff); outline-offset: 1px; }
+.tk-name { font-family: Inter, system-ui, sans-serif; font-weight: 800; font-size: 11.5px; letter-spacing: .02em; color: #fff; }
+.tk-px { color: #E6ECF5; font-weight: 700; }
+.tk-digit { font-style: normal; display: inline-grid; place-items: center; min-width: 17px; height: 17px; margin-left: 1px; border-radius: 50%; font-size: 11px; color: #fff; background: color-mix(in srgb, var(--accent, #1F4FD1) 80%, #000); box-shadow: 0 0 0 1px rgba(255, 255, 255, .18) inset; transition: background .25s; }
+.tk-chip.up .tk-digit { background: #16A34A; }
+.tk-chip.down .tk-digit { background: #DC2626; }
+.tk-chg { font-size: 11px; color: #8FA0BA; }
+.tk-chg.up { color: #4ADE80; } .tk-chg.down { color: #F87171; }
+.tk-spark { flex: none; overflow: visible; }
+.tk-spark-line { fill: none; stroke: color-mix(in srgb, var(--accent, #1F4FD1) 55%, #fff); stroke-width: 1.5; stroke-linejoin: round; stroke-linecap: round; }
+.tk-spark-fill { fill: color-mix(in srgb, var(--accent, #1F4FD1) 30%, transparent); opacity: .5; }
+.tk-spark-dot { fill: #fff; }
+.tk-flash { position: absolute; inset: 0; border-radius: inherit; pointer-events: none; animation: tk-flash .7s ease-out forwards; }
+.tk-chip.up .tk-flash { background: radial-gradient(60% 120% at 70% 50%, rgba(34, 197, 94, .35), transparent 70%); }
+.tk-chip.down .tk-flash { background: radial-gradient(60% 120% at 70% 50%, rgba(239, 68, 68, .35), transparent 70%); }
+.tk-chip.flat .tk-flash { display: none; }
+@keyframes tk-flash { from { opacity: 1; } to { opacity: 0; } }
+@media (max-width: 700px) { .tk-live { padding-left: 10px; padding-right: 16px; } .tk-spark, .tk-chg { display: none; } .tk-chip { gap: 6px; } }
+@media (prefers-reduced-motion: reduce) { .tp .ticker-track, .tk-live-dot, .tk-flash { animation: none; } .tk-flash { display: none; } .ticker-view { overflow-x: auto; } }
