@@ -2450,3 +2450,23 @@ h1 { line-height: 1.12; }
 .dc2-picked { gap: 6px; max-width: 290px; padding: 4px 4px 4px 10px; background: #fff; color: #1D1D1F; border-color: rgba(0, 0, 0, .1); font-size: 12.5px; }
 .dc2-picked-del { width: 30px; height: 30px; display: grid; place-items: center; padding: 0; border-radius: 8px; background: none; }
 .dc2-picked-del:hover { background: #F0F0F2; }
+
+/* =================== D-Circles: neon most / least digits =================== */
+/* EDIT HERE: neon colours. A site's own colour can be green too, so only the most (green) and least (red) digits glow. */
+.dc-c.hot, .digit-bar.hot { --neon: #00E676; }
+.dc-c.cold, .digit-bar.cold { --neon: #FF3D57; }
+.dc-c.hot, .dc-c.cold, .tp-dark .dc-c.hot, .tp-dark .dc-c.cold { --ring: var(--neon); }
+.dc-c.hot .dc-ring, .dc-c.cold .dc-ring {
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--neon) 55%, transparent), 0 0 10px color-mix(in srgb, var(--neon) 75%, transparent), 0 0 26px color-mix(in srgb, var(--neon) 50%, transparent);
+}
+.dc-c.hot.live .dc-ring, .dc-c.cold.live .dc-ring {
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--neon) 70%, transparent), 0 0 14px var(--neon), 0 0 36px color-mix(in srgb, var(--neon) 60%, transparent);
+}
+.dc-c.hot .dc-face b, .dc-c.cold .dc-face b { color: color-mix(in srgb, var(--neon) 72%, #0B1F3A); }
+.tp-dark .dc-c.hot .dc-face b, .tp-dark .dc-c.cold .dc-face b { color: var(--neon); text-shadow: 0 0 10px color-mix(in srgb, var(--neon) 70%, transparent); }
+/* The same glow on the matching bars and digit badges below. */
+.digit-bar.hot .bar, .digit-bar.cold .bar { box-shadow: 0 0 0 1px color-mix(in srgb, var(--neon) 45%, transparent), 0 0 16px color-mix(in srgb, var(--neon) 45%, transparent); }
+.digit-bar.hot .digit, .digit-bar.cold .digit { border-color: var(--neon); color: color-mix(in srgb, var(--neon) 72%, #0B1F3A); box-shadow: 0 0 10px color-mix(in srgb, var(--neon) 60%, transparent); }
+.tp-dark .digit-bar.hot .digit, .tp-dark .digit-bar.cold .digit { color: var(--neon); }
+.digit-bar.hot .bar span, .tp-dark .digit-bar.hot .bar span { background: linear-gradient(180deg, #4DFFA6, #00C766); }
+.digit-bar.cold .bar span, .tp-dark .digit-bar.cold .bar span { background: linear-gradient(180deg, #FF8094, #F0213F); }
