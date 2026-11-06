@@ -2,13 +2,12 @@ import { useEffect, useRef, useState, type CSSProperties } from 'react';
 import { createPortal } from 'react-dom';
 import { useAuth } from '../lib/auth';
 import type { Account } from '../lib/accounts';
+import { parseAmount, setDisplayCur, showMoney, useDisplayCurrency } from '../lib/fx';
 
 /** Deriv's own cashier (deposit and withdrawal happen there, never on this site). */
 // EDIT HERE: link used when a client opens Deriv's own cashier.
 export const DERIV_CASHIER = 'https://home.deriv.com/dashboard/cashier';
 
-const fmt = (n: number | undefined, cur = 'USD') =>
-  n === undefined ? '—' : `${n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ${cur}`;
 
 /** Round currency badge: a US flag for USD accounts (drawn, so it shows on every device), the code otherwise. */
 // EDIT HERE: add more flags (e.g. EUR, GBP) as new branches if clients get other currencies.
@@ -29,12 +28,31 @@ function CurrencyIcon({ currency, size = 38 }: { currency?: string; size?: numbe
   );
 }
 
+/** Small round Kenya flag for the KSh option (drawn, so it shows on every device). */
+function KenyaFlag({ size = 16 }: { size?: number }) {
+  return (
+    <svg className="as-us" width={size} height={size} viewBox="0 0 20 20" aria-hidden="true">
+      <defs><clipPath id="as-ke-c"><circle cx="10" cy="10" r="10" /></clipPath></defs>
+      <g clipPath="url(#as-ke-c)">
+        <rect width="20" height="20" fill="#fff" />
+        <rect width="20" height="6" fill="#000" />
+        <rect y="7" width="20" height="6" fill="#BB0000" />
+        <rect y="14" width="20" height="6" fill="#006600" />
+        <ellipse cx="10" cy="10" rx="2.6" ry="5" fill="#BB0000" stroke="#000" strokeWidth=".6" />
+        <rect x="9.6" y="5.6" width=".8" height="8.8" fill="#fff" />
+      </g>
+    </svg>
+  );
+}
+
 /**
  * Deriv account switcher. Every row is the real Deriv account (ROT… real, DOT… demo) with the balance Deriv reports.
- * Whatever is selected here is exactly the account that trades.
+ * Whatever is selected here is exactly the account that trades. USD / KSh only changes how balances are shown.
  */
 export function AccountSwitcher({ preview, onResetDemo }: { preview: boolean; onResetDemo: () => void }) {
   const auth = useAuth();
+  const fx = useDisplayCurrency();
+  const shownBalance = showMoney(parseAmount(auth.balance), auth.account?.currency, fx);
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [tab, setTab] = useState<'real' | 'demo'>(auth.account?.isVirtual ? 'demo' : 'real');
@@ -66,8 +84,8 @@ export function AccountSwitcher({ preview, onResetDemo }: { preview: boolean; on
       <button ref={btn} className={`as-btn ${account?.isVirtual ? "demo" : "real"}`} aria-haspopup="dialog" aria-expanded={open} onClick={() => setOpen((o) => !o)}>
         <span className="as-flag">{account?.isVirtual ? 'Demo' : 'Real'}</span>
         <span className="as-main">
-          <b className="mono">{auth.balance}</b>
-          <small className="mono as-id"><CurrencyIcon currency={account?.currency} size={13} />{account?.id}</small>
+          <b className="mono" key={fx.cur}>{parseAmount(auth.balance) === undefined ? auth.balance : shownBalance}</b>
+          <small className="mono as-id">{fx.cur === 'KES' && (account?.currency ?? 'USD') === 'USD' ? <KenyaFlag size={13} /> : <CurrencyIcon currency={account?.currency} size={13} />}{account?.id}</small>
         </span>
         <svg className="as-chev" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" aria-hidden="true"><path d="M6 9l6 6 6-6" /></svg>
       </button>
@@ -82,6 +100,12 @@ export function AccountSwitcher({ preview, onResetDemo }: { preview: boolean; on
             <button role="tab" aria-selected={tab === 'real'} className={tab === 'real' ? 'on' : ''} onClick={() => setTab('real')}>Real</button>
             <button role="tab" aria-selected={tab === 'demo'} className={tab === 'demo' ? 'on' : ''} onClick={() => setTab('demo')}>Demo</button>
           </div>
+          {/* EDIT HERE: display currency switch (USD / KSh). The account still trades in USD. */}
+          <div className="as-curpick" role="radiogroup" aria-label="Show balances in">
+            <span className="as-curpick-l">Show in</span>
+            <button role="radio" aria-checked={fx.cur === 'USD'} className={fx.cur === 'USD' ? 'on' : ''} onClick={() => setDisplayCur('USD')}><CurrencyIcon currency="USD" size={16} /> USD</button>
+            <button role="radio" aria-checked={fx.cur === 'KES'} className={fx.cur === 'KES' ? 'on' : ''} onClick={() => setDisplayCur('KES')}><KenyaFlag /> KSh</button>
+          </div>
           <ul className="as-list">
             {list.length === 0 && <li className="as-empty">{tab === 'real' ? 'No real account yet.' : 'No demo account.'}{tab === 'real' && <a href="https://app.deriv.com" target="_blank" rel="noreferrer"> Open one on Deriv ↗</a>}</li>}
             {list.map((a) => {
@@ -94,13 +118,21 @@ export function AccountSwitcher({ preview, onResetDemo }: { preview: boolean; on
                       <b>{a.isVirtual ? 'Demo' : 'Real'} {a.currency ?? ''}</b>
                       <small className="mono">{a.id}{a.active === false ? ' · inactive' : ''}</small>
                     </span>
-                    <span className="as-bal mono">{loading && a.balance === undefined ? '…' : on ? auth.balance : fmt(a.balance, a.currency)}</span>
+                    <span className="as-bal mono">{loading && a.balance === undefined ? '…' : on && parseAmount(auth.balance) !== undefined ? shownBalance : showMoney(a.balance, a.currency, fx)}</span>
                     {on && <span className="as-tick" aria-label="Selected">✓</span>}
                   </button>
                 </li>
               );
             })}
           </ul>
+          {fx.cur === 'KES' && (
+            <div className="as-rate" aria-live="polite">
+              {fx.rate
+                ? <><span className="dot dot-real pulse" /> 1 USD = <b className={`mono ${fx.change > 0 ? 'up' : fx.change < 0 ? 'down' : ''}`}>{fx.rate.toFixed(3)}</b> KSh{fx.change > 0 ? ' ▲' : fx.change < 0 ? ' ▼' : ''}
+                    <small>Live rate · {fx.source} · trades stay in USD</small></>
+                : <small>Getting the live shilling rate…</small>}
+            </div>
+          )}
           <div className="as-foot">
             {tab === 'demo' && account?.isVirtual && !preview && <button className="btn btn-secondary" onClick={() => { setOpen(false); onResetDemo(); }}>Reset demo balance</button>}
             {tab === 'real' && <span className="row" style={{ gap: 6 }}><a className="btn btn-primary" href={DERIV_CASHIER} target="_blank" rel="noreferrer">Deposit ↗</a><a className="btn btn-secondary" href={DERIV_CASHIER} target="_blank" rel="noreferrer">Withdraw ↗</a></span>}

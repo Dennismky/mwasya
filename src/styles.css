@@ -1994,3 +1994,15 @@ html, body { overflow-x: clip; }
 .tp.as-root { display: contents !important; height: auto; min-height: 0; overflow: visible; background: none; }
 .as-root > .as-overlay { z-index: 2147483000; }
 .as-root .as-panel.as-float { z-index: 2147483001; }
+
+/* Account card: USD / KSh display switch and the live shilling rate. */
+.as-curpick { display: flex; align-items: center; gap: 6px; margin: 0 0 10px; }
+.as-curpick-l { font-size: 12px; font-weight: 700; color: var(--muted); margin-right: auto; }
+.as-curpick button { display: inline-flex; align-items: center; gap: 6px; padding: 6px 11px; border-radius: 99px; border: 1px solid var(--border); background: none; font: inherit; font-size: 13px; font-weight: 700; color: var(--muted); cursor: pointer; transition: all .15s; }
+.as-curpick button:hover { border-color: var(--accent, var(--primary)); color: var(--text); }
+.as-curpick button.on { border-color: var(--accent, var(--primary)); background: color-mix(in srgb, var(--accent, var(--primary)) 10%, transparent); color: var(--text); }
+.as-rate { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 6px; margin-top: 10px; padding: 9px 10px; border-radius: 10px; background: var(--bg-alt); font-size: 13px; }
+.as-rate small { flex-basis: 100%; color: var(--muted); font-size: 11.5px; }
+.as-rate b.up { color: var(--success); } .as-rate b.down { color: var(--danger); }
+.tp-dark .as-rate { background: #0E1C33; }
+.tp-dark .as-curpick button { border-color: #22365A; }

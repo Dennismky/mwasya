@@ -7,8 +7,8 @@ import { SYMBOLS } from './ticks';
  * but the definitions, wording, colours and layout here are our own.
  */
 
-// EDIT HERE: Bot Builder block colours (one per block family).
-export const C = { section: '#2B3442', trade: '#2F6BDB', purchase: '#0E9F6E', sell: '#E0731A', restart: '#7C4DDB', data: '#0F8FA8', notify: '#64748B' };
+// EDIT HERE: Bot Builder block colours (one per block family) — blue and white only, distinct shades so each family stays readable.
+export const C = { section: '#1E3A8A', trade: '#1F4FD1', purchase: '#2F80ED', sell: '#0369A1', restart: '#3949AB', data: '#0284C7', notify: '#475F94' };
 
 const contractOptions: [string, string][] = [
   ['Over', 'DIGITOVER'], ['Under', 'DIGITUNDER'], ['Matches', 'DIGITMATCH'], ['Differs', 'DIGITDIFF'],
@@ -142,11 +142,11 @@ export const MENU: { id: string; name: string; colour: string; blocks: string[] 
   { id: 'sell', name: 'Sell conditions (optional)', colour: C.sell, blocks: ['during_purchase', 'sell_at_market', 'check_sell', 'sell_price'] },
   { id: 'restart', name: 'Restart trading conditions', colour: C.restart, blocks: ['trade_again', 'contract_check_result', 'read_details'] },
   { id: 'analysis', name: 'Analysis', colour: C.data, blocks: ['last_digit', 'tick', 'ticks', 'lastDigitList', 'check_direction', 'total_profit', 'total_runs', 'balance'] },
-  { id: 'logic', name: 'Logic', colour: '#5B80A5', blocks: ['controls_if', 'logic_compare', 'logic_operation', 'logic_negate', 'logic_boolean'] },
-  { id: 'math', name: 'Maths', colour: '#5B67A5', blocks: ['math_number', 'math_arithmetic', 'math_single', 'math_round', 'math_modulo', 'math_constrain', 'math_random_int'] },
-  { id: 'loops', name: 'Loops', colour: '#5BA55B', blocks: ['controls_repeat_ext', 'controls_whileUntil', 'controls_flow_statements'] },
+  { id: 'logic', name: 'Logic', colour: '#3B5BDB', blocks: ['controls_if', 'logic_compare', 'logic_operation', 'logic_negate', 'logic_boolean'] },
+  { id: 'math', name: 'Maths', colour: '#2F6FD6', blocks: ['math_number', 'math_arithmetic', 'math_single', 'math_round', 'math_modulo', 'math_constrain', 'math_random_int'] },
+  { id: 'loops', name: 'Loops', colour: '#1C7ED6', blocks: ['controls_repeat_ext', 'controls_whileUntil', 'controls_flow_statements'] },
   { id: 'text', name: 'Text & notify', colour: C.notify, blocks: ['notify', 'text_print', 'text', 'text_join'] },
-  { id: 'vars', name: 'Variables', colour: '#A55B80', blocks: ['variables_set', 'variables_get', 'math_change'] },
+  { id: 'vars', name: 'Variables', colour: '#4263EB', blocks: ['variables_set', 'variables_get', 'math_change'] },
 ];
 
 const esc = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');

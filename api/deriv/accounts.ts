@@ -4,6 +4,7 @@ import { clientIp, rateLimit } from '../_lib/guard.js';
 import { clearSession, getSession, noStore, sameOrigin } from '../_lib/session.js';
 import { cashier } from '../_lib/cashier.js';
 import { burst } from '../_lib/burst.js';
+import { fxRate } from '../_lib/fx.js';
 
 /**
  * GET  /api/deriv/accounts                                — the user's Options trading accounts
@@ -15,6 +16,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   noStore(res);
   if (req.method !== 'GET' && req.method !== 'POST') return res.status(405).json({ error: 'method_not_allowed' });
   if (req.method === 'POST' && !sameOrigin(req)) return res.status(403).json({ error: 'bad_origin' });
+  // Public display rate for showing balances in another currency (no session needed, e.g. the studio preview).
+  if (req.method === 'GET' && typeof req.query.fx === 'string') return fxRate(req, res);
   const s = getSession(req);
   if (!s) return res.status(401).json({ error: 'not_logged_in' });
 

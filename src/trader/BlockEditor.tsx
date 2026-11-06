@@ -9,10 +9,10 @@ import { MENU, defineMwasyaBlocks } from './blocks';
  */
 
 const COLOURS: [RegExp, string][] = [
-  [/^controls_|^logic_/, '#4F5BD5'], [/^math_/, '#3E7CB1'], [/^variables_/, '#C2418A'], [/^trade_definition$/, '#2B3442'], [/^(before|after|during)_purchase$/, '#2B3442'], [/^trade_definition_/, '#2F6BDB'], [/purchase|^trade_again|^contract/, '#0E9F6E'],
-  [/notify|text_print|text_statement/, '#64748B'], [/tick|candle|ohlc|digit|stat/, '#0F8FA8'], [/read_details|total_profit|balance|profit/, '#7C4DDB'], [/sell/, '#E0731A'],
+  [/^controls_|^logic_/, '#3B5BDB'], [/^math_/, '#2F6FD6'], [/^variables_/, '#4263EB'], [/^trade_definition$/, '#1E3A8A'], [/^(before|after|during)_purchase$/, '#1E3A8A'], [/^trade_definition_/, '#1F4FD1'], [/purchase|^trade_again|^contract/, '#2F80ED'],
+  [/notify|text_print|text_statement/, '#475F94'], [/tick|candle|ohlc|digit|stat/, '#0284C7'], [/read_details|total_profit|balance|profit/, '#3949AB'], [/sell/, '#0369A1'],
 ];
-const colourOf = (type: string) => COLOURS.find(([re]) => re.test(type))?.[1] ?? '#4E5968';
+const colourOf = (type: string) => COLOURS.find(([re]) => re.test(type))?.[1] ?? '#3D5A99';
 const pretty = (s: string) => s.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
 
 interface Shape { fields: Map<string, Set<string>>; values: Set<string>; statements: Set<string>; output: boolean; previous: boolean; next: boolean; order: string[] }
@@ -131,15 +131,15 @@ export default function BlockEditor({ xml, onChange, locked, onReady }: {
         },
         theme: Blockly.Theme.defineTheme(dark ? 'mw-dark' : 'mw-light', {
           name: dark ? 'mw-dark' : 'mw-light', base: Blockly.Themes.Classic,
-          // Grey and white: every block family in slate shades.
+          // EDIT HERE: blue and white — every core block family in its own shade of blue (no pink, green or brown).
           blockStyles: {
-            logic_blocks: { colourPrimary: '#4F5BD5', colourSecondary: '#6E78E0', colourTertiary: '#3A45B0' },
-            loop_blocks: { colourPrimary: '#2E8B57', colourSecondary: '#45A36E', colourTertiary: '#216B42' },
-            math_blocks: { colourPrimary: '#3E7CB1', colourSecondary: '#5A93C4', colourTertiary: '#2D5F8A' },
-            text_blocks: { colourPrimary: '#64748B', colourSecondary: '#7C8BA1', colourTertiary: '#4B5870' },
-            list_blocks: { colourPrimary: '#0F8FA8', colourSecondary: '#2FA8BF', colourTertiary: '#0B6E82' },
-            variable_blocks: { colourPrimary: '#C2418A', colourSecondary: '#D461A0', colourTertiary: '#99326C' },
-            procedure_blocks: { colourPrimary: '#8B5E34', colourSecondary: '#A6774A', colourTertiary: '#6B4826' },
+            logic_blocks: { colourPrimary: '#3B5BDB', colourSecondary: '#5C7CFA', colourTertiary: '#2B44A8' },
+            loop_blocks: { colourPrimary: '#1C7ED6', colourSecondary: '#4DABF7', colourTertiary: '#1864AB' },
+            math_blocks: { colourPrimary: '#2F6FD6', colourSecondary: '#5A8FE6', colourTertiary: '#2253A6' },
+            text_blocks: { colourPrimary: '#475F94', colourSecondary: '#6A80B0', colourTertiary: '#344773' },
+            list_blocks: { colourPrimary: '#0284C7', colourSecondary: '#38A6DD', colourTertiary: '#02679B' },
+            variable_blocks: { colourPrimary: '#4263EB', colourSecondary: '#6C86F0', colourTertiary: '#2F4BC0' },
+            procedure_blocks: { colourPrimary: '#364FC7', colourSecondary: '#5C6FD6', colourTertiary: '#27399A' },
           },
           categoryStyles: {},
           componentStyles: {
