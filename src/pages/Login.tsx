@@ -58,7 +58,7 @@ export default function Login() {
       notice={inviter ? <div className="auth-invite"><Icon.Users /><span>Invited by <b>{inviter}</b></span></div> : undefined}
       onStart={async (signup, { name, email }) => {
         if (signup) localStorage.setItem(KEY_PENDING_PROFILE, JSON.stringify({ name: name.slice(0, 60), email: email.slice(0, 120) }));
-        await startLogin({ signup, returnTo });
+        await startLogin({ signup, returnTo, fresh: !signup, email: email || undefined });
       }}
       legal={<><Link to="/about">About Mwasya</Link> · Built on the Deriv API · Trading carries risk.</>}
     />

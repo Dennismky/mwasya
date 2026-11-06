@@ -126,6 +126,15 @@ export function AuthCard({ brand, checking, askName, initialView = 'login', noti
             </div>
           ) : (
             <form className="lg-body" key={`body-${view}`} onSubmit={submit} noValidate>
+              {/* Sign in: the email goes to Deriv, which always asks for that account's password (another Deriv account
+                  already open in this browser is never used by mistake). */}
+              {/* EDIT HERE: wording of the email box on Sign in. */}
+              {view === 'login' && (
+                <label className="lg-in">
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2" /><path d="M3 7l9 6 9-6" /></svg>
+                  <input type="email" autoComplete="email" inputMode="email" placeholder="Your Deriv email" value={email} onChange={(e) => setEmail(e.target.value)} aria-label="Deriv email" maxLength={120} />
+                </label>
+              )}
               {/* Name + email are only asked where they are used: a new mentor's profile on mwasya.site. */}
               {view === 'signup' && askName && (
                 <>

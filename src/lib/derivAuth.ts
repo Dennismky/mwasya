@@ -35,7 +35,11 @@ export function redirectUri(): string {
 }
 
 /** `withEarnings` also asks for read-only `application_read` (Deriv markup statistics for the Commissions page). */
-export async function startLogin(opts: { signup?: boolean; returnTo?: string; withEarnings?: boolean; cashier?: boolean } = {}): Promise<void> {
+/**
+ * `fresh`: Deriv always shows its email + password screen, even when another Deriv account is already signed in on this
+ * browser (standard OAuth `prompt=login`). `email` pre-fills that screen (`login_hint`).
+ */
+export async function startLogin(opts: { signup?: boolean; returnTo?: string; withEarnings?: boolean; cashier?: boolean; fresh?: boolean; email?: string } = {}): Promise<void> {
   const state = randomString(16);
   const verifier = randomString(32);
   const challenge = await challengeFromVerifier(verifier);
@@ -60,6 +64,8 @@ export async function startLogin(opts: { signup?: boolean; returnTo?: string; wi
     code_challenge_method: 'S256',
   });
   if (opts.signup) params.set('prompt', 'registration');
+  else if (opts.fresh) params.set('prompt', 'login');
+  if (opts.email) params.set('login_hint', opts.email);
   window.location.assign(`${AUTHORIZE_URL}?${params.toString()}`);
 }
 
