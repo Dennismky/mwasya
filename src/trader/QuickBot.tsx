@@ -1,10 +1,27 @@
-import { useState, type CSSProperties } from 'react';
+import { useMemo, useState, type CSSProperties } from 'react';
 import { RunCard } from '../components/RunCard';
 import { Icon } from '../components/ui';
 import { useAuth } from '../lib/auth';
 import type { PublishedBot } from '../lib/tenant';
 import { contractLabel, marketLabel, type BotSpec } from '../shared/botSpec';
 import { useTrader } from './TraderApp';
+import { BOT_MARKETS, isBotMarket, useMarket } from './market';
+import { decimalsOf, lastDigit, symbolName, useTicks } from './ticks';
+
+// EDIT HERE: how many recent ticks the percentages on each Quick Bot card are worked out from.
+const STATS_TICKS = 1000;
+
+/** Which last digits win for a digit contract (null for contracts that don't settle on the last digit). */
+function winningDigits(type: string, barrier?: string): ((d: number) => boolean) | null {
+  const b = Number(barrier ?? 0);
+  if (type === 'DIGITOVER') return (d) => d > b;
+  if (type === 'DIGITUNDER') return (d) => d < b;
+  if (type === 'DIGITMATCH') return (d) => d === b;
+  if (type === 'DIGITDIFF') return (d) => d !== b;
+  if (type === 'DIGITEVEN') return (d) => d % 2 === 0;
+  if (type === 'DIGITODD') return (d) => d % 2 === 1;
+  return null;
+}
 
 const RISK_LABEL = { low: 'Low risk', medium: 'Medium risk', high: 'High risk' } as const;
 const RISK_STYLE: Record<PublishedBot['risk'], CSSProperties> = {
@@ -15,7 +32,7 @@ const RISK_STYLE: Record<PublishedBot['risk'], CSSProperties> = {
 
 function describe(spec: BotSpec) {
   const k = spec.contract;
-  const what = `${contractLabel(k.contract_type)}${k.barrier ? ` ${k.barrier}` : ''} · ${marketLabel(k.underlying_symbol)}`;
+  const what = `${contractLabel(k.contract_type)}${k.barrier ? ` ${k.barrier}` : ''} · ${isBotMarket(k.underlying_symbol) ? symbolName(k.underlying_symbol) : marketLabel(k.underlying_symbol)}`;
   const len = k.contract_type === 'ACCU' ? `Accumulator ${((k.growth_rate ?? 0) * 100).toFixed(0)}%` : `${k.duration} ${k.duration_unit === 't' ? 'tick' : k.duration_unit === 's' ? 'sec' : 'min'}${k.duration === 1 ? '' : 's'}`;
   const after = spec.strategy === 'fixed' ? 'Same stake every trade'
     : spec.strategy === 'martingale' ? `Stake ×${spec.params.multiplier ?? 2} after a loss (max ${spec.params.max_stake})`
@@ -31,11 +48,30 @@ export default function QuickBot() {
   const account = auth.account;
   const currency = account?.currency ?? 'USD';
   const runList = Object.values(runner.runs).sort((a, b) => b.start_time - a.start_time);
+  // One market for every bot: the one the client analyses in D-Circles / Charts. Volatility bots run on it, so a bot
+  // never trades a different volatility than the one studied. Bots built for other markets keep their own.
+  const [market, setMarket] = useMarket();
+  const statsMarket = isBotMarket(market) ? market : '1HZ100V';
+  const { prices, ready } = useTicks(statsMarket, STATS_TICKS);
+  const stats = useMemo(() => {
+    const dec = decimalsOf(prices);
+    const digits = prices.map((p) => lastDigit(p, dec));
+    const count = Array(10).fill(0) as number[];
+    digits.forEach((d) => count[d]++);
+    const total = digits.length || 1;
+    let rises = 0, moves = 0;
+    for (let i = 1; i < prices.length; i++) if (prices[i] !== prices[i - 1]) { moves++; if (prices[i] > prices[i - 1]) rises++; }
+    return { pct: count.map((c) => (c / total) * 100), n: digits.length, last: digits[digits.length - 1], rise: moves ? (rises / moves) * 100 : 50 };
+  }, [prices]);
+  const specFor = (bot: PublishedBot): BotSpec => {
+    const own = bot.spec.contract.underlying_symbol;
+    return { ...bot.spec, contract: { ...bot.spec.contract, currency, underlying_symbol: isBotMarket(own) && isBotMarket(market) ? market : own } };
+  };
 
   const run = (bot: PublishedBot) => {
     if (!account) return;
-    const spec: BotSpec = { ...bot.spec, contract: { ...bot.spec.contract, currency } };
-    if (!account.isVirtual && !confirm(`Run "${bot.name}" on your real account?\n\nIt follows its own take profit and stop loss limits.`)) return;
+    const spec = specFor(bot);
+    if (!account.isVirtual && !confirm(`Run "${bot.name}" on your real account?\n\nMarket: ${symbolName(spec.contract.underlying_symbol)}\nIt follows its own take profit and stop loss limits.`)) return;
     setError('');
     void runner.start(spec, bot.id);
   };
@@ -47,13 +83,25 @@ export default function QuickBot() {
         <h1 style={{ fontSize: 24, fontWeight: 700 }}>Quick Bot</h1>
         <p className="muted">Pick a bot and press Run. Each bot stops at its own profit and loss limits, or when you press Stop.</p>
       </div>
+      {/* EDIT HERE: the market every Quick Bot runs on (shared with D-Circles, Charts, Signals and Bot Builder). */}
+      <section className="card qb-market">
+        <label className="label" htmlFor="qb-market">Market</label>
+        <select id="qb-market" className="input" value={statsMarket} onChange={(e) => setMarket(e.target.value)}>
+          {BOT_MARKETS.map((m) => <option key={m.id} value={m.id}>{m.name}</option>)}
+        </select>
+        <span className="hint">Bots run on this market, the same one you analyse in D-Circles and Charts. Percentages: last {stats.n || STATS_TICKS} ticks, live.</span>
+      </section>
       {runner.conn === 'error' && <p className="error" role="alert">Can't reach your Deriv account: {runner.connError}</p>}
       {error && <p className="error" role="alert">{error}</p>}
 
       {bots.length === 0 ? <section className="card"><p className="muted">No bots yet. Check back soon.</p></section> : (
         <div className="grid">
           {bots.map((bot) => {
-            const d = describe(bot.spec);
+            const spec = specFor(bot);
+            const d = describe(spec);
+            const wins = spec.contract.underlying_symbol === statsMarket ? winningDigits(spec.contract.contract_type, spec.contract.barrier) : null;
+            const upDown = spec.contract.underlying_symbol === statsMarket && (spec.contract.contract_type === 'CALL' || spec.contract.contract_type === 'PUT');
+            const winPct = wins ? stats.pct.reduce((s, p, dg) => s + (wins(dg) ? p : 0), 0) : upDown ? (spec.contract.contract_type === 'CALL' ? stats.rise : 100 - stats.rise) : null;
             const p = bot.spec.params;
             const mine = runner.launch.key === bot.id ? runner.launch : null;
             return (
@@ -63,6 +111,20 @@ export default function QuickBot() {
                   <span className="badge" style={RISK_STYLE[bot.risk]}>{RISK_LABEL[bot.risk]}</span>
                 </div>
                 <span className="hint">{d.what} · {d.len}</span>
+                {winPct !== null && (
+                  <div className="qb-stats" aria-label="Live statistics">
+                    <div className="qb-win"><b className="mono">{ready ? `${winPct.toFixed(1)}%` : '…'}</b><span>{!ready || !stats.n ? `Loading the last ${STATS_TICKS} ticks…` : wins ? `of the last ${stats.n} ticks ended on a winning digit` : `of the last ${stats.n} tick moves went this way`}</span></div>
+                    {wins && (
+                      <div className="qb-digits">
+                        {stats.pct.map((p, dg) => (
+                          <span key={dg} className={`${wins(dg) ? 'win' : ''} ${stats.last === dg ? 'live' : ''}`} title={`Digit ${dg}: ${p.toFixed(1)}%`}>
+                            <b>{dg}</b><small className="mono">{ready ? p.toFixed(1) : '…'}</small>
+                          </span>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
                 <dl className="bot-facts">
                   <div><dt>Stake</dt><dd className="mono">{p.initial_stake} {currency}</dd></div>
                   <div><dt>Take profit</dt><dd className="mono">{p.take_profit} {currency}</dd></div>

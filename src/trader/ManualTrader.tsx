@@ -7,6 +7,7 @@ import { useTrader } from './TraderApp';
 import type { ChartLine } from './TickChart';
 import { ChartView } from './Charts';
 import { symbolName } from './ticks';
+import { useMarket } from './market';
 
 type Kind = 'risefall' | 'higherlower' | 'touch' | 'overunder' | 'evenodd' | 'matchdiff' | 'accu' | 'multipliers';
 const KINDS: { id: Kind; label: string; needs: string }[] = [
@@ -45,7 +46,7 @@ export default function ManualTrader() {
   const account = auth.account;
   const currency = account?.currency ?? 'USD';
   const isPreview = account?.id === PREVIEW_ACCOUNT_ID;
-  const [symbol, setSymbol] = useState('1HZ100V');
+  const [symbol, setSymbol] = useMarket(); // shared with D-Circles, Charts, Signals and the bots
   const [kind, setKind] = useState<Kind>('risefall');
   const [stake, setStake] = useState('10');
   const [ticks, setTicks] = useState(5);

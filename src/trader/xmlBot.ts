@@ -41,7 +41,7 @@ export function parseDerivXml(xml: string, fileName = 'Imported bot'): LoadedBot
   const num = (block: Element | undefined): number | null => {
     if (!block) return null;
     const t = block.getAttribute('type');
-    if (t === 'math_number') { const n = Number(field('NUM', block)); return Number.isFinite(n) ? n : null; }
+    if (t === 'math_number' || t === 'math_number_positive') { const n = Number(field('NUM', block)); return Number.isFinite(n) ? n : null; }
     if (t === 'variables_get') {
       const f = Array.from(block.getElementsByTagName('field')).find((x) => x.getAttribute('name') === 'VAR');
       return initial.get(f?.getAttribute('id') ?? f?.textContent ?? '')?.value ?? null;
@@ -123,4 +123,27 @@ export function setXmlVariable(xml: string, name: string, value: number): string
     if (numField) { numField.textContent = String(value); return new XMLSerializer().serializeToString(doc); }
   }
   return xml;
+}
+
+/** The market a bot file trades (its Market block), or '' if it has none. */
+export function xmlSymbol(xml: string): string {
+  return /<field name="SYMBOL_LIST"[^>]*>([^<]+)</.exec(xml)?.[1]?.trim() ?? '';
+}
+
+/** Put a bot file on another market: every Market block gets this symbol (and the matching market / submarket). */
+export function setXmlSymbol(xml: string, symbol: string, market: [string, string]): string {
+  if (!xml.includes('SYMBOL_LIST') || xmlSymbol(xml) === symbol) return xml;
+  const doc = new DOMParser().parseFromString(xml, 'text/xml');
+  if (doc.getElementsByTagName('parsererror').length) return xml;
+  for (const b of Array.from(doc.getElementsByTagName('block'))) {
+    if (b.getAttribute('type') !== 'trade_definition_market') continue;
+    for (const f of Array.from(b.children)) {
+      if (f.tagName !== 'field') continue;
+      const n = f.getAttribute('name');
+      if (n === 'SYMBOL_LIST') f.textContent = symbol;
+      if (n === 'MARKET_LIST') f.textContent = market[0];
+      if (n === 'SUBMARKET_LIST') f.textContent = market[1];
+    }
+  }
+  return new XMLSerializer().serializeToString(doc);
 }

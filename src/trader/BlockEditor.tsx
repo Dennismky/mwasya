@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import * as Blockly from 'blockly';
-import { MENU, defineMwasyaBlocks } from './blocks';
+import { MENU, OpenDropdown, defineMwasyaBlocks } from './blocks';
+import { marketOfSymbol } from './market';
 
 /**
  * Shows a Deriv Bot XML file as its real blocks, exactly as it was built, and lets the client edit it.
@@ -42,19 +43,30 @@ export function learnShapes(doc: Document): Map<string, Shape> {
   return shapes;
 }
 
-/** Does Blockly's current definition of `type` have every field, input and connection the file uses? */
-function fits(type: string, s: Shape): boolean {
-  if (!Blockly.Blocks[type]) return false;
-  const tmp = new Blockly.Workspace();
-  try {
-    const b = tmp.newBlock(type);
-    for (const f of s.fields.keys()) if (!b.getField(f)) return false;
-    for (const v of [...s.values, ...s.statements]) if (!b.getInput(v)) return false;
-    if (s.output && !b.outputConnection) return false;
-    if (s.previous && !b.previousConnection) return false;
-    if (s.next && !b.nextConnection) return false;
-    return true;
-  } catch { return false; } finally { tmp.dispose(); }
+type BlockDef = { init: (this: Blockly.Block) => void; [k: string]: unknown };
+/** Our own / Blockly's definition of a block before any file added pieces to it. */
+const originals = new Map<string, BlockDef>();
+/** Pieces bot files needed on top of those definitions, merged across every file opened this session. */
+const additions = new Map<string, Shape>();
+
+/** A field the file uses that the definition lacks: a dropdown if the file shows several words, else a text box. */
+function fieldFor(seen: string[]): Blockly.Field {
+  return seen.length > 1 && seen.every((v) => /^[A-Za-z_]+$/.test(v))
+    ? new OpenDropdown(seen.map((v) => [pretty(v), v] as [string, string]))
+    : new Blockly.FieldTextInput(seen[0] ?? '');
+}
+
+/** Add whatever the file uses but the block does not have yet (extra fields, inputs, connections). Nothing is removed. */
+function fillMissing(b: Blockly.Block, s: Shape) {
+  for (const key of s.order) {
+    const name = key.slice(2);
+    if (key.startsWith('f:')) { if (!b.getField(name)) b.appendDummyInput().appendField(pretty(name)).appendField(fieldFor([...(s.fields.get(name) ?? [])]), name); }
+    else if (!b.getInput(name)) { if (key.startsWith('v:')) b.appendValueInput(name).appendField(pretty(name)); else b.appendStatementInput(name).appendField(pretty(name)); }
+  }
+  if (b.outputConnection) return;
+  if (s.output && !b.previousConnection && !b.nextConnection) { b.setOutput(true); return; }
+  if (s.previous && !b.previousConnection) b.setPreviousStatement(true);
+  if (s.next && !b.nextConnection) b.setNextStatement(true);
 }
 
 function merge(a: Shape | undefined, b: Shape): Shape {
@@ -70,8 +82,18 @@ function merge(a: Shape | undefined, b: Shape): Shape {
 
 export function defineShapes(found: Map<string, Shape>) {
   for (const [type, shape] of found) {
-    // Standard blocks that already match stay as Blockly made them; anything else is generated from the file.
-    if (!generated.has(type) && fits(type, shape)) continue;
+    const known = originals.get(type) ?? (Blockly.Blocks[type] as BlockDef | undefined);
+    if (known && !generated.has(type)) {
+      // Blocks that reshape themselves from the file (if/else-if/else, join, lists, functions) are already exact: keep them.
+      if (known.domToMutation || known.loadExtraState || known.mutationToDom || known.saveExtraState) continue;
+      // Our blocks and Blockly's keep their look; anything extra the file uses is added on, so nothing is lost.
+      originals.set(type, known);
+      const s = merge(additions.get(type), shape);
+      additions.set(type, s);
+      Blockly.Blocks[type] = { ...known, init(this: Blockly.Block) { known.init.call(this); fillMissing(this, s); } };
+      continue;
+    }
+    // Blocks we have never seen are drawn from the file's own structure.
     const s = merge(generated.get(type), shape);
     generated.set(type, s);
     Blockly.Blocks[type] = {
@@ -82,7 +104,7 @@ export function defineShapes(found: Map<string, Shape>) {
           if (key.startsWith('f:')) {
             const seen = [...(s.fields.get(name) ?? [])];
             const field = seen.length > 1 && seen.every((v) => /^[A-Za-z_]+$/.test(v))
-              ? new Blockly.FieldDropdown(seen.map((v) => [pretty(v), v] as [string, string]))
+              ? new OpenDropdown(seen.map((v) => [pretty(v), v] as [string, string]))
               : new Blockly.FieldTextInput(seen[0] ?? '');
             this.appendDummyInput().appendField(pretty(name)).appendField(field, name);
           } else if (key.startsWith('v:')) this.appendValueInput(name).appendField(pretty(name));
@@ -97,7 +119,13 @@ export function defineShapes(found: Map<string, Shape>) {
   }
 }
 
-export interface EditorApi { ws: Blockly.WorkspaceSvg; xml: () => string; showBlocks: (types: string[]) => void; tidy: () => void }
+export interface EditorApi {
+  ws: Blockly.WorkspaceSvg; xml: () => string; showBlocks: (types: string[]) => void; tidy: () => void;
+  /** Put the bot on this market (every Market block). */
+  setMarket: (symbol: string) => void;
+  /** Readable size, scrolled to the top-left. */
+  home: () => void;
+}
 
 /**
  * Bots drawn elsewhere (Deriv Bot's bigger blocks) can land on top of each other here. When any top-level groups overlap,
@@ -131,6 +159,21 @@ export function untangle(ws: Blockly.WorkspaceSvg): boolean {
   return true;
 }
 
+/**
+ * Open a bot the way Deriv Bot does: readable block size, starting at the top-left (Trade parameters first).
+ * Small bots that fit are shown whole; big bots are never shrunk until their text can't be read.
+ */
+// EDIT HERE: the smallest and largest zoom a bot opens at.
+const MIN_OPEN_SCALE = 0.72, MAX_OPEN_SCALE = 0.95;
+export function showStart(ws: Blockly.WorkspaceSvg) {
+  ws.zoomToFit();
+  ws.setScale(Math.min(MAX_OPEN_SCALE, Math.max(ws.getScale(), window.innerWidth < 700 ? 0.6 : MIN_OPEN_SCALE)));
+  const c = ws.getMetricsManager().getContentMetrics();
+  const v = ws.getMetricsManager().getViewMetrics();
+  if (c.width <= v.width && c.height <= v.height) { ws.scrollCenter(); return; }
+  ws.scroll(24 - c.left, 24 - c.top);
+}
+
 export default function BlockEditor({ xml, onChange, locked, onReady }: {
   xml: string; onChange: (xml: string) => void; locked?: boolean; onReady?: (api: EditorApi | null) => void;
 }) {
@@ -146,6 +189,8 @@ export default function BlockEditor({ xml, onChange, locked, onReady }: {
     if (!el) return;
     setError('');
     let workspace: Blockly.WorkspaceSvg | null = null;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const save = () => { timer = undefined; if (!workspace) return; try { changeRef.current(Blockly.Xml.domToText(Blockly.Xml.workspaceToDom(workspace))); } catch { /* workspace already closed */ } };
     try {
       defineMwasyaBlocks();
       const dom = Blockly.utils.xml.textToDom(xml);
@@ -157,8 +202,9 @@ export default function BlockEditor({ xml, onChange, locked, onReady }: {
         grid: { spacing: 24, length: 2, colour: dark ? '#263041' : '#E3E7EE', snap: true },
         toolbox: {
           kind: 'categoryToolbox',
-          contents: MENU.map((m) => (m.id === 'vars'
-            ? { kind: 'category', name: m.name, colour: m.colour, custom: 'VARIABLE' }
+          // EDIT HERE: block menu categories come from MENU in blocks.ts. Variables and Functions are Blockly's own (with Create buttons).
+          contents: MENU.map((m) => (m.id === 'vars' || m.id === 'funcs'
+            ? { kind: 'category', name: m.name, colour: m.colour, custom: m.id === 'vars' ? 'VARIABLE' : 'PROCEDURE' }
             : { kind: 'category', name: m.name, colour: m.colour, contents: m.blocks.map((type) => ({ kind: 'block', type })) })),
         },
         theme: Blockly.Theme.defineTheme(dark ? 'mw-dark' : 'mw-light', {
@@ -183,29 +229,34 @@ export default function BlockEditor({ xml, onChange, locked, onReady }: {
       });
       Blockly.Xml.domToWorkspace(dom, workspace);
       untangle(workspace);
-      // Fit the whole bot on screen (never zoomed in past a comfortable size).
-      workspace.zoomToFit();
-      if (workspace.getScale() > 0.95) workspace.setScale(0.95);
-      workspace.scrollCenter();
+      showStart(workspace);
       const w = workspace;
       readyRef.current?.({
         ws: w,
         tidy: () => { if (!untangle(w)) w.cleanUp(); },
+        home: () => showStart(w),
         xml: () => Blockly.Xml.domToText(Blockly.Xml.workspaceToDom(w)),
         showBlocks: (types) => w.getToolbox()?.getFlyout()?.show({ kind: 'flyoutToolbox', contents: types.map((type) => ({ kind: 'block', type })) }),
+        setMarket: (symbol) => {
+          const [market, sub] = marketOfSymbol(symbol);
+          for (const b of w.getAllBlocks(false)) {
+            if (b.type !== 'trade_definition_market' || b.getFieldValue('SYMBOL_LIST') === symbol) continue;
+            b.getField('MARKET_LIST')?.setValue(market); b.getField('SUBMARKET_LIST')?.setValue(sub); b.getField('SYMBOL_LIST')?.setValue(symbol);
+          }
+        },
       });
-      let t: ReturnType<typeof setTimeout> | undefined;
+      // Every change is saved (in this browser) shortly after the client stops editing, and at once when they leave.
       workspace.addChangeListener((e) => {
         if (e.isUiEvent) return;
-        clearTimeout(t);
-        t = setTimeout(() => changeRef.current(Blockly.Xml.domToText(Blockly.Xml.workspaceToDom(w))), 400);
+        clearTimeout(timer);
+        timer = setTimeout(save, 300);
       });
     } catch (e) {
       setError(`This bot file could not be drawn: ${(e as Error).message}`);
     }
     const ro = new ResizeObserver(() => { if (workspace) Blockly.svgResize(workspace); });
     ro.observe(el);
-    return () => { ro.disconnect(); readyRef.current?.(null); workspace?.dispose(); };
+    return () => { ro.disconnect(); if (timer) { clearTimeout(timer); save(); } readyRef.current?.(null); workspace?.dispose(); };
   }, [xml]);
 
   return (

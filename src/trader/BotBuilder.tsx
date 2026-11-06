@@ -8,9 +8,13 @@ import type { EditorApi } from './BlockEditor';
 import { DEFAULT_CONFIG, type BotConfig } from './botEngine';
 import { useTrader } from './TraderApp';
 import { SYMBOLS } from './ticks';
-import { parseDerivXml, setXmlVariable, type LoadedBot } from './xmlBot';
+import { parseDerivXml, setXmlSymbol, setXmlVariable, xmlSymbol, type LoadedBot } from './xmlBot';
+import { BOT_MARKETS, isBotMarket, marketOfSymbol, useMarket } from './market';
+import { fetchBotXml, preloadEditor } from './botFiles';
 
-const BlockEditor = lazy(() => import('./BlockEditor'));
+const BlockEditor = lazy(() => preloadEditor() as Promise<typeof import('./BlockEditor')>);
+/** The bot always trades the site-wide market (the one the client analyses), when it is a Volatility index. */
+const onMarket = (xml: string, market: string) => (isBotMarket(market) ? setXmlSymbol(xml, market, marketOfSymbol(market)) : xml);
 
 const CONTRACTS: { id: BotConfig['contract']; label: string; digit?: boolean }[] = [
   { id: 'DIGITOVER', label: 'Over', digit: true }, { id: 'DIGITUNDER', label: 'Under', digit: true },
@@ -30,9 +34,13 @@ export default function BotBuilder() {
   const preview = account?.id === PREVIEW_ACCOUNT_ID;
   const key = `mw_bot_${site.subdomain}`;
 
+  const [market, setMarket] = useMarket();
   const savedCfg = (): BotConfig => { try { return { ...DEFAULT_CONFIG, ...JSON.parse(localStorage.getItem(key) ?? '{}') }; } catch { return DEFAULT_CONFIG; } };
   // The bot is always blocks. Signals / Daily Plan write settings and clear the saved XML, so it is regenerated here.
-  const [botXml, setBotXml] = useState<string>(() => localStorage.getItem(`${key}_xml`) || configToXml(savedCfg()));
+  const [botXml, setBotXml] = useState<string>(() => onMarket(localStorage.getItem(`${key}_xml`) || configToXml(savedCfg()), market));
+  const [savedAt, setSavedAt] = useState(0);
+  // Opening a free bot from the Free Bots page: show "Opening…" instead of the previous bot until it arrives.
+  const [loadingName, setLoadingName] = useState(() => (new URLSearchParams(window.location.search).get('bot') ? 'free bot' : ''));
   const [meta, setMeta] = useState<Meta>(() => {
     try { return JSON.parse(localStorage.getItem(`${key}_name`) ?? 'null') ?? { name: 'My bot', params: [], notes: [] }; } catch { return { name: 'My bot', params: [], notes: [] }; }
   });
@@ -47,18 +55,30 @@ export default function BotBuilder() {
 
   const remember = (xml: string, m: Meta) => {
     latestXml.current = xml;
-    try { localStorage.setItem(`${key}_xml`, xml); localStorage.setItem(`${key}_name`, JSON.stringify(m)); } catch { /* storage full */ }
+    try { localStorage.setItem(`${key}_xml`, xml); localStorage.setItem(`${key}_name`, JSON.stringify(m)); setSavedAt(Date.now()); } catch { /* storage full */ }
   };
-  const openBot = (xml: string, name: string) => {
-    const b = parseDerivXml(xml, name);
+  const openBot = (raw: string, name: string) => {
+    const b = parseDerivXml(raw, name);
+    const own = xmlSymbol(raw);
+    const xml = onMarket(raw, market);
     const m = { name: b.name, params: b.params, notes: b.notes };
     setMeta(m); setBotXml(xml); remember(xml, m);
-    toast(`${b.name} loaded`);
+    const moved = own && own !== xmlSymbol(xml);
+    toast(moved ? `${b.name} loaded · set to ${BOT_MARKETS.find((x) => x.id === market)?.name ?? market}` : `${b.name} loaded`);
   };
   const onBlocksChange = (xml: string) => {
+    // Changing the market inside the blocks changes it for the whole site (D-Circles, Charts, Quick Bot follow).
+    const sym = xmlSymbol(xml);
+    if (sym && sym !== market && isBotMarket(sym)) setMarket(sym);
     try { const b = parseDerivXml(xml, meta.name); const m = { name: meta.name, params: b.params, notes: b.notes }; setMeta(m); remember(xml, m); }
-    catch { latestXml.current = xml; }
+    catch { latestXml.current = xml; try { localStorage.setItem(`${key}_xml`, xml); setSavedAt(Date.now()); } catch { /* storage full */ } }
   };
+  // The client picked another market (here, D-Circles, Charts, Signals…): move the bot onto it.
+  useEffect(() => {
+    if (!isBotMarket(market) || xmlSymbol(latestXml.current) === market) return;
+    if (editor.current) editor.current.setMarket(market);
+    else { const next = onMarket(latestXml.current, market); setBotXml(next); remember(next, meta); }
+  }, [market]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const importFile = async (f: File) => {
     setLoadError('');
@@ -67,12 +87,9 @@ export default function BotBuilder() {
     try { openBot(await f.text(), f.name); } catch (e) { setLoadError((e as Error).message); } finally { setBusy(false); }
   };
   const loadFree = async (id: string) => {
-    setLoadError(''); setBusy(true);
-    try {
-      const r = await fetch(`/api/xmlbots/download?id=${encodeURIComponent(id)}`);
-      if (!r.ok) throw new Error('Could not load that bot.');
-      openBot(await r.text(), xmlBots.find((x) => x.id === id)?.name ?? 'Free bot');
-    } catch (e) { setLoadError((e as Error).message); } finally { setBusy(false); }
+    const name = xmlBots.find((x) => x.id === id)?.name ?? 'Free bot';
+    setLoadError(''); setBusy(true); setLoadingName(name);
+    try { openBot(await fetchBotXml(id), name); } catch (e) { setLoadError((e as Error).message); } finally { setBusy(false); setLoadingName(''); }
   };
   useEffect(() => {
     const id = params.get('bot');
@@ -88,15 +105,18 @@ export default function BotBuilder() {
     a.download = `${meta.name.replace(/[^\w -]+/g, '').trim() || 'bot'}.xml`;
     a.click();
     setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+    remember(xml, meta);
+    toast(`Saved · ${a.download} is in your Downloads`);
   };
   const resetBot = () => {
     if (!confirm('Start a new bot? Unsaved changes to this one will be lost.')) return;
-    const xml = configToXml(DEFAULT_CONFIG);
+    const xml = onMarket(configToXml(DEFAULT_CONFIG), market);
     const m = { name: 'My bot', params: [], notes: [] };
     setMeta(m); setBotXml(xml); remember(xml, m);
   };
   const applyQuick = (c: BotConfig) => {
     localStorage.setItem(key, JSON.stringify(c));
+    setMarket(c.symbol);
     const xml = configToXml(c);
     const name = `${CONTRACTS.find((x) => x.id === c.contract)?.label ?? 'Quick'} bot`;
     const b = parseDerivXml(xml, name);
@@ -113,9 +133,12 @@ export default function BotBuilder() {
 
   const running = bot.state !== 'idle';
   const run = () => {
-    if (account && !account.isVirtual && !confirm(`Run ${meta.name} on your REAL account? It trades exactly as built, using its own limits.`)) return;
-
-    void bot.runXml(editor.current?.xml() ?? latestXml.current);
+    let xml = editor.current?.xml() ?? latestXml.current;
+    // Last check: the bot trades the market the client is looking at.
+    if (isBotMarket(market) && xmlSymbol(xml) && xmlSymbol(xml) !== market) { editor.current?.setMarket(market); xml = onMarket(xml, market); }
+    const where = BOT_MARKETS.find((x) => x.id === xmlSymbol(xml))?.name ?? xmlSymbol(xml);
+    if (account && !account.isVirtual && !confirm(`Run ${meta.name} on your REAL account?\n\nMarket: ${where}\nIt trades exactly as built, using its own limits.`)) return;
+    void bot.runXml(xml);
   };
 
 
@@ -128,7 +151,7 @@ export default function BotBuilder() {
           <button className="bw-tool" title="New bot" disabled={running} onClick={resetBot}>⟲</button>
           <button className="bw-tool" title="Import XML" disabled={running || busy} onClick={() => fileInput.current?.click()}>📂</button>
           <input ref={fileInput} type="file" accept=".xml,text/xml,application/xml" hidden onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ''; if (f) void importFile(f); }} />
-          <button className="bw-tool" title="Save (download XML)" onClick={save}>💾</button>
+          <button className="bw-tool bw-save" title="Save a copy to your device (.xml)" onClick={save}>💾<span>Save</span></button>
           <span className="bw-sep" />
           <button className="bw-tool" title="Undo" disabled={running} onClick={() => editor.current?.ws.undo(false)}>↶</button>
           <button className="bw-tool" title="Redo" disabled={running} onClick={() => editor.current?.ws.undo(true)}>↷</button>
@@ -137,6 +160,7 @@ export default function BotBuilder() {
           <button className="bw-tool" title="Zoom in" onClick={() => editor.current?.ws.zoomCenter(1)}>＋</button>
           <button className="bw-tool" title="Zoom out" onClick={() => editor.current?.ws.zoomCenter(-1)}>－</button>
           <button className="bw-tool" title="Fit bot to screen" onClick={() => { const w = editor.current?.ws; if (w) { w.zoomToFit(); if (w.getScale() > 0.95) w.setScale(0.95); w.scrollCenter(); } }}>⤢</button>
+          <button className="bw-tool" title="Back to the start (Trade parameters)" onClick={() => editor.current?.home()}>⌂</button>
           <button className="bw-tool" title="Centre" onClick={() => editor.current?.ws.scrollCenter()}>◎</button>
           <span className="bw-sep" />
           {xmlBots.length > 0 && (
@@ -145,14 +169,23 @@ export default function BotBuilder() {
               {xmlBots.map((x) => <option key={x.id} value={x.id}>{x.name}</option>)}
             </select>
           )}
+          {/* EDIT HERE: the market this bot trades. It is the same market as D-Circles, Charts and Quick Bot. */}
+          <label className="bw-market" title="The market this bot trades (same as D-Circles and Charts)">
+            <span>Market</span>
+            <select aria-label="Market" disabled={running} value={isBotMarket(market) ? market : xmlSymbol(botXml)} onChange={(e) => setMarket(e.target.value)}>
+              {BOT_MARKETS.map((m) => <option key={m.id} value={m.id}>{m.name.replace(' Index', '')}</option>)}
+            </select>
+          </label>
           <button className="bw-pill" disabled={running} onClick={() => setSettings(true)}>Bot settings</button>
           <span className="bw-name" title={meta.name}>{meta.name}</span>
+          <span className={`bw-saved ${savedAt ? 'on' : ''}`} aria-live="polite">{savedAt ? '✓ Saved' : ''}</span>
         </div>
         {loadError && <p className="error bw-err">{loadError}</p>}
         <div className="bw-canvas">
           <Suspense fallback={<div className="bb-blocks-wait"><span className="spinner" /> Opening the workspace…</div>}>
-            <BlockEditor xml={botXml} locked={running} onChange={onBlocksChange} onReady={(api) => { editor.current = api; }} />
+            {!loadingName && <BlockEditor xml={botXml} locked={running} onChange={onBlocksChange} onReady={(api) => { editor.current = api; if (api && isBotMarket(market) && xmlSymbol(latestXml.current) !== market) api.setMarket(market); }} />}
           </Suspense>
+          {loadingName && <div className="bb-blocks-wait"><span className="spinner" /> Opening {loadingName}…</div>}
         </div>
       </section>
 

@@ -7,6 +7,7 @@ import { publicSocket } from '../lib/derivWs';
 import { useTrader } from './TraderApp';
 import { SYMBOLS, decimalsOf, lastDigit, useTicks } from './ticks';
 import { CATEGORIES, INDICATORS, byId, type Bar, type Category } from './indicators';
+import { useMarket } from './market';
 
 type Mode = 'ticks' | 'candles';
 type Pop = 'type' | 'frame' | null;
@@ -36,7 +37,10 @@ const THEME = {
 };
 
 const t = (s: number) => s as UTCTimestamp;
-const fmt = (v: number) => v.toLocaleString('en-US', { minimumFractionDigits: v > 1000 ? 2 : 3, maximumFractionDigits: v > 1000 ? 2 : 3 });
+/** Price with exactly the market's decimals, so the last digit always shows (V100 1s: 2, V10: 3, V50: 4). */
+const fmtD = (v: number, d: number) => v.toLocaleString('en-US', { minimumFractionDigits: d, maximumFractionDigits: d });
+// EDIT HERE: how much older history loads each time the client drags the chart to the left, and the most kept in memory.
+const OLDER_CANDLES = 1000, OLDER_TICKS = 2000, MAX_BARS = 40_000;
 
 /** A trade line drawn across the chart (entry, barrier, range…). Colour may be a CSS value such as "var(--primary)". */
 export interface TradeLine { value: number; label: string; color: string; dashed?: boolean }
@@ -62,12 +66,17 @@ export default function Charts() {
  * drawing tools, OHLC readout, zoom, and a price tag with the candle countdown.
  * Used by the Charts tab and by Manual Trader (which passes its market and trade lines).
  */
+/** A price with its last digit underlined (the digit digit-contracts settle on). */
+function Px({ text }: { text: string }) {
+  return <>{text.slice(0, -1)}<u className="px-last">{text.slice(-1)}</u></>;
+}
+
 export function ChartView({ symbol: extSymbol, onSymbol, lines = [], defaultMode = 'candles' }: {
   symbol?: string; onSymbol?: (s: string) => void; lines?: TradeLine[]; defaultMode?: Mode;
 }) {
   const { dark } = useTrader();
   const theme = dark ? THEME.dark : THEME.light;
-  const [ownSymbol, setOwnSymbol] = useState('1HZ100V');
+  const [ownSymbol, setOwnSymbol] = useMarket(); // the site-wide market
   const symbol = extSymbol ?? ownSymbol;
   const setSymbol = onSymbol ?? setOwnSymbol;
   const [mode, setMode] = useState<Mode>(defaultMode);
@@ -86,6 +95,9 @@ export function ChartView({ symbol: extSymbol, onSymbol, lines = [], defaultMode
   const [ohlc, setOhlc] = useState<{ o: number; h: number; l: number; c: number; time: number; x: number } | null>(null);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(true);
+  const [older, setOlder] = useState<'loading' | 'end' | null>(null);
+  const [dec, setDec] = useState(2);
+  const fmt = (v: number) => fmtD(v, dec);
   // Last-digit distribution over the last 1000 ticks (works in both ticks and candles mode).
   const [showDigits, setShowDigits] = useState(() => localStorage.getItem('mw_chart_digits') !== '0');
   const { prices: tickPrices } = useTicks(symbol, 1000);
@@ -129,7 +141,7 @@ export function ChartView({ symbol: extSymbol, onSymbol, lines = [], defaultMode
   useEffect(() => {
     const chart = chartRef.current;
     if (!chart) return;
-    setLoading(true); setError(''); setLast(null); setTag(null); setOhlc(null);
+    setLoading(true); setError(''); setLast(null); setTag(null); setOhlc(null); setOlder(null);
     const main: ISeriesApi<SeriesType> = mode === 'candles'
       ? chart.addSeries(CandlestickSeries, { upColor: theme.up, downColor: theme.down, borderVisible: false, wickUpColor: theme.up, wickDownColor: theme.down, lastValueVisible: false })
       : chart.addSeries(AreaSeries, { lineColor: theme.line, topColor: `${theme.line}55`, bottomColor: `${theme.line}05`, lineWidth: 2, lastValueVisible: false });
@@ -186,20 +198,49 @@ export function ChartView({ symbol: extSymbol, onSymbol, lines = [], defaultMode
       if (mode === 'candles') main.setData(bars.map((b) => ({ ...b, time: t(b.time) })));
       else main.setData(bars.map((b) => ({ time: t(b.time), value: b.close })));
     };
+    // Price axis and labels use the market's own decimals.
+    const setDecimals = () => {
+      const d = Math.max(decimalsOf(bars.slice(-200).flatMap((b) => [b.open, b.close])), 2);
+      main.applyOptions({ priceFormat: { type: 'price', precision: d, minMove: 1 / 10 ** d } });
+      setDec(d);
+    };
+    const toBars = (m: Record<string, unknown>): Bar[] => m.candles
+      ? (m.candles as (Bar & { epoch: number })[]).map((c) => ({ time: Number(c.epoch), open: +c.open, high: +c.high, low: +c.low, close: +c.close }))
+      : (() => { const h = (m.history ?? { prices: [], times: [] }) as { prices: number[]; times: number[] }; return h.times.map((tm, i) => ({ time: tm, open: +h.prices[i], high: +h.prices[i], low: +h.prices[i], close: +h.prices[i] })); })();
+    // Dragging to the left loads older prices from Deriv, page by page (back to previous days), keeping the view still.
+    let fetchingOlder = false, noMore = false;
+    const loadOlder = async () => {
+      if (fetchingOlder || noMore || !bars.length) return;
+      if (bars.length >= MAX_BARS) { noMore = true; setOlder('end'); return; }
+      fetchingOlder = true; setOlder('loading');
+      try {
+        const end = bars[0].time - 1;
+        const r = await ws.send<Record<string, unknown>>(mode === 'candles'
+          ? { ticks_history: symbol, style: 'candles', granularity: gran, count: OLDER_CANDLES, end }
+          : { ticks_history: symbol, style: 'ticks', count: OLDER_TICKS, end });
+        if (!alive || chartRef.current !== chart) return;
+        const fresh = toBars(r).filter((b) => b.time < bars[0].time);
+        if (!fresh.length) { noMore = true; setOlder('end'); return; }
+        const ts = chart.timeScale(), range = ts.getVisibleLogicalRange();
+        bars = [...fresh, ...bars];
+        show(); redraw();
+        if (range) ts.setVisibleLogicalRange({ from: range.from + fresh.length, to: range.to + fresh.length });
+        setOlder(null);
+      } catch { if (alive) setOlder(null); } finally { fetchingOlder = false; }
+    };
 
     ws.subscribe(req, (m) => {
       if (!alive) return;
       const err = m.error as { message?: string } | undefined;
       if (err) { setError(err.message ?? 'Could not load the chart.'); setLoading(false); return; }
       if (m.candles) {
-        bars = (m.candles as (Bar & { epoch: number })[]).map((c) => ({ time: Number(c.epoch), open: +c.open, high: +c.high, low: +c.low, close: +c.close }));
-        show(); openTime.current = bars[bars.length - 1]?.time ?? 0;
+        bars = toBars(m);
+        show(); setDecimals(); openTime.current = bars[bars.length - 1]?.time ?? 0;
         first = bars[0]?.open ?? 0; redraw(); chart.timeScale().fitContent(); setLoading(false);
         report(bars[bars.length - 1]?.close ?? 0);
       } else if (m.history) {
-        const h = m.history as { prices: number[]; times: number[] };
-        bars = h.times.map((tm, i) => ({ time: tm, open: +h.prices[i], high: +h.prices[i], low: +h.prices[i], close: +h.prices[i] }));
-        show(); first = bars[0]?.close ?? 0; redraw(); chart.timeScale().fitContent(); setLoading(false);
+        bars = toBars(m);
+        show(); setDecimals(); first = bars[0]?.close ?? 0; redraw(); chart.timeScale().fitContent(); setLoading(false);
         report(bars[bars.length - 1]?.close ?? 0);
       } else if (m.ohlc) {
         const o = m.ohlc as Record<string, string | number>;
@@ -213,14 +254,18 @@ export function ChartView({ symbol: extSymbol, onSymbol, lines = [], defaultMode
         const k = m.tick as { epoch: number; quote: number };
         if (bars.length && bars[bars.length - 1].time >= k.epoch) return;
         const prev = bars[bars.length - 1]?.close;
-        bars.push({ time: k.epoch, open: +k.quote, high: +k.quote, low: +k.quote, close: +k.quote }); if (bars.length > 2000) bars.shift();
+        bars.push({ time: k.epoch, open: +k.quote, high: +k.quote, low: +k.quote, close: +k.quote }); if (bars.length > MAX_BARS) bars.shift();
         main.update({ time: t(k.epoch), value: +k.quote }); report(+k.quote, prev);
         if (Date.now() - lastRedraw > 1000) { lastRedraw = Date.now(); redraw(); }
       }
     }).then((u) => { stop = u; if (!alive) u(); }).catch((e: Error) => { setError(e.message); setLoading(false); });
 
     // Keep the price tag and drawings glued to the chart while zooming or scrolling.
-    const onRange = () => { const v = bars[bars.length - 1]?.close; if (v !== undefined) placeTag(v); setFrame((f) => f + 1); };
+    const onRange = () => {
+      const v = bars[bars.length - 1]?.close; if (v !== undefined) placeTag(v); setFrame((f) => f + 1);
+      const r = chart.timeScale().getVisibleLogicalRange();
+      if (r && r.from < 40) void loadOlder();
+    };
     chart.timeScale().subscribeVisibleLogicalRangeChange(onRange);
     // OHLC readout under the cursor.
     const onMove = (p: MouseEventParams<Time>) => {
@@ -328,11 +373,20 @@ export function ChartView({ symbol: extSymbol, onSymbol, lines = [], defaultMode
         {error && <div className="ch-loading error">{error}</div>}
         {tag && last && (
           <div className={`dc2-tag ${last.up ? 'up' : 'down'}`} style={{ top: tag.y, left: tag.left }}>
-            <b className="mono">{fmt(last.price)}</b>{countdown && <small className="mono">{countdown}</small>}
+            <b className="mono"><Px text={fmt(last.price)} /></b>{countdown && <small className="mono">{countdown}</small>}
           </div>
         )}
         <svg className="dc2-draw" style={{ color: theme.draw }} aria-hidden="true">{svg}</svg>
         {placing && <div className="dc2-catch" onClick={placeClick} />}
+        {older === 'loading' && <div className="dc2-older"><span className="spinner" /> Loading older prices…</div>}
+        {older === 'end' && <div className="dc2-older">Start of the loaded history</div>}
+        {ohlc && mode === 'ticks' && (
+          <div className="dc2-ohlc dc2-tickread" style={{ left: Math.max(70, Math.min(ohlc.x - 64, (box.current?.clientWidth ?? 600) - 200)) }}>
+            <span>Price</span><i className="mono"><Px text={fmt(ohlc.c)} /></i>
+            <span>Last digit</span><i className="mono">{fmt(ohlc.c).slice(-1)}</i>
+            <small>{new Date(ohlc.time * 1000).toLocaleString(undefined, { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit', second: '2-digit', timeZone: 'UTC' })} GMT</small>
+          </div>
+        )}
         {ohlc && mode === 'candles' && (
           <div className="dc2-ohlc" style={{ left: Math.max(70, Math.min(ohlc.x - 64, (box.current?.clientWidth ?? 600) - 200)) }}>
             <b className={ohlcPct >= 0 ? 'up' : 'down'}>{ohlcPct >= 0 ? '+' : ''}{ohlcPct.toFixed(2)}%</b>
@@ -417,7 +471,7 @@ export function ChartView({ symbol: extSymbol, onSymbol, lines = [], defaultMode
 
       <div className="dc2-zoom" onClick={(e) => e.stopPropagation()}>
         <button title="Zoom in" onClick={() => zoom(0.7)}>+</button>
-        <button title="Reset" onClick={() => chartRef.current?.timeScale().fitContent()}>◎</button>
+        <button title="Back to now" onClick={() => { const ts = chartRef.current?.timeScale(); if (!ts) return; ts.resetTimeScale(); ts.scrollToRealTime(); }}>◎</button>
         <button title="Zoom out" onClick={() => zoom(1.4)}>−</button>
       </div>
 

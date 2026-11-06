@@ -290,7 +290,7 @@ export class XmlBot {
     this.guard();
     const type = b.getAttribute('type') ?? '';
     switch (type) {
-      case 'math_number': return num(fieldText(b, 'NUM'));
+      case 'math_number': case 'math_number_positive': return num(fieldText(b, 'NUM'));
       case 'text': return fieldText(b, 'TEXT');
       case 'logic_boolean': return fieldText(b, 'BOOL') === 'TRUE';
       case 'logic_null': return null;

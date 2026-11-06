@@ -1464,10 +1464,9 @@ html, body { overflow-x: clip; }
 @media (max-width: 600px) { .dc-row { grid-template-columns: repeat(5, 1fr); row-gap: 14px; } .dc-ring { width: 54px; } .dc-cursor { display: none; } }
 @media (prefers-reduced-motion: reduce) { .dc-cursor, .dc-ring { transition: none; } }
 
-/* Bot Builder fits the screen exactly; only our Blocks menu (Blockly's own category list is hidden). */
+/* Bot Builder fits the screen exactly, with the blocks menu (categories) on the left of the workspace. */
 .tp-main:has(> .bw) { display: flex; flex-direction: column; padding: 12px; }
 .tp-main > .bw { flex: 1 1 auto; height: auto; min-height: 480px; max-width: none; width: 100%; margin: 0; }
-.bw .blocklyToolboxDiv { display: none !important; }
 .bw .blocklyFlyout { filter: drop-shadow(8px 0 18px rgba(11, 31, 58, .12)); }
 @media (max-width: 1000px) {
   .tp-main:has(> .bw) { display: block; }
@@ -1740,8 +1739,6 @@ html, body { overflow-x: clip; }
 @media (prefers-reduced-motion: reduce) { .tp-switch, .tp-switch * { transition: none !important; animation: none !important; } }
 
 /* =================== Dark mode: everything stays visible =================== */
-/* Blockly 12 names its category list .blocklyToolbox; Bot Builder has no category list. */
-.bw .blocklyToolbox, .bw .blocklyToolboxDiv { display: none !important; }
 /* Chart lines and price text bright enough on dark backgrounds. */
 .tp-dark { --chart-line: color-mix(in srgb, var(--accent, #1F4FD1) 45%, #FFFFFF); }
 .tp-dark .dc-price { background: linear-gradient(135deg, #FFFFFF, color-mix(in srgb, var(--accent, #1F4FD1) 35%, #FFFFFF)); -webkit-background-clip: text; background-clip: text; color: transparent; }
@@ -2056,3 +2053,61 @@ html, body { overflow-x: clip; }
   .tp-page:not(:has(> .bw)):not(:has(> .mt2)) { padding-bottom: 96px; }
   .bw-runbar { padding-left: 72px; }
 }
+
+/* =================== Bot Builder: blocks menu, market, saved =================== */
+/* EDIT HERE: blocks menu (Trade parameters, Logic, Maths, Variables, Functions…) on the left of the workspace. */
+.bw .blocklyToolbox { padding: 8px 6px; min-width: 150px; border-right: 1px solid var(--tp-line, var(--border)); overflow-y: auto; }
+.bw .blocklyToolboxCategory { margin: 2px 0; }
+.bw .blocklyToolboxCategory .blocklyTreeRow, .bw .blocklyToolboxCategoryContainer > div:first-child { height: 34px; line-height: 34px; border-radius: 8px; padding: 0 10px 0 4px !important; margin: 0; border-left-width: 6px !important; }
+.bw .blocklyToolboxCategoryLabel, .bw .blocklyTreeLabel { font: 600 13px Inter, system-ui, sans-serif; }
+.bw .blocklyToolboxSelected .blocklyToolboxCategoryLabel, .bw .blocklyTreeSelected .blocklyTreeLabel { color: #fff; }
+.bw .blocklyFlyoutButton .blocklyText { font: 700 13px Inter, system-ui, sans-serif; }
+@media (max-width: 700px) {
+  .bw .blocklyToolbox { min-width: 104px; padding: 6px 3px; }
+  .bw .blocklyToolboxCategoryLabel, .bw .blocklyTreeLabel { font-size: 11.5px; }
+}
+.bw-save { width: auto; display: inline-flex; align-items: center; gap: 4px; padding: 0 10px; font-size: 15px; }
+.bw-save span { font-size: 13px; font-weight: 700; }
+.bw-market { display: inline-flex; align-items: center; gap: 6px; height: 34px; padding: 0 4px 0 10px; border-radius: 9px; border: 1px solid var(--tp-line, var(--border)); background: var(--bg); }
+.bw-market span { font-size: 11px; font-weight: 800; letter-spacing: .04em; text-transform: uppercase; color: var(--muted); }
+.bw-market select { height: 30px; border: 0; background: none; color: var(--text); font: inherit; font-weight: 700; font-size: 13px; max-width: 190px; cursor: pointer; }
+.bw-saved { min-width: 64px; font-size: 12px; font-weight: 700; color: var(--success, #16A34A); opacity: 0; transition: opacity .3s; }
+.bw-saved.on { opacity: 1; }
+.tp-dark .bw-market { background: #1B2330; border-color: #343A42; }
+.tp-dark .bw-market select { color: #E5E7EB; }
+.tp-dark .bw-market select option { background: #1B2330; }
+
+/* =================== Quick Bot: market + live percentages =================== */
+.qb-market { display: flex; align-items: center; gap: 10px 14px; flex-wrap: wrap; padding: 14px 16px; }
+.qb-market .label { margin: 0; }
+.qb-market select { width: auto; min-width: 220px; }
+.qb-market .hint { flex: 1 1 260px; }
+.qb-stats { display: flex; flex-direction: column; gap: 8px; padding: 10px; border-radius: 12px; background: var(--bg-alt); }
+.qb-win { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }
+.qb-win b { font-size: 22px; color: var(--accent, var(--primary)); }
+.qb-win span { font-size: 12.5px; color: var(--muted); }
+.qb-digits { display: grid; grid-template-columns: repeat(10, 1fr); gap: 3px; }
+.qb-digits span { display: flex; flex-direction: column; align-items: center; padding: 4px 0; border-radius: 7px; background: var(--bg); border: 1.5px solid transparent; transition: border-color .2s, background .3s; }
+.qb-digits b { font-size: 13px; line-height: 1.1; }
+.qb-digits small { font-size: 9.5px; font-weight: 700; color: var(--muted); }
+.qb-digits span.win { background: color-mix(in srgb, var(--accent, var(--primary)) 14%, var(--bg)); }
+.qb-digits span.win b { color: var(--accent, var(--primary)); }
+.qb-digits span.live { border-color: var(--accent, var(--primary)); }
+.tp-dark .qb-stats { background: #0E1C33; }
+.tp-dark .qb-digits span { background: #12223B; }
+.tp-dark .qb-digits small, .tp-dark .qb-win span { color: #A9B6CA; }
+.tp-dark .qb-win b, .tp-dark .qb-digits span.win b { color: color-mix(in srgb, var(--accent, #1F4FD1) 45%, #FFFFFF); }
+
+/* =================== Charts: older history, tick readout, last digit =================== */
+.dc2-older { position: absolute; left: 72px; bottom: 40px; z-index: 3; display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px; border-radius: 99px; font-size: 12px; font-weight: 600; color: var(--muted); background: var(--bg); border: 1px solid var(--tp-line, var(--border)); pointer-events: none; }
+.dc2-tickread { grid-template-columns: auto auto; }
+.px-last { text-decoration: underline; text-decoration-thickness: 2px; text-underline-offset: 2px; }
+
+/* D-Circles: build a bot from the Over / Under card. */
+.an-bot { margin-top: 4px; flex-wrap: wrap; }
+.an-bot .btn { flex: 1 1 auto; font-size: 13px; padding: 7px 10px; }
+/* "Create variable…" / new function buttons in the blocks menu. */
+.bw .blocklyFlyoutButtonBackground { fill: var(--accent, #1F4FD1); stroke: none; }
+.bw .blocklyFlyoutButtonShadow { fill: rgba(11, 31, 58, .18); }
+.bw .blocklyFlyoutButton .blocklyText { fill: #fff !important; }
+.bw .blocklyFlyoutButton:hover .blocklyFlyoutButtonBackground { fill: color-mix(in srgb, var(--accent, #1F4FD1) 82%, #000); }

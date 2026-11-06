@@ -4,6 +4,7 @@ import { toast } from '../components/motion';
 import { DEFAULT_CONFIG, type BotConfig } from './botEngine';
 import { useTrader } from './TraderApp';
 import { SYMBOLS, decimalsOf, lastDigit, tickHistory } from './ticks';
+import { setMarket } from './market';
 
 type Kind = 'even' | 'odd' | 'matches' | 'differs' | 'over' | 'under' | 'rise' | 'fall';
 const KINDS: { id: Kind; label: string }[] = [
@@ -72,6 +73,7 @@ export default function Signals() {
     const prediction = k === 'over' || k === 'under' ? b : k === 'differs' || k === 'matches' ? s.digit ?? 0 : saved.prediction ?? 1;
     localStorage.setItem(key, JSON.stringify({ ...DEFAULT_CONFIG, ...saved, symbol: s.symbol, contract: CONTRACT[k], prediction }));
     localStorage.removeItem(`${key}_xml`); localStorage.removeItem(`${key}_name`);
+    setMarket(s.symbol);
     toast(`${MARKETS.find((m) => m.id === s.symbol)?.name ?? s.symbol} set in Bot Builder`);
     navigate(`${base}/bot-builder`);
   };

@@ -1,12 +1,25 @@
 import { useMemo, useState } from 'react';
 import { SYMBOLS, decimalsOf, lastDigit, useTicks } from './ticks';
+import { isBotMarket, sendToBotBuilder, useMarket } from './market';
+import { useNavigate } from 'react-router-dom';
+import { toast } from '../components/motion';
+import { useTrader } from './TraderApp';
 
 /** Last-digit statistics over the most recent N ticks (live). Statistics describe the past only. */
 export default function Analysis() {
-  const [symbol, setSymbol] = useState('1HZ100V');
+  const [symbol, setSymbol] = useMarket(); // the bots trade this same market
   const [n, setN] = useState(1000);
   const [barrier, setBarrier] = useState(4);
   const { prices, ready } = useTicks(symbol, n);
+  const { site, base } = useTrader();
+  const navigate = useNavigate();
+  // EDIT HERE: "Bot" buttons on D-Circles build a bot for this exact market and contract in Bot Builder.
+  const toBot = (contract: string, prediction: number | undefined, label: string) => {
+    sendToBotBuilder(site.subdomain, { symbol, contract, prediction });
+    toast(`${label} bot on ${SYMBOLS.find((x) => x.id === symbol)?.name ?? symbol}`);
+    navigate(`${base}/bot-builder`);
+  };
+  const canBot = isBotMarket(symbol);
 
   const s = useMemo(() => {
     const d = decimalsOf(prices);
@@ -72,6 +85,12 @@ export default function Analysis() {
           </div>
           <Bar label={`Over ${barrier}`} v={s.over} tone="up" />
           <Bar label={`Under ${barrier}`} v={s.under} tone="down" />
+          {canBot && (
+            <div className="row an-bot" style={{ gap: 6 }}>
+              <button className="btn btn-secondary" disabled={barrier > 8} onClick={() => toBot('DIGITOVER', barrier, `Over ${barrier}`)}>Bot: Over {barrier} →</button>
+              <button className="btn btn-secondary" disabled={barrier < 1} onClick={() => toBot('DIGITUNDER', barrier, `Under ${barrier}`)}>Bot: Under {barrier} →</button>
+            </div>
+          )}
         </section>
       </div>
       <p className="hint">Statistics describe past ticks only. Synthetic indices are random, so past patterns don't predict the next tick.</p>

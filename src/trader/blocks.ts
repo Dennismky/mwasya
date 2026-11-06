@@ -1,6 +1,6 @@
 import * as Blockly from 'blockly';
 import type { BotConfig } from './botEngine';
-import { SYMBOLS } from './ticks';
+import { SYMBOLS, symbolName } from './ticks';
 
 /**
  * Mwasya's trading blocks. Block and field names match the Deriv Bot XML format so files open in both,
@@ -16,6 +16,27 @@ const contractOptions: [string, string][] = [
 ];
 const symbolOptions = (): [string, string][] => SYMBOLS.filter((s) => /^(1HZ|R_)/.test(s.id)).map((s) => [s.name, s.id]);
 
+const prettyValue = (v: string) => (SYMBOLS.some((s) => s.id === v) ? symbolName(v) : v.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase()));
+
+/**
+ * A dropdown that keeps whatever value a bot file gives it. Deriv Bot has more options than ours (other markets, trade
+ * types, intervals); a plain dropdown silently drops those and the bot changes. This one adds them to its list instead.
+ */
+export class OpenDropdown extends Blockly.FieldDropdown {
+  private extra?: [string, string][];
+  override getOptions(useCache?: boolean): Blockly.MenuOption[] {
+    const base = super.getOptions(useCache);
+    const more = (this.extra ?? []).filter(([, v]) => !base.some((o) => o !== 'separator' && o[1] === v));
+    return more.length ? [...base, ...more] : base;
+  }
+  protected override doClassValidation_(v: string): string | null | undefined;
+  protected override doClassValidation_(v?: string): string | null;
+  protected override doClassValidation_(v?: string): string | null | undefined {
+    if (typeof v === 'string' && v !== '' && !this.getOptions(false).some((o) => o !== 'separator' && o[1] === v)) (this.extra ??= []).push([prettyValue(v), v]);
+    return super.doClassValidation_(v);
+  }
+}
+
 let done = false;
 export function defineMwasyaBlocks() {
   if (done) return;
@@ -30,23 +51,23 @@ export function defineMwasyaBlocks() {
     },
     trade_definition_market(this: Blockly.Block) {
       this.appendDummyInput().appendField('Market')
-        .appendField(new Blockly.FieldDropdown([['Derived', 'synthetic_index']]), 'MARKET_LIST')
-        .appendField(new Blockly.FieldDropdown([['Continuous indices', 'random_index']]), 'SUBMARKET_LIST')
-        .appendField(new Blockly.FieldDropdown(symbolOptions), 'SYMBOL_LIST');
+        .appendField(new OpenDropdown([['Derived', 'synthetic_index']]), 'MARKET_LIST')
+        .appendField(new OpenDropdown([['Continuous indices', 'random_index']]), 'SUBMARKET_LIST')
+        .appendField(new OpenDropdown(symbolOptions), 'SYMBOL_LIST');
       this.setPreviousStatement(true); this.setNextStatement(true); this.setColour(C.trade);
     },
     trade_definition_tradetype(this: Blockly.Block) {
       this.appendDummyInput().appendField('Trade type')
-        .appendField(new Blockly.FieldDropdown([['Digits', 'digits'], ['Up/Down', 'callput']]), 'TRADETYPECAT_LIST')
-        .appendField(new Blockly.FieldDropdown([['Over/Under', 'overunder'], ['Matches/Differs', 'matchesdiffers'], ['Even/Odd', 'evenodd'], ['Rise/Fall', 'risefall']]), 'TRADETYPE_LIST');
+        .appendField(new OpenDropdown([['Digits', 'digits'], ['Up/Down', 'callput']]), 'TRADETYPECAT_LIST')
+        .appendField(new OpenDropdown([['Over/Under', 'overunder'], ['Matches/Differs', 'matchesdiffers'], ['Even/Odd', 'evenodd'], ['Rise/Fall', 'risefall']]), 'TRADETYPE_LIST');
       this.setPreviousStatement(true); this.setNextStatement(true); this.setColour(C.trade);
     },
     trade_definition_contracttype(this: Blockly.Block) {
-      this.appendDummyInput().appendField('Contract type').appendField(new Blockly.FieldDropdown([['Both', 'both'], ...contractOptions]), 'TYPE_LIST');
+      this.appendDummyInput().appendField('Contract type').appendField(new OpenDropdown([['Both', 'both'], ...contractOptions]), 'TYPE_LIST');
       this.setPreviousStatement(true); this.setNextStatement(true); this.setColour(C.trade);
     },
     trade_definition_candleinterval(this: Blockly.Block) {
-      this.appendDummyInput().appendField('Candle interval').appendField(new Blockly.FieldDropdown([['1 minute', '60'], ['2 minutes', '120'], ['5 minutes', '300'], ['1 hour', '3600']]), 'CANDLEINTERVAL_LIST');
+      this.appendDummyInput().appendField('Candle interval').appendField(new OpenDropdown([['1 minute', '60'], ['2 minutes', '120'], ['5 minutes', '300'], ['1 hour', '3600']]), 'CANDLEINTERVAL_LIST');
       this.setPreviousStatement(true); this.setNextStatement(true); this.setColour(C.trade);
     },
     trade_definition_restartbuysell(this: Blockly.Block) {
@@ -58,9 +79,10 @@ export function defineMwasyaBlocks() {
       this.setPreviousStatement(true); this.setNextStatement(true); this.setColour(C.trade);
     },
     trade_definition_tradeoptions(this: Blockly.Block) {
-      this.appendDummyInput().appendField('Duration').appendField(new Blockly.FieldDropdown([['Ticks', 't'], ['Seconds', 's'], ['Minutes', 'm']]), 'DURATIONTYPE_LIST');
+      this.appendDummyInput().appendField('Duration').appendField(new OpenDropdown([['Ticks', 't'], ['Seconds', 's'], ['Minutes', 'm']]), 'DURATIONTYPE_LIST');
       this.appendValueInput('DURATION').setCheck('Number');
       this.appendValueInput('AMOUNT').setCheck('Number').appendField('Stake');
+      this.appendDummyInput().appendField(new OpenDropdown([['USD', 'USD']]), 'CURRENCY_LIST');
       this.appendValueInput('PREDICTION').setCheck('Number').appendField('Prediction');
       this.setInputsInline(true); this.setPreviousStatement(true); this.setNextStatement(true); this.setColour(C.trade);
     },
@@ -80,7 +102,7 @@ export function defineMwasyaBlocks() {
       this.setColour(C.section); this.setDeletable(false);
     },
     purchase(this: Blockly.Block) {
-      this.appendDummyInput().appendField('Purchase').appendField(new Blockly.FieldDropdown(contractOptions), 'PURCHASE_LIST');
+      this.appendDummyInput().appendField('Purchase').appendField(new OpenDropdown(contractOptions), 'PURCHASE_LIST');
       this.setPreviousStatement(true); this.setColour(C.purchase);
     },
     sell_at_market(this: Blockly.Block) {
@@ -98,11 +120,11 @@ export function defineMwasyaBlocks() {
       this.setPreviousStatement(true); this.setColour(C.restart);
     },
     contract_check_result(this: Blockly.Block) {
-      this.appendDummyInput().appendField('Result is').appendField(new Blockly.FieldDropdown([['Win', 'win'], ['Loss', 'loss']]), 'CHECK_RESULT');
+      this.appendDummyInput().appendField('Result is').appendField(new OpenDropdown([['Win', 'win'], ['Loss', 'loss']]), 'CHECK_RESULT');
       this.setOutput(true, 'Boolean'); this.setColour(C.restart);
     },
     read_details(this: Blockly.Block) {
-      this.appendDummyInput().appendField('Contract detail').appendField(new Blockly.FieldDropdown([
+      this.appendDummyInput().appendField('Contract detail').appendField(new OpenDropdown([
         ['profit', '4'], ['buy price', '2'], ['payout', '3'], ['contract type', '5'], ['entry spot', '7'], ['exit spot', '9'], ['barrier', '10'], ['result', '11'], ['reference id', '1'],
       ]), 'DETAIL_INDEX');
       this.setOutput(true); this.setColour(C.restart);
@@ -110,7 +132,7 @@ export function defineMwasyaBlocks() {
     total_profit(this: Blockly.Block) { this.appendDummyInput().appendField('Total profit'); this.setOutput(true, 'Number'); this.setColour(C.data); },
     total_runs(this: Blockly.Block) { this.appendDummyInput().appendField('Number of runs'); this.setOutput(true, 'Number'); this.setColour(C.data); },
     balance(this: Blockly.Block) {
-      this.appendDummyInput().appendField('Balance').appendField(new Blockly.FieldDropdown([['number', 'NUM'], ['text', 'STR']]), 'BALANCE_TYPE');
+      this.appendDummyInput().appendField('Balance').appendField(new OpenDropdown([['number', 'NUM'], ['text', 'STR']]), 'BALANCE_TYPE');
       this.setOutput(true); this.setColour(C.data);
     },
     tick(this: Blockly.Block) { this.appendDummyInput().appendField('Last tick'); this.setOutput(true, 'Number'); this.setColour(C.data); },
@@ -118,14 +140,19 @@ export function defineMwasyaBlocks() {
     ticks(this: Blockly.Block) { this.appendDummyInput().appendField('Ticks list'); this.setOutput(true, 'Array'); this.setColour(C.data); },
     lastDigitList(this: Blockly.Block) { this.appendDummyInput().appendField('Last digits list'); this.setOutput(true, 'Array'); this.setColour(C.data); },
     check_direction(this: Blockly.Block) {
-      this.appendDummyInput().appendField('Direction is').appendField(new Blockly.FieldDropdown([['Rise', 'rise'], ['Fall', 'fall'], ['No change', 'still']]), 'CHECK_DIRECTION');
+      this.appendDummyInput().appendField('Direction is').appendField(new OpenDropdown([['Rise', 'rise'], ['Fall', 'fall'], ['No change', 'still']]), 'CHECK_DIRECTION');
       this.setOutput(true, 'Boolean'); this.setColour(C.data);
     },
     notify(this: Blockly.Block) {
       this.appendValueInput('MESSAGE').appendField('Notify')
-        .appendField(new Blockly.FieldDropdown([['green', 'success'], ['blue', 'info'], ['yellow', 'warn'], ['red', 'error']]), 'NOTIFICATION_TYPE')
-        .appendField(new Blockly.FieldDropdown([['silent', 'silent'], ['beep', 'beep']]), 'NOTIFICATION_SOUND');
+        .appendField(new OpenDropdown([['green', 'success'], ['blue', 'info'], ['yellow', 'warn'], ['red', 'error']]), 'NOTIFICATION_TYPE')
+        .appendField(new OpenDropdown([['silent', 'silent'], ['beep', 'beep']]), 'NOTIFICATION_SOUND');
       this.setPreviousStatement(true); this.setNextStatement(true); this.setColour(C.notify);
+    },
+    // Deriv Bot's number box for durations, stakes and predictions (positive numbers only).
+    math_number_positive(this: Blockly.Block) {
+      this.appendDummyInput().appendField(new Blockly.FieldNumber(0, 0), 'NUM');
+      this.setOutput(true, 'Number'); this.setStyle('math_blocks');
     },
     text_print(this: Blockly.Block) {
       this.appendValueInput('TEXT').appendField('Print');
@@ -145,8 +172,11 @@ export const MENU: { id: string; name: string; colour: string; blocks: string[] 
   { id: 'logic', name: 'Logic', colour: '#3B5BDB', blocks: ['controls_if', 'logic_compare', 'logic_operation', 'logic_negate', 'logic_boolean'] },
   { id: 'math', name: 'Maths', colour: '#2F6FD6', blocks: ['math_number', 'math_arithmetic', 'math_single', 'math_round', 'math_modulo', 'math_constrain', 'math_random_int'] },
   { id: 'loops', name: 'Loops', colour: '#1C7ED6', blocks: ['controls_repeat_ext', 'controls_whileUntil', 'controls_flow_statements'] },
-  { id: 'text', name: 'Text & notify', colour: C.notify, blocks: ['notify', 'text_print', 'text', 'text_join'] },
-  { id: 'vars', name: 'Variables', colour: '#4263EB', blocks: ['variables_set', 'variables_get', 'math_change'] },
+  { id: 'text', name: 'Text & notify', colour: C.notify, blocks: ['notify', 'text_print', 'text', 'text_join', 'text_length', 'text_isEmpty'] },
+  { id: 'lists', name: 'Lists', colour: '#0284C7', blocks: ['lists_create_with', 'lists_length', 'lists_getIndex', 'lists_getSublist', 'math_on_list'] },
+  // Variables and Functions fill themselves: a "Create variable" / new-function button plus every one the bot already has.
+  { id: 'vars', name: 'Variables', colour: '#4263EB', blocks: [] },
+  { id: 'funcs', name: 'Functions', colour: '#364FC7', blocks: [] },
 ];
 
 const esc = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');

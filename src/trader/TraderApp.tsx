@@ -26,6 +26,7 @@ import BotBuilder from './BotBuilder';
 import Reports from './Reports';
 import { Ticker } from './Ticker';
 import { Loader } from '../components/Loader';
+import { preloadEditor, whenIdle } from './botFiles';
 
 export interface XmlBotLite { id: string; name: string; description: string }
 export interface TraderCtx {
@@ -110,6 +111,8 @@ function Shell({ site, initialBots, initialXml, base, preview }: { site: SiteBra
     if (r.ok) auth.refreshBalance();
     setTimeout(() => setNotice(''), 4000);
   };
+  // Speed: once the site has opened, fetch Bot Builder and the chart in the background so those pages open at once.
+  useEffect(() => { whenIdle(() => { void preloadEditor(); void import('./Charts'); }); }, []);
   const runner = useBotRunner(auth.account?.id, auth.expire, auth.refreshBalance);
   const bot = useBotEngine(auth.account?.id, auth.account?.currency ?? 'USD', auth.refreshBalance);
   const [panelOpen, setPanelOpen] = useState(() => localStorage.getItem('mw_panel') !== '0');

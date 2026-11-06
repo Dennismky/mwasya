@@ -1,4 +1,6 @@
+import { useEffect } from 'react';
 import { Icon } from '../components/ui';
+import { fetchBotXml, preloadEditor, whenIdle } from './botFiles';
 import { Link } from 'react-router-dom';
 import { useTrader } from './TraderApp';
 
@@ -6,6 +8,9 @@ import { useTrader } from './TraderApp';
 export default function FreeBots() {
   const { xmlBots, base, site } = useTrader();
   const builder = !site.features || site.features.includes('bots');
+  // Fetch every bot file (and the builder) quietly in the background, so "Load in Bot Builder" opens at once.
+  const ids = xmlBots.map((x) => x.id).join(',');
+  useEffect(() => { if (builder && ids) whenIdle(() => { void preloadEditor(); ids.split(',').forEach((id) => fetchBotXml(id).catch(() => undefined)); }); }, [ids, builder]);
   return (
     <div className="stack" style={{ gap: 20 }}>
       <div className="stack" style={{ gap: 4 }}>
