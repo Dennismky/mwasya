@@ -36,7 +36,7 @@ export function Bell({ items, siteKey, siteName }: { items: Announcement[]; site
   return (
     <>
       {/* EDIT HERE: bell start position on screen (clients can drag it; their spot is remembered). */}
-      <Floating id="bell" start={{ left: 14, bottom: 104 }} onTap={toggle} label={unread ? `${unread} new announcements` : 'Announcements'} className={`fl-bell ${ring ? 'ring' : ''} ${unread ? 'has' : ''}`}>
+      <Floating id="bell" start={{ left: 16, bottom: 96 }} onTap={toggle} label={unread ? `${unread} new announcements` : 'Announcements'} className={`fl-bell ${ring ? 'ring' : ''} ${unread ? 'has' : ''}`}>
         <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M6 8a6 6 0 1 1 12 0c0 7 3 9 3 9H3s3-2 3-9" /><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0" /></svg>
         {unread > 0 && <span className="fl-badge">{unread > 9 ? '9+' : unread}</span>}
       </Floating>

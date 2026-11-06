@@ -2006,3 +2006,53 @@ html, body { overflow-x: clip; }
 .as-rate b.up { color: var(--success); } .as-rate b.down { color: var(--danger); }
 .tp-dark .as-rate { background: #0E1C33; }
 .tp-dark .as-curpick button { border-color: #22365A; }
+
+/* EDIT HERE: compact floating buttons. The bell is a 44px circle; Risk disclaimer is a 36px "!" circle that opens into
+   its label on hover/focus, so neither covers page content. */
+.fl-bell { width: 44px; height: 44px; }
+.fl-bell svg { width: 19px; height: 19px; }
+.fl-risk { height: 36px; min-width: 36px; padding: 0 9px; border-radius: 99px; gap: 0; overflow: hidden; font-size: 12.5px; opacity: .92; box-shadow: 0 6px 16px rgba(245, 165, 36, .3); }
+.fl-risk-i { display: grid; place-items: center; width: 18px; height: 18px; border-radius: 50%; background: #3B2A00; color: #FFC94A; font-size: 12px; font-weight: 900; flex: none; }
+.fl-risk-t { max-width: 0; opacity: 0; white-space: nowrap; transition: max-width .25s ease, opacity .2s ease, margin .25s ease; }
+.fl-risk:hover, .fl-risk:focus-visible { opacity: 1; }
+.fl-risk:hover .fl-risk-t, .fl-risk:focus-visible .fl-risk-t { max-width: 140px; opacity: 1; margin-left: 7px; }
+.an-panel { bottom: 150px; }
+
+/* ===== UI polish pass ===== */
+/* EDIT HERE: dashboard shortcut tiles — three per row so the hero card has no empty gap. */
+@media (min-width: 701px) {
+  .tp-tiles { grid-template-columns: repeat(3, minmax(0, 1fr)); max-width: 620px; gap: 14px; }
+  .tp-tile { padding: 20px 12px; transition: transform .2s cubic-bezier(.2, .9, .3, 1.3), background .2s, border-color .2s, box-shadow .2s; }
+  .tp-tile:hover { transform: translateY(-3px); box-shadow: 0 14px 30px rgba(3, 10, 30, .35); }
+}
+
+/* D-Circles distribution: green = most frequent, red = least, in both modes; soft gradient bars on a clear track. */
+.digit-bar .bar span { background: linear-gradient(180deg, color-mix(in srgb, var(--accent, #1F4FD1) 75%, #fff), var(--accent, #1F4FD1)); }
+.tp-dark .digit-bar .bar { background: rgba(255, 255, 255, .05); }
+.tp-dark .digit-bar .bar span { background: linear-gradient(180deg, color-mix(in srgb, var(--accent, #1F4FD1) 45%, #fff), color-mix(in srgb, var(--accent, #1F4FD1) 75%, #fff)); }
+.digit-bar.hot .bar span, .tp-dark .digit-bar.hot .bar span { background: linear-gradient(180deg, #34D39E, #0E9F6E); }
+.digit-bar.cold .bar span, .tp-dark .digit-bar.cold .bar span { background: linear-gradient(180deg, #FF8A8D, #E0393E); }
+.digit-bar.hot .pct { color: #12A07A; font-weight: 800; } .digit-bar.cold .pct { color: #E5484D; font-weight: 800; }
+
+/* Results panel: round hide handle and a friendlier empty state. */
+.rp-collapse { left: -1px; width: 22px; height: 52px; margin-top: -26px; border-radius: 0 10px 10px 0; border: 1px solid var(--tp-line, var(--border)); border-left: 0; background: var(--bg); font-size: 14px; font-weight: 800; box-shadow: 2px 0 8px rgba(11, 31, 58, .06); }
+.tp-dark .rp-collapse { background: #12223B; border-color: #22365A; color: #9FB0C8; }
+.rp-open { border-radius: 12px 0 0 12px; box-shadow: -4px 0 14px rgba(11, 31, 58, .1); font-weight: 800; }
+.bw-empty { display: flex; flex-direction: column; align-items: center; gap: 14px; }
+.bw-empty::before { content: ''; width: 64px; height: 64px; border-radius: 20px; flex: none;
+  background: color-mix(in srgb, var(--accent, #1F4FD1) 10%, transparent) center / 30px no-repeat url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%231F4FD1' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M3 3v18h18'/%3E%3Cpath d='M7 14l4-4 3 3 5-6'/%3E%3C/svg%3E"); }
+.tp-dark .bw-empty::before { background-color: rgba(91, 140, 255, .12); }
+
+/* Empty states (e.g. Free Bots with no files yet). */
+.empty-state { display: flex; flex-direction: column; align-items: center; text-align: center; gap: 8px; padding: 40px 24px; }
+.empty-state p { max-width: 420px; margin: 0; }
+.empty-ico { display: grid; place-items: center; width: 60px; height: 60px; margin-bottom: 6px; border-radius: 18px; font-weight: 800; font-size: 18px; font-family: var(--mono, monospace);
+  color: var(--accent, #1F4FD1); background: color-mix(in srgb, var(--accent, #1F4FD1) 10%, transparent); }
+/* Empty-state text stays one paragraph; the icon sits above it. */
+.bw-empty { display: block; }
+.bw-empty::before { display: block; margin: 0 auto 16px; }
+/* EDIT HERE: room for the floating bell / Risk disclaimer (bottom-left) so they never sit on page content. */
+@media (min-width: 701px) {
+  .tp-page:not(:has(> .bw)):not(:has(> .mt2)) { padding-bottom: 96px; }
+  .bw-runbar { padding-left: 72px; }
+}

@@ -132,7 +132,7 @@ export default function BotBuilder() {
           <span className="bw-sep" />
           <button className="bw-tool" title="Undo" disabled={running} onClick={() => editor.current?.ws.undo(false)}>↶</button>
           <button className="bw-tool" title="Redo" disabled={running} onClick={() => editor.current?.ws.undo(true)}>↷</button>
-          <button className="bw-tool" title="Tidy blocks" disabled={running} onClick={() => editor.current?.ws.cleanUp()}>☷</button>
+          <button className="bw-tool" title="Tidy blocks" disabled={running} onClick={() => editor.current?.tidy()}>☷</button>
           <span className="bw-sep" />
           <button className="bw-tool" title="Zoom in" onClick={() => editor.current?.ws.zoomCenter(1)}>＋</button>
           <button className="bw-tool" title="Zoom out" onClick={() => editor.current?.ws.zoomCenter(-1)}>－</button>

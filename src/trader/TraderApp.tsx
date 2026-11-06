@@ -266,7 +266,7 @@ function Shell({ site, initialBots, initialXml, base, preview }: { site: SiteBra
       </aside>
 
       <Bell items={announcements} siteKey={site.subdomain} siteName={site.name} />
-      <Floating id="risk" start={{ left: 14, bottom: 58 }} onTap={() => setDisclaimer(true)} label="Risk disclaimer" className="fl-risk"><span aria-hidden="true">⚠</span> Risk Disclaimer</Floating>
+      <Floating id="risk" start={{ left: 18, bottom: 52 }} onTap={() => setDisclaimer(true)} label="Risk disclaimer" className="fl-risk"><span aria-hidden="true" className="fl-risk-i">!</span><span className="fl-risk-t">Risk disclaimer</span></Floating>
       {cashier && <Cashier preview={preview} onClose={() => setCashier(false)} />}
       {disclaimer && (
         <div className="tp-modal" role="dialog" aria-modal="true" aria-labelledby="rd-title" onClick={() => setDisclaimer(false)}>

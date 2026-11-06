@@ -12,7 +12,7 @@ export default function FreeBots() {
         <h1 style={{ fontSize: 24, fontWeight: 700 }}>Free Bots</h1>
         <p className="muted">Load a bot into Bot Builder to see and edit its stake, martingale, take profit and stop loss. Run it on Demo first.</p>
       </div>
-      {xmlBots.length === 0 ? <section className="card"><p className="muted">No bot files yet. Check back soon.</p></section> : (
+      {xmlBots.length === 0 ? <section className="card empty-state"><span className="empty-ico" aria-hidden="true">{"</>"}</span><b>No bot files yet</b><p className="muted">Ready-made bots will appear here. Meanwhile, build one in Bot Builder or try a Quick Bot.</p></section> : (
         <div className="grid">
           {xmlBots.map((x) => (
             <article key={x.id} className="card stack" style={{ gap: 12 }}>

@@ -97,7 +97,39 @@ export function defineShapes(found: Map<string, Shape>) {
   }
 }
 
-export interface EditorApi { ws: Blockly.WorkspaceSvg; xml: () => string; showBlocks: (types: string[]) => void }
+export interface EditorApi { ws: Blockly.WorkspaceSvg; xml: () => string; showBlocks: (types: string[]) => void; tidy: () => void }
+
+/**
+ * Bots drawn elsewhere (Deriv Bot's bigger blocks) can land on top of each other here. When any top-level groups overlap,
+ * lay them out again in tidy columns, keeping their original left-to-right / top-to-bottom order. Bots that already fit stay as they are.
+ */
+// EDIT HERE: spacing between block groups after an automatic re-layout (workspace units).
+const GAP_Y = 36, GAP_X = 56, SAME_COLUMN = 160;
+export function untangle(ws: Blockly.WorkspaceSvg): boolean {
+  const tops = ws.getTopBlocks(false).filter((b) => !b.isInsertionMarker());
+  const rects = tops.map((b) => ({ b, r: b.getBoundingRectangle(), xy: b.getRelativeToSurfaceXY() }));
+  const hit = rects.some((a, i) => rects.some((c, j) => j > i && a.r.left < c.r.right && c.r.left < a.r.right && a.r.top < c.r.bottom && c.r.top < a.r.bottom));
+  if (!hit) return false;
+  rects.sort((a, c) => a.xy.x - c.xy.x || a.xy.y - c.xy.y);
+  const cols: (typeof rects)[] = [];
+  for (const it of rects) {
+    const col = cols[cols.length - 1];
+    if (col && it.xy.x - col[0].xy.x < SAME_COLUMN) col.push(it); else cols.push([it]);
+  }
+  let x = 0;
+  for (const col of cols) {
+    col.sort((a, c) => a.xy.y - c.xy.y);
+    let y = 0, widest = 0;
+    for (const { b, r, xy } of col) {
+      const offX = xy.x - r.left, offY = xy.y - r.top; // block origin vs. its visible box (hats, outputs)
+      b.moveBy(x + offX - xy.x, y + offY - xy.y);
+      y += r.bottom - r.top + GAP_Y;
+      widest = Math.max(widest, r.right - r.left);
+    }
+    x += widest + GAP_X;
+  }
+  return true;
+}
 
 export default function BlockEditor({ xml, onChange, locked, onReady }: {
   xml: string; onChange: (xml: string) => void; locked?: boolean; onReady?: (api: EditorApi | null) => void;
@@ -150,6 +182,7 @@ export default function BlockEditor({ xml, onChange, locked, onReady }: {
         }),
       });
       Blockly.Xml.domToWorkspace(dom, workspace);
+      untangle(workspace);
       // Fit the whole bot on screen (never zoomed in past a comfortable size).
       workspace.zoomToFit();
       if (workspace.getScale() > 0.95) workspace.setScale(0.95);
@@ -157,6 +190,7 @@ export default function BlockEditor({ xml, onChange, locked, onReady }: {
       const w = workspace;
       readyRef.current?.({
         ws: w,
+        tidy: () => { if (!untangle(w)) w.cleanUp(); },
         xml: () => Blockly.Xml.domToText(Blockly.Xml.workspaceToDom(w)),
         showBlocks: (types) => w.getToolbox()?.getFlyout()?.show({ kind: 'flyoutToolbox', contents: types.map((type) => ({ kind: 'block', type })) }),
       });
