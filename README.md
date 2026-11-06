@@ -235,6 +235,7 @@ Clients log in with Deriv on `<brand>.mwasya.site` and trade on their own Deriv 
 - **Settings → Website colours:** the site's main colour and the look clients see first (light / dark), with a live preview. Clients see changes within about 30 seconds.
 - **XML Bots:** upload Deriv Bot files, publish them, and choose per site which ones show under Free Bots. The owner can tick **Catalog** to offer a bot to every mentor.
 - **Announcements:** title, message and an optional WhatsApp group link, posted to a site's bell.
+- **Settings → Tutorial videos:** drag or paste a YouTube link (Unlisted works) and give it a title; it appears at the top of Tutorials on the client site. Up to 50 per site. Videos stay on YouTube (`site_videos` stores only the link's id), play through `youtube-nocookie.com`, and the player only loads when a client presses play.
 
 ### Look and feel
 A soft, Apple-style layer sits at the end of [src/styles.css](src/styles.css) (search `SOFT / APPLE-STYLE REFINEMENT`): system font (San Francisco on Apple devices, Inter elsewhere), soft greys, hairline borders, rounded cards, pill buttons, frosted header bars and thin quiet scrollbars. Its `:root` tokens change the whole light look; dark mode keeps its navy palette with the same shapes. Mentor accent colours are always kept.

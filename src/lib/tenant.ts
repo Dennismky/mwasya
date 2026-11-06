@@ -5,11 +5,12 @@ export interface SiteBranding {
   template?: string; layout?: string; features?: string[]; tagline?: string | null; logoUrl?: string | null;
 }
 export interface Announcement { id: string; title: string; body: string; created_at: string }
+export interface SiteVideo { id: string; title: string; youtube_id: string }
 export interface PublishedBot { id: string; name: string; spec: BotSpec; risk: 'low' | 'medium' | 'high'; updated_at: string }
 
 export type Tenant =
   | { kind: 'platform'; appId: string | null; earningsScope?: boolean }
-  | { kind: 'site'; site: SiteBranding; bots: PublishedBot[]; xmlBots?: { id: string; name: string; description: string }[]; announcements?: Announcement[] }
+  | { kind: 'site'; site: SiteBranding; bots: PublishedBot[]; xmlBots?: { id: string; name: string; description: string }[]; announcements?: Announcement[]; videos?: SiteVideo[] }
   | { kind: 'held' } // owner suspended or unpaid: the site only shows its loading screen
   | { kind: 'unknown'; host?: string };
 

@@ -10,6 +10,7 @@ import { addDomain, buyDomain, checkDomain, domainPrice, domainsConfigured, regi
 import { RESERVED_SUBDOMAINS, ROOT_DOMAIN } from './_lib/tenant.js';
 import { verifyRegistered } from './_lib/domainCheck.js';
 import { burst } from './_lib/burst.js';
+import { youtubeId } from '../src/shared/youtube.js';
 
 /**
  * One function for the operator platform (keeps us under Vercel's function limit and shares one warm DB pool).
@@ -989,6 +990,36 @@ async function sitesRoute(req: VercelRequest, res: VercelResponse, rest: string)
     const [s] = await query<SiteFull>(`update sites set status = 'paused', updated_at = now() where id = $1 returning ${SITE_FULL}`, [id]);
     return res.status(200).json({ site: siteView(s) });
   }
+  // Tutorial videos: the mentor adds YouTube links, clients watch them on the Tutorials tab.
+  // EDIT HERE: tutorial videos API: list (GET), add (POST), delete (DELETE). Limits: 50 videos per site, title 80 chars.
+  if (action === 'videos') {
+    if (req.method === 'GET') {
+      const list = await query(`select id, title, youtube_id, created_at from site_videos where site_id = $1 order by created_at desc limit 50`, [site.id]);
+      return res.status(200).json({ videos: list });
+    }
+    if (req.method === 'POST') {
+      if (!(await rateLimit(`videos:${op.id}`, 60, 3600))) return res.status(429).json({ error: 'Too many videos added. Try again later.' });
+      const b = (req.body ?? {}) as { title?: unknown; url?: unknown };
+      const title = typeof b.title === 'string' ? b.title.trim().slice(0, 80) : '';
+      const youtube = typeof b.url === 'string' ? youtubeId(b.url.slice(0, 300)) : null;
+      if (!title) return res.status(422).json({ error: 'Give the video a title.' });
+      if (!youtube) return res.status(422).json({ error: 'Paste a YouTube video link.' });
+      const [{ n }] = await query<{ n: number }>(`select count(*)::int as n from site_videos where site_id = $1`, [site.id]);
+      if (n >= 50) return res.status(409).json({ error: 'This site already has 50 videos. Delete one first.' });
+      const [v] = await query(`insert into site_videos (site_id, operator_id, title, youtube_id) values ($1, $2, $3, $4) returning id, title, youtube_id, created_at`, [site.id, op.id, title, youtube]);
+      await audit(op.id, 'site.video.add', op.id, { siteId: site.id });
+      return res.status(201).json({ video: v });
+    }
+    if (req.method === 'DELETE') {
+      const vid = String(req.query.vid ?? '');
+      if (!isUuid(vid)) return res.status(404).json({ error: 'not_found' });
+      await query(`delete from site_videos where id = $1 and site_id = $2`, [vid, site.id]);
+      await audit(op.id, 'site.video.delete', op.id, { siteId: site.id });
+      return res.status(204).end();
+    }
+    return res.status(405).json({ error: 'method_not_allowed' });
+  }
+
   // Announcements: the mentor writes, clients see them under the bell on the trading site.
   // EDIT HERE: announcements API for mentors: list (GET), post (POST), delete (DELETE). Limits: title 80, message 1000 chars.
   if (action === 'announcements') {

@@ -47,6 +47,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const announcements = await query<{ id: string; title: string; body: string; created_at: string }>(
       `select id, title, body, created_at from site_announcements where site_id = $1 order by created_at desc limit 20`, [t.site.id],
     ).catch(() => []);
+    // Tutorial videos. Never allowed to break the site: no videos are shown if the lookup fails.
+    const videos = await query<{ id: string; title: string; youtube_id: string }>(
+      `select id, title, youtube_id from site_videos where site_id = $1 order by created_at desc limit 50`, [t.site.id],
+    ).catch(() => []);
     res.setHeader('Cache-Control', 'public, max-age=30');
     return res.status(200).json({
       kind: 'site',
@@ -58,6 +62,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       bots,
       xmlBots,
       announcements,
+      videos,
     });
   } catch (e) {
     console.error('site', e);

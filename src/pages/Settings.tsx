@@ -1,4 +1,5 @@
-import { useEffect, useState, type CSSProperties } from 'react';
+import { useEffect, useState, type CSSProperties, type DragEvent } from 'react';
+import { youtubeId } from '../shared/youtube';
 import { toast } from '../components/motion';
 import { useAuth } from '../lib/auth';
 import { LANGUAGES, useLang, useT, type Lang } from '../lib/i18n';
@@ -42,6 +43,7 @@ export default function Settings() {
       </div>
 
       <SiteColours />
+      <TutorialVideos />
 
       <section className="card stack" style={{ gap: 16 }}>
         <h2 style={{ fontSize: 18, fontWeight: 600 }}>Profile</h2>
@@ -183,6 +185,104 @@ function DomainSales() {
             </tbody>
           </table>
         </div>
+      )}
+    </section>
+  );
+}
+
+interface VideoRow { id: string; title: string; youtube_id: string }
+
+/**
+ * Tutorial videos: a mentor adds YouTube videos to their client site's Tutorials tab.
+ * Paste a link, or drag a YouTube link or address-bar icon onto the box.
+ */
+function TutorialVideos() {
+  const [sites, setSites] = useState<SiteLite[] | null>(null);
+  const [id, setId] = useState('');
+  const [videos, setVideos] = useState<VideoRow[] | null>(null);
+  const [url, setUrl] = useState('');
+  const [title, setTitle] = useState('');
+  const [over, setOver] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState('');
+
+  useEffect(() => {
+    fetch('/api/sites', { credentials: 'same-origin' }).then((r) => (r.ok ? r.json() : { sites: [] })).then((j) => {
+      const list = (j.sites ?? []) as SiteLite[];
+      setSites(list);
+      if (list[0]) setId(list[0].id);
+    }).catch(() => setSites([]));
+  }, []);
+  useEffect(() => {
+    if (!id) return;
+    setVideos(null); setError('');
+    fetch(`/api/sites/${id}/videos`, { credentials: 'same-origin' })
+      .then((r) => { if (!r.ok) throw new Error('Could not load your videos.'); return r.json(); })
+      .then((j) => setVideos(j.videos ?? []))
+      .catch((e: Error) => { setVideos([]); setError(e.message); });
+  }, [id]);
+
+  const preview = youtubeId(url);
+  const drop = (e: DragEvent) => {
+    e.preventDefault(); setOver(false); setError('');
+    const link = (e.dataTransfer.getData('text/uri-list') || e.dataTransfer.getData('text/plain')).split(/\r?\n/).find((l) => l && !l.startsWith('#')) ?? '';
+    if (youtubeId(link)) setUrl(link.trim());
+    else setError(e.dataTransfer.files.length ? 'Video files are not uploaded here. Put the video on YouTube, then drag or paste its link.' : 'That is not a YouTube video link.');
+  };
+  const add = async () => {
+    if (!title.trim()) return setError('Give the video a title.');
+    if (!preview) return setError('Paste a YouTube video link.');
+    setBusy(true); setError('');
+    try {
+      const r = await fetch(`/api/sites/${id}/videos`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'same-origin', body: JSON.stringify({ title, url }) });
+      const j = await r.json().catch(() => ({}));
+      if (!r.ok) throw new Error(j.error ?? 'Could not add the video. Try again.');
+      setVideos((v) => [j.video, ...(v ?? [])]);
+      setUrl(''); setTitle('');
+      toast('Video added to Tutorials');
+    } catch (e) { setError((e as Error).message); } finally { setBusy(false); }
+  };
+  const remove = async (v: VideoRow) => {
+    if (!confirm(`Remove "${v.title}" from Tutorials?`)) return;
+    const r = await fetch(`/api/sites/${id}/videos?vid=${v.id}`, { method: 'DELETE', credentials: 'same-origin' });
+    if (r.ok) { setVideos((l) => (l ?? []).filter((x) => x.id !== v.id)); toast('Video removed', 'info'); } else setError('Could not remove the video.');
+  };
+
+  if (sites && sites.length === 0) return null; // no website yet
+  return (
+    <section className="card stack" style={{ gap: 14 }} aria-label="Tutorial videos">
+      <div className="row" style={{ justifyContent: 'space-between', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+        <div className="stack" style={{ gap: 2 }}>
+          <h2 style={{ fontSize: 18, fontWeight: 600 }}>Tutorial videos</h2>
+          <span className="hint">Videos appear at the top of Tutorials on your client site. Upload to YouTube first (Unlisted works).</span>
+        </div>
+        {sites && sites.length > 1 && (
+          <select className="input" style={{ width: 'auto' }} value={id} onChange={(e) => setId(e.target.value)} aria-label="Website">
+            {sites.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
+          </select>
+        )}
+      </div>
+      <div className={`tv-drop ${over ? 'over' : ''}`} onDragOver={(e) => { e.preventDefault(); setOver(true); }} onDragLeave={() => setOver(false)} onDrop={drop}>
+        {preview
+          ? <img src={`https://i.ytimg.com/vi/${preview}/mqdefault.jpg`} alt="" />
+          : <span className="tv-drop-ico" aria-hidden="true">▶</span>}
+        <div className="stack" style={{ gap: 8, flex: 1, minWidth: 0 }}>
+          <input className="input" type="url" inputMode="url" maxLength={300} placeholder="Drag or paste a YouTube link" value={url} onChange={(e) => setUrl(e.target.value)} aria-label="YouTube link" />
+          <input className="input" maxLength={80} placeholder="Title, e.g. How to use Over 3" value={title} onChange={(e) => setTitle(e.target.value)} aria-label="Video title" />
+        </div>
+      </div>
+      {error && <p className="error" role="alert">{error}</p>}
+      <button className="btn btn-primary" style={{ alignSelf: 'flex-start' }} disabled={busy || !id || !preview || !title.trim()} onClick={() => void add()}>{busy ? 'Adding…' : 'Add to Tutorials'}</button>
+      {videos === null ? <p className="hint">Loading videos…</p> : videos.length > 0 && (
+        <ul className="tv-list">
+          {videos.map((v) => (
+            <li key={v.id}>
+              <img src={`https://i.ytimg.com/vi/${v.youtube_id}/default.jpg`} alt="" loading="lazy" />
+              <b title={v.title}>{v.title}</b>
+              <button className="btn btn-ghost" style={{ color: 'var(--danger)' }} onClick={() => void remove(v)}>Delete</button>
+            </li>
+          ))}
+        </ul>
       )}
     </section>
   );

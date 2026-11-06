@@ -330,3 +330,14 @@ create table if not exists site_clients (
   primary key (site_id, client_key)
 );
 create index if not exists site_clients_seen_idx on site_clients(site_id, last_seen desc);
+
+-- Mentor tutorial videos (YouTube links) shown on the client site's Tutorials tab.
+create table if not exists site_videos (
+  id          uuid primary key default gen_random_uuid(),
+  site_id     uuid not null references sites(id) on delete cascade,
+  operator_id uuid not null references operators(id) on delete cascade,
+  title       text not null check (length(title) between 1 and 80),
+  youtube_id  text not null check (youtube_id ~ '^[A-Za-z0-9_-]{11}$'),
+  created_at  timestamptz not null default now()
+);
+create index if not exists site_videos_site_idx on site_videos(site_id, created_at desc);

@@ -2407,3 +2407,27 @@ h1 { line-height: 1.12; }
 :root:not([data-theme="dark"]) .lang-select { color: var(--text); background: var(--bg); border-color: var(--border-strong); }
 .lang-select { border-radius: 8px; font-family: var(--font); }
 .sidebar { gap: 8px; }
+
+/* =================== Tutorial videos =================== */
+/* EDIT HERE: video card size on the client site's Tutorials tab. */
+.tu-videos { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(280px, 100%), 1fr)); gap: 14px; }
+.tu-video { padding: 0; overflow: hidden; display: flex; flex-direction: column; }
+.tu-frame { position: relative; aspect-ratio: 16 / 9; background: #000; }
+.tu-frame iframe, .tu-play { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; padding: 0; }
+.tu-play { background: #000; cursor: pointer; }
+.tu-play img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.tu-play span { position: absolute; left: 50%; top: 50%; width: 58px; height: 58px; margin: -29px 0 0 -29px; border-radius: 50%; display: grid; place-items: center; padding-left: 4px; font-size: 20px; color: #fff; background: rgba(0, 0, 0, .58); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); transition: transform .15s, background .15s; }
+.tu-play:hover span { transform: scale(1.08); background: var(--accent, var(--primary)); }
+.tu-video-foot { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 12px 14px; }
+.tu-video-foot b { font-size: 14.5px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tu-video-foot a { flex: none; font-size: 12.5px; color: var(--muted); text-decoration: none; }
+/* Studio: Settings → Tutorial videos */
+.tv-drop { display: flex; align-items: center; gap: 14px; padding: 14px; border-radius: 14px; border: 1.5px dashed var(--border-strong); transition: border-color .15s, background .15s; }
+.tv-drop.over { border-color: var(--primary); background: var(--primary-tint); }
+.tv-drop > img { width: 128px; aspect-ratio: 16 / 9; border-radius: 8px; object-fit: cover; flex: none; }
+.tv-drop-ico { width: 128px; aspect-ratio: 16 / 9; border-radius: 8px; flex: none; display: grid; place-items: center; font-size: 20px; color: var(--muted); background: var(--bg-alt); }
+.tv-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
+.tv-list li { display: flex; align-items: center; gap: 12px; padding: 8px 0; border-top: 1px solid var(--border); }
+.tv-list img { width: 64px; height: 48px; border-radius: 6px; object-fit: cover; flex: none; }
+.tv-list b { flex: 1; min-width: 0; font-weight: 500; font-size: 14px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+@media (max-width: 560px) { .tv-drop { flex-direction: column; align-items: stretch; } .tv-drop > img, .tv-drop-ico { width: 100%; } }

@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useTrader } from './TraderApp';
+import type { SiteVideo } from '../lib/tenant';
 
 interface Guide { id: string; title: string; time: string; to?: string; cta?: string; steps: string[] }
 
@@ -50,9 +51,35 @@ const GUIDES: Guide[] = [
   ] },
 ];
 
+/**
+ * One tutorial video. Shows the thumbnail first and loads YouTube's player only when pressed, so the page stays fast.
+ * referrerPolicy is needed because this site sends no referrer by default, and YouTube's player refuses to start without it.
+ */
+function VideoCard({ video }: { video: SiteVideo }) {
+  const [playing, setPlaying] = useState(false);
+  return (
+    <article className="tu-video card">
+      <div className="tu-frame">
+        {playing
+          ? <iframe src={`https://www.youtube-nocookie.com/embed/${video.youtube_id}?autoplay=1&rel=0`} title={video.title} allow="autoplay; encrypted-media; picture-in-picture; fullscreen" allowFullScreen referrerPolicy="strict-origin-when-cross-origin" />
+          : (
+            <button className="tu-play" onClick={() => setPlaying(true)} aria-label={`Play ${video.title}`}>
+              <img src={`https://i.ytimg.com/vi/${video.youtube_id}/hqdefault.jpg`} alt="" loading="lazy" />
+              <span aria-hidden="true">▶</span>
+            </button>
+          )}
+      </div>
+      <div className="tu-video-foot">
+        <b title={video.title}>{video.title}</b>
+        <a href={`https://www.youtube.com/watch?v=${video.youtube_id}`} target="_blank" rel="noopener noreferrer">YouTube ↗</a>
+      </div>
+    </article>
+  );
+}
+
 /** Short step-by-step guides for every tool on the site. */
 export default function Tutorials() {
-  const { base, site } = useTrader();
+  const { base, site, videos } = useTrader();
   const [open, setOpen] = useState('start');
   return (
     <div className="stack" style={{ gap: 16 }}>
@@ -60,6 +87,11 @@ export default function Tutorials() {
         <h1 style={{ fontSize: 24, fontWeight: 700 }}>Tutorials</h1>
         <span className="hint">How to use {site.name}, one tool at a time.</span>
       </div>
+      {videos.length > 0 && (
+        <section className="tu-videos" aria-label="Videos">
+          {videos.map((v) => <VideoCard key={v.id} video={v} />)}
+        </section>
+      )}
       <div className="tu">
         {GUIDES.map((g, i) => (
           <section key={g.id} className={`tu-item card ${open === g.id ? 'on' : ''}`}>

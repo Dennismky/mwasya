@@ -10,7 +10,7 @@ import { RunPanel } from './RunPanel';
 import { PageBoundary } from '../components/PageBoundary';
 import { useBotEngine } from './botEngine';
 import { AuthProvider, PreviewAuthProvider, useAuth } from '../lib/auth';
-import { reloadTenant, type Announcement, type PublishedBot, type SiteBranding } from '../lib/tenant';
+import { reloadTenant, type Announcement, type PublishedBot, type SiteBranding, type SiteVideo } from '../lib/tenant';
 import { useBotRunner } from '../lib/useBotRunner';
 import { runPnL } from '../lib/autoTrade';
 import Analysis from './Analysis';
@@ -33,6 +33,8 @@ export interface TraderCtx {
   site: SiteBranding;
   bots: PublishedBot[];
   xmlBots: XmlBotLite[];
+  /** The mentor's tutorial videos (YouTube). */
+  videos: SiteVideo[];
   runner: ReturnType<typeof useBotRunner>;
   /** The bot engine lives here so a bot keeps running on every page, and every tool logs to one Journal. */
   bot: ReturnType<typeof useBotEngine>;
@@ -93,6 +95,7 @@ function Shell({ site, initialBots, initialXml, base, preview }: { site: SiteBra
   const [bots, setBots] = useState(initialBots);
   const [xmlBots, setXmlBots] = useState(initialXml);
   const [announcements, setAnnouncements] = useState<Announcement[]>([]);
+  const [videos, setVideos] = useState<SiteVideo[]>([]);
   const [menu, setMenu] = useState(false);
   const [more, setMore] = useState(false);
   const [disclaimer, setDisclaimer] = useState(false);
@@ -156,11 +159,12 @@ function Shell({ site, initialBots, initialXml, base, preview }: { site: SiteBra
     if (!preview) return;
     const id = base.split('/').pop();
     fetch(`/api/sites/${id}/announcements`, { credentials: 'same-origin' }).then((r) => (r.ok ? r.json() : { announcements: [] })).then((j) => setAnnouncements(j.announcements ?? [])).catch(() => undefined);
+    fetch(`/api/sites/${id}/videos`, { credentials: 'same-origin' }).then((r) => (r.ok ? r.json() : { videos: [] })).then((j) => setVideos(j.videos ?? [])).catch(() => undefined);
   }, [preview, base]);
   useEffect(() => {
     if (preview) return; // the studio already passed this site's bots
     const load = () => reloadTenant().then((t) => {
-      if (t.kind === 'site') { setBots(t.bots); setXmlBots(t.xmlBots ?? []); setAnnouncements(t.announcements ?? []); }
+      if (t.kind === 'site') { setBots(t.bots); setXmlBots(t.xmlBots ?? []); setAnnouncements(t.announcements ?? []); setVideos(t.videos ?? []); }
       // The owner was suspended while clients had the site open: reload, and the site only shows its loading screen.
       if (t.kind === 'held') window.location.reload();
     }).catch(() => undefined);
@@ -225,7 +229,7 @@ function Shell({ site, initialBots, initialXml, base, preview }: { site: SiteBra
         {account && !account.isVirtual && (
           <div className="tp-real">You're on your <b>real</b> account. Switch to Demo in the top bar to practise.</div>
         )}
-          <PageBoundary resetKey={location.pathname}><Outlet context={{ site, bots, xmlBots, runner, bot, dark, autoStop, setAutoStop, base, preview } satisfies TraderCtx} /></PageBoundary>
+          <PageBoundary resetKey={location.pathname}><Outlet context={{ site, bots, xmlBots, videos, runner, bot, dark, autoStop, setAutoStop, base, preview } satisfies TraderCtx} /></PageBoundary>
         </div>
         {noPanel ? null : panelOpen
           ? <RunPanel bot={bot} currency={auth.account?.currency ?? 'USD'} onCollapse={() => togglePanel(false)} />
