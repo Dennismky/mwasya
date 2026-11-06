@@ -84,6 +84,14 @@ vercel dev
 
 Open **http://localhost:3000** and click **Log in with Deriv**.
 
+### Local testing tips (Windows)
+- **`vercel dev` fails with `EPERM: operation not permitted, symlink`:** turn on Windows **Developer Mode** (Settings → System → For developers), or run the terminal **as administrator**.
+- **`vercel` is blocked ("running scripts is disabled"):** run `Set-ExecutionPolicy -Scope CurrentUser RemoteSigned` once, or call `vercel.cmd dev`.
+- **The API can't see your settings (`appId: null`):** `vercel dev` reads `.env`, not `.env.local`. Copy it: `Copy-Item .env.local .env` (both are gitignored). Restart `vercel dev` after changing either file.
+- **Open a client site locally:** `http://<subdomain>.localhost:3000` (e.g. `http://statefx.localhost:3000`) opens that mentor's trader site. This only works under `vercel dev`, never on Vercel deployments. Logging in there also needs `http://<subdomain>.localhost:3000/callback` on that site's Deriv app.
+- **Careful:** local and preview use the same database as production unless you create a separate Neon branch for them.
+- The `[vc] PATH TO REGEXP ERROR … :rest*` line at start-up is a harmless warning.
+
 > **Login on localhost:** the Deriv app `34RhH6jeO22uI72af7k8B` must list `http://localhost:3000/callback` as a redirect URI, alongside `https://mwasya.site/callback`. The App ID is public; the session secret and database URL are not, which is why they live only in `.env.local` (gitignored) and in Vercel.
 
 ### Everyday commands
@@ -142,7 +150,6 @@ Then register a Deriv app at https://developers.deriv.com with the **trade** sco
 | `MPESA_TYPE` | server | `paybill` (default) or `till` |
 | `MPESA_PARTY_B` | server | Till number when `MPESA_TYPE=till`; leave empty for a Paybill |
 | `MPESA_CALLBACK_KEY` | server | Long random string. Safaricom calls us back with it, and anything without it is rejected |
-
 | `VERCEL_TOKEN` | server | Vercel access token (scope: this team) so mentors can connect their own domains |
 | `VERCEL_PROJECT_ID` / `VERCEL_TEAM_ID` | server | Values from `.vercel/project.json` (`projectId`, `orgId`) |
 | `DERIV_EARNINGS_SCOPE` | server | `1` once `application_read` is enabled on Mwasya's Deriv app. Studio logins then also read each mentor's markup, so the owner sees every mentor's commission |
@@ -182,9 +189,10 @@ Trader sites don't use these Deriv values. Each operator site logs in with **the
 - **`mwasya.site`**: the operator studio. You get the login card, then the dashboard with Overview, Bot Forge and My site.
 - **`<brand>.mwasya.site`**: that operator's trader site. You get a branded login, then the operator's published bots, which traders run on their own accounts.
 - **Unknown subdomain**: a "No site here yet" page.
+- **Suspended or unpaid mentor (`held`)**: the site only shows its loading screen, says nothing about why, refuses client logins, and checks every 30 seconds so it opens by itself once the owner reactivates the mentor. Clients who had it open are moved to the loading screen within a minute.
 
 ### Deriv login (OAuth 2.0 + PKCE, `trade` scope only)
-1. **Log in with Deriv** builds a PKCE challenge and `state`, then redirects to `auth.deriv.com/oauth2/auth`.
+1. **Sign in** builds a PKCE challenge and `state`, then redirects to `auth.deriv.com/oauth2/auth` with `prompt=login`, so Deriv always shows its email + password screen (another Deriv account already open in that browser is never used by mistake). The optional email box is passed as `login_hint`. Sign up uses `prompt=registration`.
 2. Deriv redirects to `/callback`. The page checks `state`, strips the code from the URL and POSTs it to `/api/auth/token`.
 3. The server exchanges the code for an access token and stores it in an **AES-256-GCM encrypted, HttpOnly, Secure cookie**. The token never reaches browser JavaScript.
 4. `/api/deriv/otp` turns that token into a **one-time WebSocket URL** for the selected account. The browser uses it for balance and trading.
@@ -204,6 +212,33 @@ Bots run on **Deriv's servers** through the `auto_*` API ([docs](https://develop
 - **Stop:** no new trades are bought. A trade that's already open finishes normally. We follow it via `proposal_open_contract` so its result and payout are recorded.
 - **Balance:** combines Deriv's live balance stream, a fresh read every 10 seconds, and a read after every trade. It always shows Deriv's real number.
 
+### Client trading site (what traders get)
+Clients log in with Deriv on `<brand>.mwasya.site` and trade on their own Deriv account (demo or real, picked in the account card).
+- **One market everywhere.** The market a client picks in D-Circles, Charts, Signals, Manual Trader, the price bar or Bot Builder is shared by the whole site ([src/trader/market.ts](src/trader/market.ts)), so a bot always runs on the volatility that was analysed.
+- **Account card:** real / demo accounts with US flags, balances shown in USD or KSh (live USD→KES rate, refreshed every 60 s; trades stay in USD).
+- **Moving price bar:** a chip per market with a live mini chart, the price's last digit in a bubble (green up / red down), change since opening; click a chip to switch the site to that market.
+- **Bot Builder:** Blockly workspace with a blocks menu (Trade parameters … Logic, Maths, Loops, Text, Lists, **Variables**, **Functions**).
+  - Any Deriv Bot XML opens complete: unknown values are kept, if/else-if blocks stay real, extra fields are added, never dropped.
+  - Edits save in the browser automatically ("✓ Saved"); Save downloads a copy.
+  - Bots run in the browser on the client's account, block by block ([src/trader/xmlRunner.ts](src/trader/xmlRunner.ts)).
+- **Quick Bot:**
+  - the mentor's published bots, each with live 0–9 digit percentages (green = most frequent, red = least) and the share of recent ticks it would have won;
+  - **Create your bot:** contract, digit, ticks, entry digit, stake, martingale, max stake, take profit, stop loss, run at once. The engine buys in **one request** (`buy: "1"` with `parameters`), so it catches the tick it waits for ([src/trader/botEngine.ts](src/trader/botEngine.ts)).
+- **Charts:** candles or ticks, indicators, drawings; dragging left loads older history (back to previous days); prices use each market's own decimals.
+- **D-Circles, Signals:** live last-digit statistics; buttons send an Over/Under bot for the same market to Bot Builder.
+- **Daily Plan:** "Use this plan in Bot Builder" opens Quick strategy filled with the plan's stake, take profit and stop loss.
+- **Bell:** the mentor's announcements; a WhatsApp group link shows as a green **Join WhatsApp group** button.
+- **Safety:** "Stop when I leave" stops a bot (after its open trade) when the client leaves the bot pages or the tab; real-account runs always ask first and name the market.
+
+### Mentor tools (studio)
+- **Sites:** build and publish a branded client site. Once it is live and set up, **Your client link** appears with Copy / WhatsApp / Telegram share buttons (clients trading through it earn the mentor markup).
+- **Settings → Website colours:** the site's main colour and the look clients see first (light / dark), with a live preview. Clients see changes within about 30 seconds.
+- **XML Bots:** upload Deriv Bot files, publish them, and choose per site which ones show under Free Bots. The owner can tick **Catalog** to offer a bot to every mentor.
+- **Announcements:** title, message and an optional WhatsApp group link, posted to a site's bell.
+
+### Look and feel
+A soft, Apple-style layer sits at the end of [src/styles.css](src/styles.css) (search `SOFT / APPLE-STYLE REFINEMENT`): system font (San Francisco on Apple devices, Inter elsewhere), soft greys, hairline borders, rounded cards, pill buttons, frosted header bars and thin quiet scrollbars. Its `:root` tokens change the whole light look; dark mode keeps its navy palette with the same shapes. Mentor accent colours are always kept.
+
 ### Operators and the network
 - **Identity:** Deriv exposes no user ID, so an operator is identified by the Deriv accounts they own (`operator_accounts`). Traders who log in on a trader site never become operators.
 - **Tree:** the platform **owner** is the root, and every other operator has a parent.
@@ -213,7 +248,7 @@ Bots run on **Deriv's servers** through the `auto_*` API ([docs](https://develop
 - **Network page** (`/network`): each operator sees everyone below them. The owner sees everyone and can:
   - search
   - open a person's details (accounts, bots, payments, history)
-  - suspend or reactivate them (a suspended operator's site goes offline instantly)
+  - suspend or reactivate them with the **Active / Suspended switch** on each row (a suspended mentor's client site only shows its loading screen until switched back)
   - grant days of access
 - **Make yourself the owner** (one time, after logging in to mwasya.site once):
   ```bash
@@ -282,7 +317,8 @@ src/
   shared/          bot spec + safety validation (browser and API)
   lib/             OAuth, WebSocket client, auto-trading, balance/auth context, tenancy
   components/      app shell (sidebar), run card, UI kit
-  pages/           Login, Overview, Bot Forge, My site, Trader home, Landing (/about)
+  pages/           Login, Overview, Bot Forge, Sites, Network, Billing, Settings, Announcements, XML Bots, Landing (/about)
+  trader/          client trading site: Bot Builder (Blockly), Quick Bot, Charts, D-Circles, Signals, Manual Trader, Daily Plan, price bar
 design/            clickable UI prototype
 ```
 
