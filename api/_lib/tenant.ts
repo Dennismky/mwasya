@@ -49,9 +49,10 @@ export async function resolveTenant(req: VercelRequest): Promise<Tenant> {
   if (isPlatformHost(host)) return { kind: 'platform', host };
   if (!process.env.DATABASE_URL) return { kind: 'unknown', host };
 
-  // <sub>.mwasya.site
-  if (host.endsWith(`.${ROOT_DOMAIN}`)) {
-    const sub = host.slice(0, -(ROOT_DOMAIN.length + 1));
+  // <sub>.mwasya.site — and, for local testing only, <sub>.localhost (browsers send *.localhost to your own computer).
+  const local = host.endsWith('.localhost') && process.env.VERCEL_ENV !== 'production' && process.env.VERCEL_ENV !== 'preview';
+  if (host.endsWith(`.${ROOT_DOMAIN}`) || local) {
+    const sub = local ? host.slice(0, -'.localhost'.length) : host.slice(0, -(ROOT_DOMAIN.length + 1));
     if (sub.includes('.')) return { kind: 'unknown', host };
     const [site] = await query<SiteRow>(`select ${S_COLS} ${LIVE_SITE} and s.subdomain = $1`, [sub]);
     return site ? { kind: 'site', host, site } : { kind: 'unknown', host };
