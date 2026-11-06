@@ -1,4 +1,4 @@
-import { useMemo, useState, type CSSProperties } from 'react';
+import { useEffect, useMemo, useState, type CSSProperties } from 'react';
 import { RunCard } from '../components/RunCard';
 import { Icon } from '../components/ui';
 import { useAuth } from '../lib/auth';
@@ -7,6 +7,8 @@ import { contractLabel, marketLabel, type BotSpec } from '../shared/botSpec';
 import { useTrader } from './TraderApp';
 import { BOT_MARKETS, isBotMarket, useMarket } from './market';
 import { decimalsOf, lastDigit, symbolName, useTicks } from './ticks';
+import { DEFAULT_CONFIG, type BotConfig } from './botEngine';
+import { StrategyFields, contractName, strategyProblems } from './StrategyForm';
 
 // EDIT HERE: how many recent ticks the percentages on each Quick Bot card are worked out from.
 const STATS_TICKS = 1000;
@@ -42,7 +44,7 @@ function describe(spec: BotSpec) {
 
 /** Published Bot Forge bots — Deriv runs them server-side on the client's own account. */
 export default function QuickBot() {
-  const { bots, runner, preview } = useTrader();
+  const { bots, runner, preview, bot: engine, site, autoStop, setAutoStop } = useTrader();
   const auth = useAuth();
   const [error, setError] = useState('');
   const account = auth.account;
@@ -91,6 +93,8 @@ export default function QuickBot() {
         </select>
         <span className="hint">Bots run on this market, the same one you analyse in D-Circles and Charts. Percentages: last {stats.n || STATS_TICKS} ticks, live.</span>
       </section>
+      <CreateBot market={statsMarket} currency={currency} stats={stats} ready={ready} engine={engine} siteKey={site.subdomain} preview={preview} isReal={!!account && !account.isVirtual} autoStop={autoStop} setAutoStop={setAutoStop} />
+
       {runner.conn === 'error' && <p className="error" role="alert">Can't reach your Deriv account: {runner.connError}</p>}
       {error && <p className="error" role="alert">{error}</p>}
 
@@ -157,5 +161,61 @@ export default function QuickBot() {
         </section>
       )}
     </div>
+  );
+}
+
+/**
+ * "Create your bot": the client sets contract, digit, ticks, entry digit, stake, martingale and limits, then runs it at once.
+ * It trades from this browser on the client's own Deriv account, buying in a single request so it catches the tick it waits for.
+ * Results show in the Summary / Transactions / Journal panel.
+ */
+function CreateBot({ market, currency, stats, ready, engine, siteKey, preview, isReal, autoStop, setAutoStop }: {
+  market: string; currency: string; stats: { pct: number[]; n: number; rise: number }; ready: boolean;
+  engine: ReturnType<typeof useTrader>['bot']; siteKey: string; preview: boolean; isReal: boolean; autoStop: boolean; setAutoStop: (on: boolean) => void;
+}) {
+  // EDIT HERE: settings a new client starts with in "Create your bot".
+  const key = `mw_qb_own_${siteKey}`;
+  const [cfg, setCfg] = useState<BotConfig>(() => {
+    try { return { ...DEFAULT_CONFIG, ...JSON.parse(localStorage.getItem(key) ?? '{}'), symbol: market }; } catch { return { ...DEFAULT_CONFIG, symbol: market }; }
+  });
+  const [open, setOpen] = useState(() => localStorage.getItem(`${key}_open`) !== '0');
+  useEffect(() => { setCfg((c) => (c.symbol === market ? c : { ...c, symbol: market })); }, [market]);
+  useEffect(() => { try { localStorage.setItem(key, JSON.stringify(cfg)); } catch { /* storage full */ } }, [cfg, key]);
+  const problems = strategyProblems(cfg);
+  const running = engine.state !== 'idle';
+  const wins = winningDigits(cfg.contract, String(cfg.prediction));
+  const winPct = wins ? stats.pct.reduce((s, p, d) => s + (wins(d) ? p : 0), 0) : cfg.contract === 'CALL' ? stats.rise : 100 - stats.rise;
+  const s = engine.summary;
+
+  const run = () => {
+    if (isReal && !confirm(`Run your bot on your REAL account?\n\nMarket: ${symbolName(cfg.symbol)}\n${contractName(cfg)} · ${cfg.ticks} tick${cfg.ticks === 1 ? '' : 's'} · stake ${cfg.stake} ${currency}\nStops at +${cfg.takeProfit} / −${cfg.stopLoss} ${currency}.`)) return;
+    void engine.run({ ...cfg, symbol: market });
+  };
+  const toggle = () => { setOpen((o) => { localStorage.setItem(`${key}_open`, o ? '0' : '1'); return !o; }); };
+
+  return (
+    <section className={`card qb-create ${running ? 'running' : ''}`} aria-label="Create your bot">
+      <header className="qb-create-head">
+        <div>
+          <h2>⚡ Create your bot</h2>
+          <p className="hint">Your own settings, on {symbolName(market)}. Buys in one request, so it catches the tick you wait for.</p>
+        </div>
+        <button className="btn btn-ghost" onClick={toggle} aria-expanded={open}>{open ? 'Hide settings' : 'Show settings'}</button>
+      </header>
+      {open && <StrategyFields cfg={cfg} setCfg={setCfg} currency={currency} market={false} disabled={running} />}
+      <div className="qb-create-foot">
+        <div className="qb-win"><b className="mono">{ready && stats.n ? `${winPct.toFixed(1)}%` : '…'}</b><span>{contractName(cfg)} · of the last {stats.n || 1000} ticks</span></div>
+        {running && <span className="mono qb-live">{s.runs} runs · <b style={{ color: s.pnl >= 0 ? 'var(--success)' : 'var(--danger)' }}>{s.pnl >= 0 ? '+' : ''}{s.pnl.toFixed(2)} {currency}</b></span>}
+        <label className="bw-autostop" title="Stops after the open trade when you switch browser tab, minimise, lock your phone, or open a page other than the bots.">
+          <input type="checkbox" checked={autoStop} onChange={(e) => setAutoStop(e.target.checked)} />
+          <span className="bw-switch" aria-hidden="true" />Stop when I leave
+        </label>
+        {running
+          ? <button className="bw-run stop" disabled={engine.state === 'stopping'} onClick={engine.stop}>■ {engine.state === 'stopping' ? 'Stopping…' : 'Stop'}</button>
+          : <button className="bw-run" disabled={preview || problems.length > 0} onClick={run} title={problems[0]}>▶ Run my bot</button>}
+      </div>
+      {problems[0] && !running && <p className="error">{problems[0]}</p>}
+      {preview && <p className="hint">Clients run their bot here after logging in.</p>}
+    </section>
   );
 }

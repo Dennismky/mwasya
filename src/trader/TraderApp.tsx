@@ -136,10 +136,10 @@ function Shell({ site, initialBots, initialXml, base, preview }: { site: SiteBra
     document.addEventListener('visibilitychange', onHide);
     return () => document.removeEventListener('visibilitychange', onHide);
   }, [autoStop]);
-  // …and when the client leaves Bot Builder for another tool.
+  // …and when the client leaves the bot pages (Bot Builder / Quick Bot) for another tool.
   useEffect(() => {
-    if (autoStop && !location.pathname.endsWith('/bot-builder') && botRef.current.state === 'running') {
-      botRef.current.log('info', 'You left Bot Builder, so the bot is stopping after its open trade.');
+    if (autoStop && !/\/(bot-builder|quick-bot)$/.test(location.pathname) && botRef.current.state === 'running') {
+      botRef.current.log('info', 'You left the bot pages, so the bot is stopping after its open trade.');
       botRef.current.stop();
     }
   }, [location.pathname, autoStop]);

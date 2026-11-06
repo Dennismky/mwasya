@@ -2124,3 +2124,18 @@ html, body { overflow-x: clip; }
 .nw-switch:disabled { opacity: .6; cursor: wait; }
 .nw-switch:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
 @media (prefers-reduced-motion: reduce) { .nw-switch, .nw-knob, .nw-knob::after { transition: none; } }
+
+/* =================== Quick Bot: Create your bot =================== */
+.sf { border: 0; padding: 0; margin: 0; min-width: 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(min(280px, 100%), 1fr)); gap: 12px; }
+.sf:disabled { opacity: .6; }
+.qb-create { display: flex; flex-direction: column; gap: 14px; border: 1.5px solid color-mix(in srgb, var(--accent, var(--primary)) 35%, transparent); }
+.qb-create.running { box-shadow: 0 0 0 4px color-mix(in srgb, var(--accent, var(--primary)) 14%, transparent); }
+.qb-create-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; flex-wrap: wrap; }
+.qb-create-head h2 { font-size: 19px; font-weight: 800; }
+.qb-create-foot { display: flex; align-items: center; gap: 12px 18px; flex-wrap: wrap; padding-top: 12px; border-top: 1px solid var(--tp-line, var(--border)); }
+.qb-create-foot .qb-win { margin-right: auto; }
+.qb-create-foot .bw-run { min-width: 180px; }
+.qb-live { font-size: 13px; }
+.sf { grid-template-columns: 1fr 1fr; align-items: start; }
+.qs .sf { grid-template-columns: 1fr; }
+@media (max-width: 760px) { .sf { grid-template-columns: 1fr; } }

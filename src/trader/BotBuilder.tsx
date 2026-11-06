@@ -1,29 +1,21 @@
 import { Suspense, lazy, useEffect, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { InfoTip, TIPS } from '../components/InfoTip';
 import { toast } from '../components/motion';
 import { PREVIEW_ACCOUNT_ID, useAuth } from '../lib/auth';
 import { configToXml } from './blocks';
 import type { EditorApi } from './BlockEditor';
 import { DEFAULT_CONFIG, type BotConfig } from './botEngine';
 import { useTrader } from './TraderApp';
-import { SYMBOLS } from './ticks';
 import { parseDerivXml, setXmlSymbol, setXmlVariable, xmlSymbol, type LoadedBot } from './xmlBot';
 import { BOT_MARKETS, isBotMarket, marketOfSymbol, useMarket } from './market';
 import { fetchBotXml, preloadEditor } from './botFiles';
+import { CONTRACTS, Field, StrategyFields, strategyProblems } from './StrategyForm';
 
 const BlockEditor = lazy(() => preloadEditor() as Promise<typeof import('./BlockEditor')>);
 /** The bot always trades the site-wide market (the one the client analyses), when it is a Volatility index. */
 const onMarket = (xml: string, market: string) => (isBotMarket(market) ? setXmlSymbol(xml, market, marketOfSymbol(market)) : xml);
 
-const CONTRACTS: { id: BotConfig['contract']; label: string; digit?: boolean }[] = [
-  { id: 'DIGITOVER', label: 'Over', digit: true }, { id: 'DIGITUNDER', label: 'Under', digit: true },
-  { id: 'DIGITMATCH', label: 'Matches', digit: true }, { id: 'DIGITDIFF', label: 'Differs', digit: true },
-  { id: 'DIGITEVEN', label: 'Even' }, { id: 'DIGITODD', label: 'Odd' },
-  { id: 'CALL', label: 'Rise' }, { id: 'PUT', label: 'Fall' },
-];
 type Meta = Pick<LoadedBot, 'name' | 'params' | 'notes'>;
-const num = (v: string, d = 0) => { const n = Number(v); return Number.isFinite(n) ? n : d; };
 
 /** Bot Builder: blocks menu (left) · toolbar + workspace (centre) · Summary / Transactions / Journal (right) · Run bar. */
 export default function BotBuilder() {
@@ -223,52 +215,13 @@ export default function BotBuilder() {
 /** Quick strategy: four short steps that build a complete block bot. */
 function QuickStrategy({ initial, currency, onClose, onApply }: { initial: BotConfig; currency: string; onClose: () => void; onApply: (c: BotConfig) => void }) {
   const [cfg, setCfg] = useState<BotConfig>(initial);
-  const set = <K extends keyof BotConfig>(k: K, v: BotConfig[K]) => setCfg((c) => ({ ...c, [k]: v }));
-  const isDigit = CONTRACTS.find((c) => c.id === cfg.contract)?.digit ?? false;
-  const addMode = cfg.recoveryMode === 'add';
-  const problems: string[] = [];
-  if (!(cfg.stake >= 0.35)) problems.push('Stake must be at least 0.35');
-  if (cfg.contract === 'DIGITOVER' && cfg.prediction > 8) problems.push('Over needs a digit from 0 to 8');
-  if (cfg.contract === 'DIGITUNDER' && cfg.prediction < 1) problems.push('Under needs a digit from 1 to 9');
-  if (!(cfg.stopLoss > 0)) problems.push('Set a stop loss');
-  if (cfg.recovery && !(cfg.multiplier > 0 && cfg.multiplier <= 5)) problems.push('Recovery factor must be above 0 and at most 5');
+  const problems = strategyProblems(cfg);
   return (
     <div className="cx-wrap" role="dialog" aria-modal="true" aria-label="Quick strategy" onClick={onClose}>
       <div className="cx qs" onClick={(e) => e.stopPropagation()}>
         <header className="cx-head"><h2>⚡ Quick strategy</h2><span className="cx-acct">Builds the blocks for you</span><button className="cx-x" aria-label="Close" onClick={onClose}>✕</button></header>
         <div className="cx-body">
-          <section className="qs-step"><header><span>1</span><b>Market & contract</b></header>
-            <select className="input" value={cfg.symbol} onChange={(e) => set('symbol', e.target.value)} aria-label="Market">
-              {SYMBOLS.filter((s) => /^(1HZ|R_)/.test(s.id)).map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
-            </select>
-            <div className="seg bb-seg">{CONTRACTS.map((c) => <button key={c.id} className={cfg.contract === c.id ? 'on' : ''} onClick={() => set('contract', c.id)}>{c.label}</button>)}</div>
-            {isDigit && <div className="digits">{Array.from({ length: 10 }, (_, d) => <button key={d} className={cfg.prediction === d ? 'on' : ''} onClick={() => set('prediction', d)}>{d}</button>)}</div>}
-            <label className="label">Duration: {cfg.ticks} tick{cfg.ticks === 1 ? '' : 's'} <InfoTip>{TIPS.duration}</InfoTip></label>
-            <input type="range" min={1} max={10} value={cfg.ticks} onChange={(e) => set('ticks', Number(e.target.value))} aria-label="Ticks" />
-          </section>
-          <section className="qs-step"><header><span>2</span><b>Entry</b></header>
-            <label className="bb-check"><input type="checkbox" checked={cfg.entryDigit === null} onChange={(e) => set('entryDigit', e.target.checked ? null : 5)} /> Buy straight away</label>
-            {cfg.entryDigit !== null && <div className="digits">{Array.from({ length: 10 }, (_, d) => <button key={d} className={cfg.entryDigit === d ? 'on' : ''} onClick={() => set('entryDigit', d)}>{d}</button>)}</div>}
-          </section>
-          <section className="qs-step"><header><span>3</span><b>Stake & recovery</b></header>
-            <Field id="qs-stake" label="Initial stake" tip={TIPS.stake} value={cfg.stake} suffix={currency} onChange={(v) => set('stake', num(v))} />
-            <label className="bb-check"><input type="checkbox" checked={cfg.recovery} onChange={(e) => set('recovery', e.target.checked)} /> Raise the stake after a loss</label>
-            {cfg.recovery && (
-              <>
-                <div className="seg"><button className={!addMode ? 'on' : ''} onClick={() => setCfg((c) => ({ ...c, recoveryMode: 'multiply', multiplier: c.multiplier > 1 ? c.multiplier : 2 }))}>Martingale</button><button className={addMode ? 'on' : ''} onClick={() => set('recoveryMode', 'add')}>Add the loss</button></div>
-                <div className="bb-row">
-                  <Field id="qs-mult" label={addMode ? 'Next stake + loss ×' : 'Multiply by'} value={cfg.multiplier} suffix="×" onChange={(v) => set('multiplier', num(v, 2))} />
-                  <Field id="qs-max" label="Max stake" value={cfg.maxStake} suffix={currency} onChange={(v) => set('maxStake', num(v))} />
-                </div>
-              </>
-            )}
-          </section>
-          <section className="qs-step"><header><span>4</span><b>Limits</b></header>
-            <div className="bb-row">
-              <Field id="qs-tp" label="Take profit" tip={TIPS.takeProfit} value={cfg.takeProfit} suffix={currency} onChange={(v) => set('takeProfit', num(v))} />
-              <Field id="qs-sl" label="Stop loss" tip={TIPS.stopLoss} value={cfg.stopLoss} suffix={currency} onChange={(v) => set('stopLoss', num(v))} />
-            </div>
-          </section>
+          <StrategyFields cfg={cfg} setCfg={setCfg} currency={currency} />
           {problems[0] && <p className="error">{problems[0]}</p>}
         </div>
         <footer className="cx-foot"><button className="btn btn-ghost" onClick={onClose}>Cancel</button><button className="cx-primary" style={{ flex: 1, maxWidth: 260 }} disabled={problems.length > 0} onClick={() => onApply(cfg)}>Build my bot</button></footer>
@@ -276,18 +229,3 @@ function QuickStrategy({ initial, currency, onClose, onApply }: { initial: BotCo
     </div>
   );
 }
-
-function Field({ id, label, value, onChange, suffix, tip }: { id: string; label: string; value: number; onChange: (v: string) => void; suffix?: string; tip?: string }) {
-  const [text, setText] = useState(String(value));
-  useEffect(() => { if (Number(text) !== value) setText(String(value)); }, [value]); // eslint-disable-line react-hooks/exhaustive-deps
-  return (
-    <div className="field" style={{ flex: 1, minWidth: 130 }}>
-      <label className="label" htmlFor={id}>{label}{tip && <InfoTip>{tip}</InfoTip>}</label>
-      <div className="input-group">
-        <input id={id} className="input mono" inputMode="decimal" value={text} onChange={(e) => { const v = e.target.value.replace(/[^\d.]/g, ''); setText(v); onChange(v); }} />
-        {suffix && <span className="addon">{suffix}</span>}
-      </div>
-    </div>
-  );
-}
-

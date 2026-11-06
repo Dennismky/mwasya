@@ -85,10 +85,13 @@ export function useBotEngine(accountId: string | undefined, currency: string, on
           await waitForDigit(cfg.symbol, cfg.entryDigit);
           if (stopFlag.current) break;
         }
-        const req: Record<string, unknown> = { proposal: 1, amount: Number(stake.toFixed(2)), basis: 'stake', contract_type: cfg.contract, currency, underlying_symbol: cfg.symbol, duration: cfg.ticks, duration_unit: 't' };
-        if (needsDigit(cfg.contract)) req.barrier = String(cfg.prediction);
-        const p = await s.send<{ proposal: { id: string; ask_price: number; payout: number } }>(req);
-        const b = await s.send<{ buy: { contract_id: number; buy_price: number } }>({ buy: p.proposal.id, price: p.proposal.ask_price });
+        // Speed: buy in ONE request (contract details sent with the buy) instead of asking for a price first. The digit
+        // the client is waiting for is caught on the very next tick. `price` = the stake, so it never pays more.
+        const amount = Number(stake.toFixed(2));
+        const parameters: Record<string, unknown> = { amount, basis: 'stake', contract_type: cfg.contract, currency, underlying_symbol: cfg.symbol, duration: cfg.ticks, duration_unit: 't' };
+        if (needsDigit(cfg.contract)) parameters.barrier = String(cfg.prediction);
+        const b = await s.send<{ buy: { contract_id: number; buy_price: number; payout: number } }>({ buy: '1', price: amount, parameters });
+        const p = { proposal: { payout: b.buy.payout } };
         runs++;
         const id = b.buy.contract_id;
         setTrades((t) => [{ id, type: cfg.contract, stake: b.buy.buy_price, payout: p.proposal.payout, profit: 0, status: 'open' as const, time: Date.now() }, ...t].slice(0, 500));
