@@ -61,7 +61,7 @@ p { margin: 0; }
 .btn-ghost { background: transparent; color: var(--text); }
 .btn-lg { padding: 14px 22px; font-size: 16px; }
 
-.card { border: 1px solid var(--border); border-radius: var(--radius); background: #fff; padding: 28px; box-shadow: var(--shadow); }
+.card { border: 1px solid var(--border); border-radius: var(--radius); background: #fff; padding: var(--card-pad, 28px); box-shadow: var(--shadow); }
 .icon-tile { width: 40px; height: 40px; border-radius: var(--radius-sm); background: var(--primary-tint); display: flex; align-items: center; justify-content: center; color: var(--primary); }
 .badge { display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px; border-radius: 999px; font-size: 12px; font-weight: 600; }
 .badge-blue { background: var(--primary-tint); color: var(--primary); }
@@ -2470,3 +2470,86 @@ h1 { line-height: 1.12; }
 .tp-dark .digit-bar.hot .digit, .tp-dark .digit-bar.cold .digit { color: var(--neon); }
 .digit-bar.hot .bar span, .tp-dark .digit-bar.hot .bar span { background: linear-gradient(180deg, #4DFFA6, #00C766); }
 .digit-bar.cold .bar span, .tp-dark .digit-bar.cold .bar span { background: linear-gradient(180deg, #FF8094, #F0213F); }
+
+/* =====================================================================================================
+   LAPTOP LAYOUT (1001–1599 px wide). Phones and large screens are not affected.
+   Slimmer bars leave more room for pages; cards are tighter and line up in even columns.
+   EDIT HERE: --card-pad is the space inside every card; the 1599px below decides what counts as a laptop.
+   ===================================================================================================== */
+@media (min-width: 1001px) and (max-width: 1599px) {
+  .tp-page, .shell-content { --card-pad: 18px; }
+
+  /* Client site: slimmer bars */
+  .tp .tp-head { padding: 6px 16px; }
+  .tp .tp-nav { padding: 4px 8px; }
+  .tp .tp-tab { padding: 6px 8px; font-size: 13px; }
+  .tp .ticker-track { padding: 3px 0; }
+  .tk-chip { height: 26px; }
+  .tp .tp-foot { padding: 4px 14px; font-size: 12px; }
+  .tp-main.tp-fit { padding: 10px; gap: 10px; }
+  .tp-main.tp-fit.with-panel { grid-template-columns: minmax(0, 1fr) 270px; }
+  .tp-page { padding: 2px 4px 16px; }
+  .tp-page > .stack { gap: 12px !important; }
+  .tp-page h1 { font-size: 21px !important; }
+
+  /* Cards line up in even columns; a single card keeps a normal size */
+  .tp-page .grid { grid-template-columns: repeat(auto-fill, minmax(min(240px, 100%), 1fr)); gap: 12px; }
+  .tp-page .card.stack { gap: 10px !important; }
+
+  /* Dashboard */
+  .tp-dash { grid-template-columns: minmax(0, 1fr) 280px; gap: 12px; }
+  .tp-hero { padding: 20px 18px; }
+  .tp-hero h1 { font-size: 27px !important; }
+  .tp-hero p { margin: 4px auto 12px; }
+  .tp-tiles { max-width: 540px; gap: 8px; }
+  .tp-tile { padding: 10px 8px; gap: 4px; }
+  .tp-tile .hint { font-size: 11.5px; line-height: 1.25; }
+
+  /* Quick Bot */
+  .qb-market { padding: 10px 14px; }
+  .qb-create { gap: 10px; }
+  .qb-create-head h2 { font-size: 17px; }
+  .sf { gap: 10px; }
+  .bot-facts { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; }
+  .bot-facts dd { font-size: 13px; }
+
+  /* D-Circles */
+  .dc { padding: 12px 14px 16px; gap: 8px; }
+  .dc-price { font-size: 28px; }
+  .dc-ring { width: min(56px, 7vw); }
+  .digit-bars { height: 140px; gap: 6px; }
+
+  /* Tutorials, Signals */
+  .tu-videos { grid-template-columns: repeat(auto-fill, minmax(min(210px, 100%), 1fr)); gap: 10px; }
+  .tu-video-foot { padding: 8px 12px; }
+  .tu-head { padding: 12px 16px; }
+  .sd-grid { grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); }
+  .sd-card { padding: 12px; gap: 6px; }
+
+  /* Studio: compact sidebar, so every link fits; even stat tiles */
+  .shell { grid-template-columns: 216px minmax(0, 1fr); }
+  .shell-content { padding: 20px 22px 40px; }
+  .shell-content h1 { font-size: 24px !important; }
+  .shell-content .grid[style*="minmax(min(200px"] { grid-template-columns: repeat(auto-fit, minmax(min(150px, 100%), 1fr)) !important; gap: 12px; }
+  .sidebar { padding: 10px 10px; gap: 6px; }
+  .sidebar-brand { padding: 2px 6px 8px; }
+  .sidebar .side-link { padding: 5px 10px; font-size: 13.5px; }
+  .side-section { padding: 8px 10px 3px; font-size: 10.5px; }
+  .sidebar-foot { padding-top: 4px; gap: 0; }
+  .side-row { padding: 3px 10px; font-size: 13px; }
+  .side-row .row { flex-wrap: nowrap; }
+  .side-row svg { display: none; }
+  .sidebar-foot .side-link svg { display: inline; }
+  .sidebar-legal { font-size: 10.5px; }
+}
+@media (min-width: 1001px) and (max-width: 1599px) {
+  /* Results panel: labels stay on one line at the narrower width */
+  .bw-stats { gap: 8px 2px; padding: 10px 6px; }
+  .bw-stat { min-width: 0; align-items: center; }
+  .bw-stat small { font-size: 10px; white-space: nowrap; letter-spacing: -0.01em; }
+  .bw-stat b { font-size: 12px; }
+  .rp .bw-tabs button { font-size: 13.5px; padding: 11px 0; }
+  /* Create your bot: settings cards flow into two columns with no gaps */
+  .qb-create .sf { display: block; columns: 2; column-gap: 10px; }
+  .qb-create .sf .qs-step { break-inside: avoid; margin: 0 0 10px; }
+}
