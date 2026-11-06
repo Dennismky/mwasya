@@ -159,7 +159,11 @@ function Shell({ site, initialBots, initialXml, base, preview }: { site: SiteBra
   }, [preview, base]);
   useEffect(() => {
     if (preview) return; // the studio already passed this site's bots
-    const load = () => reloadTenant().then((t) => { if (t.kind === 'site') { setBots(t.bots); setXmlBots(t.xmlBots ?? []); setAnnouncements(t.announcements ?? []); } }).catch(() => undefined);
+    const load = () => reloadTenant().then((t) => {
+      if (t.kind === 'site') { setBots(t.bots); setXmlBots(t.xmlBots ?? []); setAnnouncements(t.announcements ?? []); }
+      // The owner was suspended while clients had the site open: reload, and the site only shows its loading screen.
+      if (t.kind === 'held') window.location.reload();
+    }).catch(() => undefined);
     void load();
     const timer = setInterval(() => void load(), 60_000);
     return () => clearInterval(timer);

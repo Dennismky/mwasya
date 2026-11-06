@@ -70,6 +70,23 @@ export default function Network() {
 
   useEffect(() => { if (auth.operator) void load(); }, [load, auth.operator]);
 
+  // Owner's Active / Suspended switch on each row. Suspended: that mentor's client site only shows its loading screen.
+  const [switching, setSwitching] = useState<string | null>(null);
+  const setActive = async (p: Person, active: boolean) => {
+    const name = p.site_name ?? p.subdomain ?? 'this mentor';
+    if (!active && !confirm(`Suspend ${name}?
+
+Their client site will only show a loading screen and they can't make changes until you switch them back on.`)) return;
+    setSwitching(p.id); setError('');
+    try {
+      const r = await fetch(`/api/network/${p.id}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'same-origin', body: JSON.stringify({ action: active ? 'activate' : 'suspend' }) });
+      if (r.status === 401) return auth.expire();
+      if (!r.ok) throw new Error(`Could not ${active ? 'reactivate' : 'suspend'} ${name}.`);
+      setData((d) => d && { ...d, people: d.people.map((x) => (x.id === p.id ? { ...x, status: active ? 'active' : 'suspended' } : x)) });
+      void load();
+    } catch (e) { setError((e as Error).message); } finally { setSwitching(null); }
+  };
+
   if (!auth.operator) return <p className="muted">Log in again to see your network.</p>;
 
   const totalPages = data ? Math.max(1, Math.ceil(data.total / data.pageSize)) : 1;
@@ -131,7 +148,14 @@ export default function Network() {
                   <td className="mono">{p.bots_published}</td>
                   {(billing?.priceKes ?? 0) > 0 && <td className="hint">{p.paid_until && new Date(p.paid_until) > new Date() ? fmtDate(p.paid_until) : <span className="error">Expired</span>}</td>}
                   <td className="hint">{fmtDate(p.created_at)}</td>
-                  <td><span className={`badge ${p.status === 'active' ? 'badge-green' : ''}`} style={p.status === 'suspended' ? { background: 'var(--danger-tint)', color: 'var(--danger)' } : undefined}>{p.status}</span></td>
+                  <td onClick={(e) => isOwner && p.role !== 'owner' && e.stopPropagation()}>
+                    {isOwner && p.role !== 'owner' ? (
+                      <button role="switch" aria-checked={p.status === 'active'} className={`nw-switch ${p.status === 'active' ? 'on' : ''}`} disabled={switching === p.id}
+                        title={p.status === 'active' ? 'Active: click to suspend' : 'Suspended: click to reactivate'} onClick={() => void setActive(p, p.status !== 'active')}>
+                        <span className="nw-knob" aria-hidden="true" /><b>{switching === p.id ? '…' : p.status === 'active' ? 'Active' : 'Suspended'}</b>
+                      </button>
+                    ) : <span className={`badge ${p.status === 'active' ? 'badge-green' : ''}`} style={p.status === 'suspended' ? { background: 'var(--danger-tint)', color: 'var(--danger)' } : undefined}>{p.status}</span>}
+                  </td>
                 </tr>
               ))}
               {data && data.people.length === 0 && (
@@ -272,7 +296,7 @@ function PersonPanel({ id, isOwner, onClose, onChanged }: { id: string; isOwner:
   useEffect(() => { setD(null); load(); }, [load]);
 
   const act = async (action: 'suspend' | 'activate' | 'grant_days', days?: number) => {
-    if (action === 'suspend' && !confirm('Suspend this operator? Their site goes offline immediately and they can no longer make changes.')) return;
+    if (action === 'suspend' && !confirm('Suspend this operator? Their client site will only show a loading screen and they can no longer make changes.')) return;
     setBusy(true);
     const r = await fetch(`/api/network/${id}`, {
       method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'same-origin', body: JSON.stringify({ action, days }),

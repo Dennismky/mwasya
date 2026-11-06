@@ -10,6 +10,7 @@ export interface PublishedBot { id: string; name: string; spec: BotSpec; risk: '
 export type Tenant =
   | { kind: 'platform'; appId: string | null; earningsScope?: boolean }
   | { kind: 'site'; site: SiteBranding; bots: PublishedBot[]; xmlBots?: { id: string; name: string; description: string }[]; announcements?: Announcement[] }
+  | { kind: 'held' } // owner suspended or unpaid: the site only shows its loading screen
   | { kind: 'unknown'; host?: string };
 
 let cached: Promise<Tenant> | undefined;

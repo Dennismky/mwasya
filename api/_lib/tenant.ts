@@ -29,7 +29,8 @@ export function requestHost(req: VercelRequest): string {
   return raw.replace(/:\d+$/, '');
 }
 
-export type Tenant = { kind: 'platform'; host: string } | { kind: 'site'; host: string; site: SiteRow } | { kind: 'unknown'; host: string };
+/** `held`: the site exists but its owner is suspended or unpaid. It is never served; the address just keeps loading. */
+export type Tenant = { kind: 'platform'; host: string } | { kind: 'site'; host: string; site: SiteRow } | { kind: 'held'; host: string } | { kind: 'unknown'; host: string };
 
 /** Hosts that serve the mentor studio itself. */
 export function isPlatformHost(host: string): boolean {
@@ -44,6 +45,12 @@ const LIVE_SITE = `
         or coalesce((select (value->>'price_kes')::numeric from settings where key = 'billing'), 0) <= 0)`;
 const S_COLS = SITE_COLUMNS.split(', ').map((c) => 's.' + c).join(', ');
 
+/** A live site matching `where` exists, but LIVE_SITE refused it: its owner is suspended or has not paid. */
+async function held(where: string, args: unknown[], host: string): Promise<Tenant> {
+  const [row] = await query<{ one: number }>(`select 1 as one from sites s join operators o on o.id = s.operator_id where s.status = 'live' and o.role <> 'owner' and ${where} limit 1`, args);
+  return row ? { kind: 'held', host } : { kind: 'unknown', host };
+}
+
 export async function resolveTenant(req: VercelRequest): Promise<Tenant> {
   const host = requestHost(req);
   if (isPlatformHost(host)) return { kind: 'platform', host };
@@ -55,12 +62,12 @@ export async function resolveTenant(req: VercelRequest): Promise<Tenant> {
     const sub = local ? host.slice(0, -'.localhost'.length) : host.slice(0, -(ROOT_DOMAIN.length + 1));
     if (sub.includes('.')) return { kind: 'unknown', host };
     const [site] = await query<SiteRow>(`select ${S_COLS} ${LIVE_SITE} and s.subdomain = $1`, [sub]);
-    return site ? { kind: 'site', host, site } : { kind: 'unknown', host };
+    return site ? { kind: 'site', host, site } : held('s.subdomain = $1', [sub], host);
   }
 
   // A mentor's own domain (e.g. statefx.pro or trade.brand.com). www.<domain> maps to the same site.
   const bare = host.startsWith('www.') ? host.slice(4) : host;
   const [site] = await query<SiteRow>(
     `select ${S_COLS} ${LIVE_SITE} and s.custom_domain in ($1, $2) and s.domain_status <> 'none' limit 1`, [host, bare]);
-  return site ? { kind: 'site', host, site } : { kind: 'unknown', host };
+  return site ? { kind: 'site', host, site } : held(`s.custom_domain in ($1, $2) and s.domain_status <> 'none'`, [host, bare], host);
 }

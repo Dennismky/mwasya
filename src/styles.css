@@ -2111,3 +2111,16 @@ html, body { overflow-x: clip; }
 .bw .blocklyFlyoutButtonShadow { fill: rgba(11, 31, 58, .18); }
 .bw .blocklyFlyoutButton .blocklyText { fill: #fff !important; }
 .bw .blocklyFlyoutButton:hover .blocklyFlyoutButtonBackground { fill: color-mix(in srgb, var(--accent, #1F4FD1) 82%, #000); }
+
+/* Network: owner's Active / Suspended switch on each row. */
+/* EDIT HERE: colours of the Active (green) and Suspended (red) switch. */
+.nw-switch { display: inline-flex; align-items: center; gap: 8px; padding: 3px 10px 3px 3px; border: 0; border-radius: 99px; cursor: pointer; font: inherit; background: var(--danger-tint, #FDECEC); color: var(--danger, #DC2626); transition: background .2s, color .2s; }
+.nw-switch b { font-size: 12.5px; font-weight: 700; min-width: 66px; text-align: left; }
+.nw-knob { position: relative; width: 34px; height: 20px; border-radius: 99px; background: var(--danger, #DC2626); transition: background .2s; flex: none; }
+.nw-knob::after { content: ""; position: absolute; top: 2px; left: 2px; width: 16px; height: 16px; border-radius: 50%; background: #fff; box-shadow: 0 1px 3px rgba(0, 0, 0, .25); transition: transform .2s; }
+.nw-switch.on { background: var(--success-tint, #E7F7EE); color: var(--success, #16A34A); }
+.nw-switch.on .nw-knob { background: var(--success, #16A34A); }
+.nw-switch.on .nw-knob::after { transform: translateX(14px); }
+.nw-switch:disabled { opacity: .6; cursor: wait; }
+.nw-switch:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
+@media (prefers-reduced-motion: reduce) { .nw-switch, .nw-knob, .nw-knob::after { transition: none; } }

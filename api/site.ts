@@ -19,6 +19,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       // DERIV_EARNINGS_SCOPE=1 once application_read is enabled on Mwasya's Deriv app → studio logins also read markup stats.
       return res.status(200).json({ kind: 'platform', appId: process.env.DERIV_APP_ID ?? process.env.VITE_DERIV_APP_ID ?? null, earningsScope: process.env.DERIV_EARNINGS_SCOPE === '1' });
     }
+    // Suspended / unpaid owner: say nothing about why; the client site just keeps loading.
+    if (t.kind === 'held') {
+      res.setHeader('Cache-Control', 'no-store');
+      return res.status(200).json({ kind: 'held' });
+    }
     if (t.kind === 'unknown') {
       res.setHeader('Cache-Control', 'public, max-age=30');
       return res.status(200).json({ kind: 'unknown', host: t.host });

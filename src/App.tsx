@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { Navigate, Route, Routes } from 'react-router-dom';
 import AppShell from './components/AppShell';
 import { Loader } from './components/Loader';
-import { loadTenant, type Tenant } from './lib/tenant';
+import { loadTenant, reloadTenant, type Tenant } from './lib/tenant';
 import Callback from './pages/Callback';
 import Dashboard from './pages/Dashboard';
 import Forge from './pages/Forge';
@@ -30,8 +30,15 @@ import Settings from './pages/Settings';
 export default function App() {
   const [tenant, setTenant] = useState<Tenant | null>(null);
   useEffect(() => { loadTenant().then(setTenant); }, []);
+  // A held site (owner suspended / unpaid) keeps loading. Check again every 30 s so it opens by itself once reactivated.
+  // EDIT HERE: how often a held site checks whether it has been reactivated.
+  useEffect(() => {
+    if (tenant?.kind !== 'held') return;
+    const t = setInterval(() => { reloadTenant().then((n) => { if (n.kind !== 'held') setTenant(n); }).catch(() => undefined); }, 30_000);
+    return () => clearInterval(t);
+  }, [tenant?.kind]);
 
-  if (!tenant) return <Loader label="Loading" />;
+  if (!tenant || tenant.kind === 'held') return <Loader label="Loading" />;
 
   if (tenant.kind === 'unknown') {
     return (

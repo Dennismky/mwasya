@@ -49,7 +49,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     // Studio logins use Mwasya's app; trader-site logins use the operator's own Deriv app.
     const tenant = await resolveTenant(req);
-    if (tenant.kind === 'unknown') return res.status(404).json({ error: 'unknown_site' });
+    if (tenant.kind === 'unknown' || tenant.kind === 'held') return res.status(404).json({ error: 'unknown_site' });
     const clientId = tenant.kind === 'site' ? tenant.site.deriv_app_id : env('DERIV_APP_ID');
     const redirectUri = tenant.kind === 'site' ? `https://${tenant.host}/callback` : env('DERIV_REDIRECT_URI');
 
