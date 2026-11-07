@@ -2678,3 +2678,16 @@ h1 { line-height: 1.12; }
 .tu-banner.playing .tu-frame { max-height: calc(var(--dvh) * .7); }
 /* Centred, so the floating bell and risk buttons bottom-left never cover the status. */
 @media (max-width: 1000px) { .rp-bar { position: relative; justify-content: center; } .rp-bar-up { position: absolute; right: 12px; margin: 0; } }
+
+/* Floating bell and risk buttons: bottom left by default, stacked just above the bars. Once dragged, they stay where they were put. */
+/* EDIT HERE: default height above the bottom edge on small screens. */
+@media (max-width: 1000px) {
+  .fl-risk:not(.moved) { bottom: 84px !important; }
+  .fl-bell:not(.moved) { bottom: 128px !important; }
+}
+@media (max-width: 700px) {
+  .fl-risk:not(.moved) { bottom: 46px !important; }
+  .fl-bell:not(.moved) { bottom: 90px !important; }
+  .tp:has(.bw-runbar, .qb-create-foot) .fl-risk:not(.moved) { bottom: 98px !important; }
+  .tp:has(.bw-runbar, .qb-create-foot) .fl-bell:not(.moved) { bottom: 142px !important; }
+}

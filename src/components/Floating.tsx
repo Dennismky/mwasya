@@ -8,7 +8,8 @@ import { fitScale } from '../lib/fit';
 export function Floating({ id, start, onTap, label, className = '', children }: {
   id: string; start: { right?: number; left?: number; bottom: number }; onTap: () => void; label: string; className?: string; children: ReactNode;
 }) {
-  const key = `mw_float_${id}`;
+  // v2: saved spots were reset once when the default moved to the bottom left, above the phone bars.
+  const key = `mw_float2_${id}`;
   const el = useRef<HTMLButtonElement>(null);
   const [pos, setPos] = useState<{ x: number; y: number } | null>(() => { try { return JSON.parse(localStorage.getItem(key) ?? 'null'); } catch { return null; } });
   const drag = useRef<{ dx: number; dy: number; sx: number; sy: number; moved: boolean } | null>(null);
@@ -45,7 +46,7 @@ export function Floating({ id, start, onTap, label, className = '', children }: 
 
   const style: React.CSSProperties = pos ? { left: pos.x / fitScale(), top: pos.y / fitScale() } : { right: start.right, left: start.left, bottom: start.bottom };
   return (
-    <button ref={el} className={`fl ${className} ${drag.current?.moved ? 'dragging' : ''}`} style={style} aria-label={label} title={`${label} · drag to move`}
+    <button ref={el} className={`fl ${className} ${pos ? 'moved' : ''} ${drag.current?.moved ? 'dragging' : ''}`} style={style} aria-label={label} title={`${label} · drag to move`}
       onPointerDown={down} onPointerMove={move} onPointerUp={up} onPointerCancel={() => { drag.current = null; }}
       onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onTap(); } }}>
       {children}
