@@ -228,7 +228,7 @@ Clients log in with Deriv on `<brand>.mwasya.site` and trade on their own Deriv 
 - **D-Circles, Signals:** live last-digit statistics; buttons send an Over/Under bot for the same market to Bot Builder.
 - **Daily Plan:** "Use this plan in Bot Builder" opens Quick strategy filled with the plan's stake, take profit and stop loss.
 - **Bell:** the mentor's announcements; a WhatsApp group link shows as a green **Join WhatsApp group** button.
-- **Results card on phones and small screens:** drag its handle down (or tap it) to minimise it into a small draggable status bar: green **Stopped**, red **Bot running**. Tap the bar to reopen the card.
+- **Results card on phones and small screens:** drag its handle down (or tap it) to minimise it into a small draggable status bar: green **Stopped**, red **Bot running**. Tap the bar to reopen the card. It starts minimised there. On phones, Run is a full-width bar docked to the bottom edge, with **Stop when I leave** (Bot Builder and Quick Bot).
 - **Safety:** "Stop when I leave" stops a bot (after its open trade) when the client leaves the bot pages or the tab; real-account runs always ask first and name the market.
 
 ### Mentor tools (studio)

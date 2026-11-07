@@ -118,7 +118,8 @@ function Shell({ site, initialBots, initialXml, base, preview }: { site: SiteBra
   useEffect(() => { whenIdle(() => { void preloadEditor(); void import('./Charts'); }); }, []);
   const runner = useBotRunner(auth.account?.id, auth.expire, auth.refreshBalance);
   const bot = useBotEngine(auth.account?.id, auth.account?.currency ?? 'USD', auth.refreshBalance);
-  const [panelOpen, setPanelOpen] = useState(() => localStorage.getItem('mw_panel') !== '0');
+  // Phones and small screens start with the results card minimised; a client's own choice is remembered.
+  const [panelOpen, setPanelOpen] = useState(() => { const saved = localStorage.getItem('mw_panel'); return saved === null ? window.innerWidth > 1000 : saved !== '0'; });
   const togglePanel = (o: boolean) => { setPanelOpen(o); localStorage.setItem('mw_panel', o ? '1' : '0'); };
   // Daily Plan does not trade, and Manual Trader has its own trade panel on the right (like a trading terminal), so the results panel stays out of the way there.
   const noPanel = /\/(manual|reports|risk)$/.test(location.pathname);
@@ -236,7 +237,7 @@ function Shell({ site, initialBots, initialXml, base, preview }: { site: SiteBra
           : <>
               <button className="rp-open" aria-label="Show results panel" title="Results" onClick={() => togglePanel(true)}>«<span>Results</span></button>
               {/* EDIT HERE: phones and small screens: the minimised results card, a small status bar (green Stopped, red Bot running). */}
-              <Floating id="results" start={{ right: 12, bottom: 96 }} onTap={() => togglePanel(true)} label={bot.state === 'idle' ? 'Open results. Bot stopped' : 'Open results. Bot running'} className={`fl-results ${bot.state === 'idle' ? 'stopped' : 'running'}`}>
+              <Floating id="status" start={{ right: 12, bottom: 60 }} onTap={() => togglePanel(true)} label={bot.state === 'idle' ? 'Open results. Bot stopped' : 'Open results. Bot running'} className={`fl-results ${bot.state === 'idle' ? 'stopped' : 'running'}`}>
                 <span className="fl-res-dot" aria-hidden="true" />
                 <span>{bot.state === 'idle' ? 'Stopped' : 'Bot running'}</span>
               </Floating>

@@ -2648,3 +2648,18 @@ h1 { line-height: 1.12; }
   @keyframes fl-res-pulse { 0% { box-shadow: 0 0 0 0 rgba(255, 255, 255, .8); } 100% { box-shadow: 0 0 0 6px rgba(255, 255, 255, 0); } }
 }
 @media (prefers-reduced-motion: reduce) { .fl-results.running .fl-res-dot { animation: none; } }
+
+/* =================== Phones: Run is a bar docked to the bottom edge, not a floating card =================== */
+/* EDIT HERE: height and colours of the bottom Run bar on phones. */
+@media (max-width: 700px) {
+  .tp .bw-runbar, .tp .qb-create-foot { position: fixed; left: 0; right: 0; bottom: 0; z-index: 60; display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: nowrap;
+    min-height: 52px; margin: 0; padding: 6px 10px calc(6px + env(safe-area-inset-bottom)); border: 0; border-top: 1px solid var(--border); border-radius: 0; background: var(--bg); box-shadow: none; }
+  .tp-dark .bw-runbar, .tp-dark .qb-create-foot { background: #0E1C33; border-top-color: rgba(255, 255, 255, .1); }
+  .bw-runbar .bb-status, .bw-runbar .hint, .qb-create-foot .qb-win, .qb-create-foot .qb-live { display: none; }
+  .tp .bw-autostop { flex: 1 1 auto; min-width: 0; gap: 7px; font-size: 12.5px; white-space: nowrap; }
+  .tp .bw-run, .qb-create-foot .bw-run { flex: 0 0 auto; min-width: 124px; height: 40px; padding: 0 16px; border-radius: 10px; box-shadow: none; font-size: 15px; }
+  .tp-page > .bw { padding-bottom: 8px; }
+  .tp-page { padding-bottom: 150px; }
+}
+/* The page entrance animation would pin the bottom Run bar to the page instead of the screen, so phones skip it. */
+@media (max-width: 700px) { .tp-page > * { animation: none; } }
