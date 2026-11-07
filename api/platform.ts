@@ -11,6 +11,7 @@ import { RESERVED_SUBDOMAINS, ROOT_DOMAIN } from './_lib/tenant.js';
 import { verifyRegistered } from './_lib/domainCheck.js';
 import { burst } from './_lib/burst.js';
 import { youtubeId } from '../src/shared/youtube.js';
+import { checkVideo } from './_lib/youtube.js';
 
 /**
  * One function for the operator platform (keeps us under Vercel's function limit and shares one warm DB pool).
@@ -999,14 +1000,14 @@ async function sitesRoute(req: VercelRequest, res: VercelResponse, rest: string)
     }
     if (req.method === 'POST') {
       if (!(await rateLimit(`videos:${op.id}`, 60, 3600))) return res.status(429).json({ error: 'Too many videos added. Try again later.' });
-      const b = (req.body ?? {}) as { title?: unknown; url?: unknown };
-      const title = typeof b.title === 'string' ? b.title.trim().slice(0, 80) : '';
+      const b = (req.body ?? {}) as { url?: unknown };
       const youtube = typeof b.url === 'string' ? youtubeId(b.url.slice(0, 300)) : null;
-      if (!title) return res.status(422).json({ error: 'Give the video a title.' });
       if (!youtube) return res.status(422).json({ error: 'Paste a YouTube video link.' });
       const [{ n }] = await query<{ n: number }>(`select count(*)::int as n from site_videos where site_id = $1`, [site.id]);
       if (n >= 50) return res.status(409).json({ error: 'This site already has 50 videos. Delete one first.' });
-      const [v] = await query(`insert into site_videos (site_id, operator_id, title, youtube_id) values ($1, $2, $3, $4) returning id, title, youtube_id, created_at`, [site.id, op.id, title, youtube]);
+      const video = await checkVideo(youtube);
+      if (!video.ok) return res.status(422).json({ error: video.error });
+      const [v] = await query(`insert into site_videos (site_id, operator_id, title, youtube_id) values ($1, $2, $3, $4) returning id, title, youtube_id, created_at`, [site.id, op.id, video.title, youtube]);
       await audit(op.id, 'site.video.add', op.id, { siteId: site.id });
       return res.status(201).json({ video: v });
     }

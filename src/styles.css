@@ -2663,3 +2663,13 @@ h1 { line-height: 1.12; }
 }
 /* The page entrance animation would pin the bottom Run bar to the page instead of the screen, so phones skip it. */
 @media (max-width: 700px) { .tp-page > * { animation: none; } }
+
+/* Tutorials: the newest video is a banner showing its YouTube cover; the rest sit in a row beneath it. */
+/* EDIT HERE: banner shape (width / height). It opens to full video size when played. */
+.tu-banner { grid-column: 1 / -1; }
+.tu-banner .tu-frame { aspect-ratio: 3 / 1; }
+.tu-banner.playing .tu-frame { aspect-ratio: 16 / 9; }
+.tu-banner .tu-video-foot b { font-size: 16px; }
+@media (max-width: 700px) { .tu-banner .tu-frame { aspect-ratio: 16 / 9; } }
+.tu-banner .tu-frame { max-height: calc(var(--dvh) * .38); width: 100%; }
+.tu-banner.playing .tu-frame { max-height: calc(var(--dvh) * .7); }

@@ -55,16 +55,19 @@ const GUIDES: Guide[] = [
  * One tutorial video. Shows the thumbnail first and loads YouTube's player only when pressed, so the page stays fast.
  * referrerPolicy is needed because this site sends no referrer by default, and YouTube's player refuses to start without it.
  */
-function VideoCard({ video }: { video: SiteVideo }) {
+function VideoCard({ video, banner }: { video: SiteVideo; banner: boolean }) {
   const [playing, setPlaying] = useState(false);
+  // The banner uses YouTube's large cover. Videos without one get a 120px grey placeholder, not an error, so that size also falls back.
+  const [cover, setCover] = useState(banner ? 'maxresdefault' : 'hqdefault');
   return (
-    <article className="tu-video card">
+    <article className={`tu-video card ${banner ? 'tu-banner' : ''} ${playing ? 'playing' : ''}`}>
       <div className="tu-frame">
         {playing
           ? <iframe src={`https://www.youtube-nocookie.com/embed/${video.youtube_id}?autoplay=1&rel=0`} title={video.title} allow="autoplay; encrypted-media; picture-in-picture; fullscreen" allowFullScreen referrerPolicy="strict-origin-when-cross-origin" />
           : (
             <button className="tu-play" onClick={() => setPlaying(true)} aria-label={`Play ${video.title}`}>
-              <img src={`https://i.ytimg.com/vi/${video.youtube_id}/hqdefault.jpg`} alt="" loading="lazy" />
+              <img src={`https://i.ytimg.com/vi/${video.youtube_id}/${cover}.jpg`} alt="" onError={() => setCover('hqdefault')}
+                onLoad={(e) => { if (cover !== 'hqdefault' && e.currentTarget.naturalWidth <= 120) setCover('hqdefault'); }} />
               <span aria-hidden="true">▶</span>
             </button>
           )}
@@ -89,7 +92,7 @@ export default function Tutorials() {
       </div>
       {videos.length > 0 && (
         <section className="tu-videos" aria-label="Videos">
-          {videos.map((v) => <VideoCard key={v.id} video={v} />)}
+          {videos.map((v, i) => <VideoCard key={v.id} video={v} banner={i === 0} />)}
         </section>
       )}
       <div className="tu">

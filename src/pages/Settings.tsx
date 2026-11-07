@@ -201,7 +201,6 @@ function TutorialVideos() {
   const [id, setId] = useState('');
   const [videos, setVideos] = useState<VideoRow[] | null>(null);
   const [url, setUrl] = useState('');
-  const [title, setTitle] = useState('');
   const [over, setOver] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
@@ -230,15 +229,14 @@ function TutorialVideos() {
     else setError(e.dataTransfer.files.length ? 'Video files are not uploaded here. Put the video on YouTube, then drag or paste its link.' : 'That is not a YouTube video link.');
   };
   const add = async () => {
-    if (!title.trim()) return setError('Give the video a title.');
     if (!preview) return setError('Paste a YouTube video link.');
     setBusy(true); setError('');
     try {
-      const r = await fetch(`/api/sites/${id}/videos`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'same-origin', body: JSON.stringify({ title, url }) });
+      const r = await fetch(`/api/sites/${id}/videos`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'same-origin', body: JSON.stringify({ url }) });
       const j = await r.json().catch(() => ({}));
       if (!r.ok) throw new Error(j.error ?? 'Could not add the video. Try again.');
       setVideos((v) => [j.video, ...(v ?? [])]);
-      setUrl(''); setTitle('');
+      setUrl('');
       toast('Video added to Tutorials');
     } catch (e) { setError((e as Error).message); } finally { setBusy(false); }
   };
@@ -254,7 +252,7 @@ function TutorialVideos() {
       <div className="row" style={{ justifyContent: 'space-between', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
         <div className="stack" style={{ gap: 2 }}>
           <h2 style={{ fontSize: 18, fontWeight: 600 }}>Tutorial videos</h2>
-          <span className="hint">Videos appear at the top of Tutorials on your client site. Upload to YouTube first (Unlisted works).</span>
+          <span className="hint">Paste a YouTube link. It shows as a banner at the top of Tutorials on your client site, with the video's own cover and title.</span>
         </div>
         {sites && sites.length > 1 && (
           <select className="input" style={{ width: 'auto' }} value={id} onChange={(e) => setId(e.target.value)} aria-label="Website">
@@ -266,13 +264,10 @@ function TutorialVideos() {
         {preview
           ? <img src={`https://i.ytimg.com/vi/${preview}/mqdefault.jpg`} alt="" />
           : <span className="tv-drop-ico" aria-hidden="true">▶</span>}
-        <div className="stack" style={{ gap: 8, flex: 1, minWidth: 0 }}>
-          <input className="input" type="url" inputMode="url" maxLength={300} placeholder="Drag or paste a YouTube link" value={url} onChange={(e) => setUrl(e.target.value)} aria-label="YouTube link" />
-          <input className="input" maxLength={80} placeholder="Title, e.g. How to use Over 3" value={title} onChange={(e) => setTitle(e.target.value)} aria-label="Video title" />
-        </div>
+        <input className="input" style={{ flex: 1, minWidth: 0 }} type="url" inputMode="url" maxLength={300} placeholder="https://youtu.be/…" value={url} onChange={(e) => { setUrl(e.target.value); setError(''); }} aria-label="YouTube link" />
       </div>
       {error && <p className="error" role="alert">{error}</p>}
-      <button className="btn btn-primary" style={{ alignSelf: 'flex-start' }} disabled={busy || !id || !preview || !title.trim()} onClick={() => void add()}>{busy ? 'Adding…' : 'Add to Tutorials'}</button>
+      <button className="btn btn-primary" style={{ alignSelf: 'flex-start' }} disabled={busy || !id || !preview} onClick={() => void add()}>{busy ? 'Adding…' : 'Add to Tutorials'}</button>
       {videos === null ? <p className="hint">Loading videos…</p> : videos.length > 0 && (
         <ul className="tv-list">
           {videos.map((v) => (
