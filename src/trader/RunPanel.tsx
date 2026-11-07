@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import type { useBotEngine } from './botEngine';
 
 type Engine = ReturnType<typeof useBotEngine>;
@@ -9,8 +9,25 @@ export function RunPanel({ bot, currency, onCollapse }: { bot: Engine; currency:
   const [tab, setTab] = useState<Tab>('summary');
   const s = bot.summary;
   const running = bot.state !== 'idle';
+  // Phones: drag the handle down (or tap it) to minimise the card into the floating Results button.
+  // EDIT HERE: how far (px) the card must be dragged down before it minimises.
+  const MINIMISE_AFTER = 70, TAP = 6;
+  const sheet = useRef<HTMLElement>(null);
+  const drag = useRef<{ y: number; dy: number } | null>(null);
+  const place = (dy: number) => { if (sheet.current) sheet.current.style.transform = dy ? `translateY(${dy}px)` : ''; };
+  const gripDown = (e: React.PointerEvent<HTMLButtonElement>) => { e.currentTarget.setPointerCapture(e.pointerId); drag.current = { y: e.clientY, dy: 0 }; };
+  const gripMove = (e: React.PointerEvent) => { const d = drag.current; if (!d) return; d.dy = Math.max(0, e.clientY - d.y); place(d.dy); };
+  const gripUp = () => {
+    const d = drag.current;
+    drag.current = null;
+    if (!d) return;
+    place(0);
+    if (d.dy >= MINIMISE_AFTER || d.dy < TAP) onCollapse();
+  };
   return (
-    <aside className="rp" aria-label="Results">
+    <aside className="rp" aria-label="Results" ref={sheet}>
+      <button className="rp-grip" aria-label="Minimise results" title="Drag down or tap to minimise" onPointerDown={gripDown} onPointerMove={gripMove} onPointerUp={gripUp}
+        onPointerCancel={() => { drag.current = null; place(0); }} onClick={(e) => { if (e.detail === 0) onCollapse(); }}><span aria-hidden="true" /></button>
       <button className="rp-collapse" aria-label="Hide results panel" title="Hide" onClick={onCollapse}>»</button>
       <div className="bw-tabs" role="tablist">
         {(['summary', 'transactions', 'journal'] as const).map((p) => (

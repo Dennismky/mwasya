@@ -233,7 +233,14 @@ function Shell({ site, initialBots, initialXml, base, preview }: { site: SiteBra
         </div>
         {noPanel ? null : panelOpen
           ? <RunPanel bot={bot} currency={auth.account?.currency ?? 'USD'} onCollapse={() => togglePanel(false)} />
-          : <button className="rp-open" aria-label="Show results panel" title="Results" onClick={() => togglePanel(true)}>«<span>Results</span></button>}
+          : <>
+              <button className="rp-open" aria-label="Show results panel" title="Results" onClick={() => togglePanel(true)}>«<span>Results</span></button>
+              {/* EDIT HERE: phones: the minimised results card. Green when stopped, red with live profit/loss while a bot runs. */}
+              <Floating id="results" start={{ right: 12, bottom: 96 }} onTap={() => togglePanel(true)} label={bot.state === 'idle' ? 'Open results. Bot stopped' : 'Open results. Bot running'} className={`fl-results ${bot.state === 'idle' ? 'stopped' : 'running'}`}>
+                <span className="fl-res-dot" aria-hidden="true" />
+                <span className="mono">{bot.state === 'idle' ? 'Results' : `${bot.summary.pnl >= 0 ? '+' : '-'}${Math.abs(bot.summary.pnl).toFixed(2)}`}</span>
+              </Floating>
+            </>}
       </main>
       <ToTop target=".tp-page" />
 
