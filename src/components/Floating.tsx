@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { fitScale } from '../lib/fit';
 
 /**
  * A floating button the client can drag anywhere. A short tap still works as a click.
@@ -42,7 +43,7 @@ export function Floating({ id, start, onTap, label, className = '', children }: 
     if (d?.moved) { if (pos) localStorage.setItem(key, JSON.stringify(pos)); } else onTap();
   };
 
-  const style: React.CSSProperties = pos ? { left: pos.x, top: pos.y } : { right: start.right, left: start.left, bottom: start.bottom };
+  const style: React.CSSProperties = pos ? { left: pos.x / fitScale(), top: pos.y / fitScale() } : { right: start.right, left: start.left, bottom: start.bottom };
   return (
     <button ref={el} className={`fl ${className} ${drag.current?.moved ? 'dragging' : ''}`} style={style} aria-label={label} title={`${label} · drag to move`}
       onPointerDown={down} onPointerMove={move} onPointerUp={up} onPointerCancel={() => { drag.current = null; }}

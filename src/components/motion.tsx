@@ -1,3 +1,4 @@
+import { fitScale } from '../lib/fit';
 import { useEffect, useRef, useState, type CSSProperties, type ReactNode, type RefObject } from 'react';
 import { useLocation } from 'react-router-dom';
 
@@ -54,8 +55,8 @@ export function useSpotlight() {
       const el = (e.target as HTMLElement | null)?.closest?.('.spot') as HTMLElement | null;
       if (!el) return;
       const r = el.getBoundingClientRect();
-      el.style.setProperty('--mx', `${e.clientX - r.left}px`);
-      el.style.setProperty('--my', `${e.clientY - r.top}px`);
+      el.style.setProperty('--mx', `${(e.clientX - r.left) / fitScale()}px`);
+      el.style.setProperty('--my', `${(e.clientY - r.top) / fitScale()}px`);
     };
     document.addEventListener('pointermove', move, { passive: true });
     return () => document.removeEventListener('pointermove', move);

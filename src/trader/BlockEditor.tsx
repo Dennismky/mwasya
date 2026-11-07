@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import * as Blockly from 'blockly';
 import { MENU, OpenDropdown, defineMwasyaBlocks } from './blocks';
 import { marketOfSymbol } from './market';
+import { fitScale } from '../lib/fit';
 
 /**
  * Shows a Deriv Bot XML file as its real blocks, exactly as it was built, and lets the client edit it.
@@ -167,7 +168,8 @@ export function untangle(ws: Blockly.WorkspaceSvg): boolean {
 const MIN_OPEN_SCALE = 0.72, MAX_OPEN_SCALE = 0.95;
 export function showStart(ws: Blockly.WorkspaceSvg) {
   ws.zoomToFit();
-  ws.setScale(Math.min(MAX_OPEN_SCALE, Math.max(ws.getScale(), window.innerWidth < 700 ? 0.6 : MIN_OPEN_SCALE)));
+  const fit = fitScale(); // blocks follow the site's scale, so they don't look oversized next to everything else
+  ws.setScale(Math.min(MAX_OPEN_SCALE * fit, Math.max(ws.getScale(), (window.innerWidth < 700 ? 0.6 : MIN_OPEN_SCALE) * fit)));
   const c = ws.getMetricsManager().getContentMetrics();
   const v = ws.getMetricsManager().getViewMetrics();
   if (c.width <= v.width && c.height <= v.height) { ws.scrollCenter(); return; }
@@ -198,7 +200,7 @@ export default function BlockEditor({ xml, onChange, locked, onReady }: {
       const dark = !!el.closest('.tp-dark');
       workspace = Blockly.inject(el, {
         trashcan: true, sounds: false, renderer: 'zelos', move: { scrollbars: true, drag: true, wheel: true },
-        zoom: { controls: false, wheel: true, startScale: 0.85, maxScale: 2, minScale: 0.3 },
+        zoom: { controls: false, wheel: true, startScale: 0.85 * fitScale(), maxScale: 2, minScale: 0.3 },
         grid: { spacing: 24, length: 2, colour: dark ? '#263041' : '#E3E7EE', snap: true },
         toolbox: {
           kind: 'categoryToolbox',

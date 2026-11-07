@@ -4,6 +4,9 @@ import { BrowserRouter } from 'react-router-dom';
 import App from './App';
 import { RouteBar, Spotlight, Toaster } from './components/motion';
 import './styles.css';
+import { startFit } from './lib/fit';
+
+startFit();
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>

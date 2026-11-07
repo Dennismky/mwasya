@@ -242,6 +242,8 @@ A soft, Apple-style layer sits at the end of [src/styles.css](src/styles.css) (s
 
 Laptops (1001–1599 px wide) get a compact layout at the end of the same file (search `LAPTOP LAYOUT`): slimmer bars, tighter cards in even columns, and a sidebar that fits every link. Phones and larger screens are not affected. Short laptop screens (display scaling at 125–150% leaves 550–700 px of height) get a compact login card and a Bot Builder that keeps Run on screen (search `SHORT LAPTOP SCREENS`).
 
+**Fit to screen:** on desktop-sized windows, [src/lib/fit.ts](src/lib/fit.ts) scales the whole site to the screen (design size 1440×820, never above 100%), so laptops with Windows display scaling look like a desktop instead of showing a cramped enlarged layout. The chart and blocks workspace stay at true size inside the scaled page, because those libraries do their own mouse maths; use `var(--dvh)` for full-screen heights and divide mouse positions by `fitScale()`. Phones and tablets keep their own layouts.
+
 ### Operators and the network
 - **Identity:** Deriv exposes no user ID, so an operator is identified by the Deriv accounts they own (`operator_accounts`). Traders who log in on a trader site never become operators.
 - **Tree:** the platform **owner** is the root, and every other operator has a parent.

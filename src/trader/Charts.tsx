@@ -8,6 +8,7 @@ import { useTrader } from './TraderApp';
 import { SYMBOLS, decimalsOf, lastDigit, useTicks } from './ticks';
 import { CATEGORIES, INDICATORS, byId, type Bar, type Category } from './indicators';
 import { useMarket } from './market';
+import { fitScale } from '../lib/fit';
 
 type Mode = 'ticks' | 'candles';
 type Pop = 'type' | 'frame' | null;
@@ -40,6 +41,8 @@ const t = (s: number) => s as UTCTimestamp;
 /** Price with exactly the market's decimals, so the last digit always shows (V100 1s: 2, V10: 3, V50: 4). */
 const fmtD = (v: number, d: number) => v.toLocaleString('en-US', { minimumFractionDigits: d, maximumFractionDigits: d });
 // EDIT HERE: how much older history loads each time the client drags the chart to the left, and the most kept in memory.
+/** Chart text follows the site's scale (the chart itself stays at true size for accurate mouse positions). */
+const chartFont = () => Math.max(10, Math.round(12 * fitScale()));
 const OLDER_CANDLES = 1000, OLDER_TICKS = 2000, MAX_BARS = 40_000;
 
 /** A trade line drawn across the chart (entry, barrier, range…). Colour may be a CSS value such as "var(--primary)". */
@@ -132,14 +135,16 @@ export function ChartView({ symbol: extSymbol, onSymbol, lines = [], defaultMode
     if (!el) return;
     const chart = createChart(el, {
       autoSize: true,
-      layout: { background: { type: ColorType.Solid, color: theme.bg }, textColor: theme.text, fontSize: 12, fontFamily: 'Inter, system-ui, sans-serif', panes: { separatorColor: theme.grid } },
+      layout: { background: { type: ColorType.Solid, color: theme.bg }, textColor: theme.text, fontSize: chartFont(), fontFamily: 'Inter, system-ui, sans-serif', panes: { separatorColor: theme.grid } },
       grid: { vertLines: { color: theme.grid }, horzLines: { color: theme.grid } },
       crosshair: { mode: CrosshairMode.Normal },
       rightPriceScale: { borderVisible: false, scaleMargins: { top: 0.18, bottom: 0.12 } },
       timeScale: { borderVisible: false, timeVisible: true, secondsVisible: true, rightOffset: 8 },
     });
     chartRef.current = chart;
-    return () => { chartRef.current = null; chart.remove(); };
+    const onFit = () => chart.applyOptions({ layout: { fontSize: chartFont() } });
+    window.addEventListener('fitchange', onFit);
+    return () => { window.removeEventListener('fitchange', onFit); chartRef.current = null; chart.remove(); };
   }, [dark]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Data: history + live stream from Deriv's public feed.

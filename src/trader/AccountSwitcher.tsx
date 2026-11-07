@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, type CSSProperties } from 'react';
 import { createPortal } from 'react-dom';
 import { useAuth } from '../lib/auth';
+import { fitScale } from '../lib/fit';
 import type { Account } from '../lib/accounts';
 import { parseAmount, setDisplayCur, showMoney, useDisplayCurrency } from '../lib/fx';
 
@@ -95,7 +96,7 @@ export function AccountSwitcher({ preview, onResetDemo }: { preview: boolean; on
         // site root's classes and colour variables so the site's colours and dark mode still apply.
         <div className={`${root?.className ?? ''} as-root`} style={rootStyle} data-theme={root?.dataset.theme}>
         <div className="as-overlay" onMouseDown={() => setOpen(false)}>
-        <div className="as-panel as-float" role="dialog" aria-label="Deriv accounts" style={{ top: pos.top, right: pos.right }} onMouseDown={(e) => e.stopPropagation()}>
+        <div className="as-panel as-float" role="dialog" aria-label="Deriv accounts" style={{ top: pos.top / fitScale(), right: pos.right / fitScale() }} onMouseDown={(e) => e.stopPropagation()}>
           <div className="as-tabs" role="tablist">
             <button role="tab" aria-selected={tab === 'real'} className={tab === 'real' ? 'on' : ''} onClick={() => setTab('real')}>Real</button>
             <button role="tab" aria-selected={tab === 'demo'} className={tab === 'demo' ? 'on' : ''} onClick={() => setTab('demo')}>Demo</button>
