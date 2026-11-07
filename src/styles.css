@@ -2634,20 +2634,21 @@ h1 { line-height: 1.12; }
 }
 
 /* =================== Phones and small screens: results card minimises to a small status bar =================== */
-.rp-grip, .fl-results { display: none; }
+.rp-grip, .rp-bar { display: none; }
 @media (max-width: 1000px) {
   .rp-open, .rp-collapse { display: none; }
   .rp-grip { flex: none; display: grid; place-items: center; width: 100%; height: 26px; padding: 0; border: 0; background: none; cursor: grab; touch-action: none; }
   .rp-grip span { width: 44px; height: 5px; border-radius: 99px; background: var(--border-strong); }
-  /* EDIT HERE: button colours: green when stopped, red while a bot runs. */
-  .fl-results { display: inline-flex; gap: 6px; height: 28px; padding: 0 11px; border-radius: 99px; color: #fff; font-size: 12px; font-weight: 600; white-space: nowrap; }
-  .fl-results.stopped { background: #16A34A; box-shadow: 0 8px 20px rgba(22, 163, 74, .4); }
-  .fl-results.running { background: #DC2626; box-shadow: 0 8px 20px rgba(220, 38, 38, .45); }
-  .fl-res-dot { width: 7px; height: 7px; border-radius: 50%; background: #fff; }
-  .fl-results.running .fl-res-dot { animation: fl-res-pulse 1.2s ease-out infinite; }
-  @keyframes fl-res-pulse { 0% { box-shadow: 0 0 0 0 rgba(255, 255, 255, .8); } 100% { box-shadow: 0 0 0 6px rgba(255, 255, 255, 0); } }
+  /* EDIT HERE: the slim status bar in the page: green when stopped, red while a bot runs. */
+  .rp-bar { flex: none; display: flex; align-items: center; gap: 7px; width: 100%; height: 30px; padding: 0 12px; border: 0; border-radius: 8px; color: #fff; font: inherit; font-size: 12.5px; font-weight: 600; cursor: pointer; }
+  .rp-bar.stopped { background: #16A34A; }
+  .rp-bar.running { background: #DC2626; }
+  .rp-bar-dot { width: 7px; height: 7px; border-radius: 50%; background: #fff; }
+  .rp-bar.running .rp-bar-dot { animation: rp-bar-pulse 1.2s ease-out infinite; }
+  .rp-bar-up { margin-left: auto; font-size: 13px; }
+  @keyframes rp-bar-pulse { 0% { box-shadow: 0 0 0 0 rgba(255, 255, 255, .8); } 100% { box-shadow: 0 0 0 6px rgba(255, 255, 255, 0); } }
 }
-@media (prefers-reduced-motion: reduce) { .fl-results.running .fl-res-dot { animation: none; } }
+@media (prefers-reduced-motion: reduce) { .rp-bar.running .rp-bar-dot { animation: none; } }
 
 /* =================== Phones: Run is a bar docked to the bottom edge, not a floating card =================== */
 /* EDIT HERE: height and colours of the bottom Run bar on phones. */
@@ -2659,7 +2660,9 @@ h1 { line-height: 1.12; }
   .tp .bw-autostop { flex: 1 1 auto; min-width: 0; gap: 7px; font-size: 12.5px; white-space: nowrap; }
   .tp .bw-run, .qb-create-foot .bw-run { flex: 0 0 auto; min-width: 124px; height: 40px; padding: 0 16px; border-radius: 10px; box-shadow: none; font-size: 15px; }
   .tp-page > .bw { padding-bottom: 8px; }
-  .tp-page { padding-bottom: 150px; }
+  .tp-page { padding-bottom: 96px; }
+  /* Room for the Run bar, so the status bar sits just above it. */
+  .tp-main.tp-fit:has(.bw-runbar, .qb-create-foot) { padding-bottom: 60px; }
 }
 /* The page entrance animation would pin the bottom Run bar to the page instead of the screen, so phones skip it. */
 @media (max-width: 700px) { .tp-page > * { animation: none; } }
@@ -2673,3 +2676,5 @@ h1 { line-height: 1.12; }
 @media (max-width: 700px) { .tu-banner .tu-frame { aspect-ratio: 16 / 9; } }
 .tu-banner .tu-frame { max-height: calc(var(--dvh) * .38); width: 100%; }
 .tu-banner.playing .tu-frame { max-height: calc(var(--dvh) * .7); }
+/* Centred, so the floating bell and risk buttons bottom-left never cover the status. */
+@media (max-width: 1000px) { .rp-bar { position: relative; justify-content: center; } .rp-bar-up { position: absolute; right: 12px; margin: 0; } }

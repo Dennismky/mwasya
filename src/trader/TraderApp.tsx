@@ -236,11 +236,12 @@ function Shell({ site, initialBots, initialXml, base, preview }: { site: SiteBra
           ? <RunPanel bot={bot} currency={auth.account?.currency ?? 'USD'} onCollapse={() => togglePanel(false)} />
           : <>
               <button className="rp-open" aria-label="Show results panel" title="Results" onClick={() => togglePanel(true)}>«<span>Results</span></button>
-              {/* EDIT HERE: phones and small screens: the minimised results card, a small status bar (green Stopped, red Bot running). */}
-              <Floating id="status" start={{ right: 12, bottom: 60 }} onTap={() => togglePanel(true)} label={bot.state === 'idle' ? 'Open results. Bot stopped' : 'Open results. Bot running'} className={`fl-results ${bot.state === 'idle' ? 'stopped' : 'running'}`}>
-                <span className="fl-res-dot" aria-hidden="true" />
+              {/* EDIT HERE: phones and small screens: the minimised results card, a slim bar in the page (green Stopped, red Bot running). */}
+              <button className={`rp-bar ${bot.state === 'idle' ? 'stopped' : 'running'}`} aria-label={bot.state === 'idle' ? 'Open results. Bot stopped' : 'Open results. Bot running'} onClick={() => togglePanel(true)}>
+                <span className="rp-bar-dot" aria-hidden="true" />
                 <span>{bot.state === 'idle' ? 'Stopped' : 'Bot running'}</span>
-              </Floating>
+                <span className="rp-bar-up" aria-hidden="true">▴</span>
+              </button>
             </>}
       </main>
       <ToTop target=".tp-page" />
